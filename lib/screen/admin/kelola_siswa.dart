@@ -9,6 +9,18 @@ class KelolaSiswaScreen extends StatefulWidget {
 }
 
 class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  Color _getColorForIndex(int index) {
+    final colors = [
+      Color(0xFF6366F1),
+      Color(0xFF10B981),
+      Color(0xFFF59E0B),
+      Color(0xFFEF4444),
+      Color(0xFF8B5CF6),
+      Color(0xFF06B6D4),
+    ];
+    return colors[index % colors.length];
+  }
   List<dynamic> _siswa = [];
   List<dynamic> _daftarKelas = [];
   bool _isLoading = true;
@@ -279,59 +291,168 @@ class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
     }
 
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: Text('Kelola Siswa'),
+        title: Text(
+          'Kelola Siswa',
+          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+        ),
+        backgroundColor: Color(0xFF4F46E5),
+        elevation: 0,
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadData,
             tooltip: 'Refresh',
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: _siswa.length,
-        itemBuilder: (context, index) {
-          final siswa = _siswa[index];
-          return Card(
-            margin: EdgeInsets.all(8),
-            child: ListTile(
-              leading: CircleAvatar(
-                child: Text(
-                  siswa['nama'] != null && siswa['nama'].isNotEmpty
-                      ? siswa['nama'][0]
-                      : '?',
+      body: Column(
+        children: [
+          Container(
+            margin: EdgeInsets.all(16),
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
                 ),
-              ),
-              title: Text(siswa['nama'] ?? 'Nama tidak tersedia'),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Kelas: ${siswa['kelas_nama'] ?? 'Tidak ada'}'),
-                ],
-              ),
-              trailing: PopupMenuButton(
-                itemBuilder: (context) => [
-                  PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem(value: 'delete', child: Text('Hapus')),
-                ],
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    _showSiswaDialog(siswa: siswa);
-                  } else if (value == 'delete') {
-                    _hapusSiswa(siswa);
-                  }
-                },
-              ),
+              ],
             ),
-          );
-        },
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Cari siswa...',
+                prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
+                border: InputBorder.none,
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, size: 20),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+              ),
+              onChanged: (value) => setState(() {}),
+            ),
+          ),
+          Expanded(
+            child: _siswa.where((siswa) {
+              final searchTerm = _searchController.text.toLowerCase();
+              return searchTerm.isEmpty ||
+                  siswa['nama'].toLowerCase().contains(searchTerm) ||
+                  (siswa['nis']?.toLowerCase().contains(searchTerm) ?? false);
+            }).isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.people_outline,
+                          size: 80,
+                          color: Colors.grey.shade300,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Tidak ada siswa',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          _searchController.text.isEmpty
+                              ? 'Tap + untuk menambah siswa'
+                              : 'Tidak ditemukan hasil pencarian',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.all(16),
+                    itemCount: _siswa.where((siswa) {
+                      final searchTerm = _searchController.text.toLowerCase();
+                      return searchTerm.isEmpty ||
+                          siswa['nama'].toLowerCase().contains(searchTerm) ||
+                          (siswa['nis']?.toLowerCase().contains(searchTerm) ?? false);
+                    }).length,
+                    itemBuilder: (context, index) {
+                      final filteredList = _siswa.where((siswa) {
+                        final searchTerm = _searchController.text.toLowerCase();
+                        return searchTerm.isEmpty ||
+                            siswa['nama'].toLowerCase().contains(searchTerm) ||
+                            (siswa['nis']?.toLowerCase().contains(searchTerm) ?? false);
+                      }).toList();
+
+                      final siswa = filteredList[index];
+                      final color = _getColorForIndex(index);
+
+                      return Container(
+                        margin: EdgeInsets.only(bottom: 12),
+                        child: Material(
+                          elevation: 2,
+                          borderRadius: BorderRadius.circular(16),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: color.withOpacity(0.15),
+                              child: Text(
+                                siswa['nama'] != null && siswa['nama'].isNotEmpty
+                                    ? siswa['nama'][0]
+                                    : '?',
+                                style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            title: Text(siswa['nama'] ?? 'Nama tidak tersedia'),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Kelas: ${siswa['kelas_nama'] ?? 'Tidak ada'}'),
+                              ],
+                            ),
+                            trailing: PopupMenuButton(
+                              itemBuilder: (context) => [
+                                PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                PopupMenuItem(value: 'delete', child: Text('Hapus')),
+                              ],
+                              onSelected: (value) {
+                                if (value == 'edit') {
+                                  _showSiswaDialog(siswa: siswa);
+                                } else if (value == 'delete') {
+                                  _hapusSiswa(siswa);
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           _showSiswaDialog();
         },
-        child: Icon(Icons.add),
+        backgroundColor: Color(0xFF4F46E5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Icon(Icons.add, color: Colors.white),
       ),
     );
   }

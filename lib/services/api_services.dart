@@ -9,6 +9,7 @@ class ApiService {
   //     'http://localhost:3001/api'; // iOS simulator atau web
   
   static const String baseUrl = 'https://backendmanajemensekolah.vercel.app/api';
+  // static const String baseUrl = 'https://libra.web.id/apimanajemen';
 
   Future<dynamic> get(String endpoint) async {
     final response = await http.get(
