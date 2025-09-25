@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/screen/admin/kelola_guru.dart';
+import 'package:manajemensekolah/screen/admin/kelola_jadwal_mengajar.dart';
 import 'package:manajemensekolah/screen/admin/kelola_kelas.dart';
 import 'package:manajemensekolah/screen/admin/kelola_mata_pelajaran.dart';
 import 'package:manajemensekolah/screen/admin/kelola_siswa.dart';
@@ -10,6 +11,8 @@ import 'package:manajemensekolah/screen/admin/laporan.dart';
 import 'package:manajemensekolah/screen/admin/pengumuman.dart';
 import 'package:manajemensekolah/screen/guru/absensi_teacher.dart';
 import 'package:manajemensekolah/screen/guru/input_grade_teacher.dart';
+import 'package:manajemensekolah/screen/guru/jadwal_mengajar_guru.dart';
+
 import 'package:manajemensekolah/screen/guru/materi_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -377,7 +380,7 @@ class Dashboard extends StatelessWidget {
           context,
           MaterialPageRoute(builder: (context) => JadwalMengajarScreen()),
         ),
-        'roles': ['admin', 'guru'], // Admin dan guru
+        'roles': ['admin', 'guru'], // Guru
       },
       {
         'title': 'Kegiatan Kelas',
@@ -414,6 +417,16 @@ class Dashboard extends StatelessWidget {
           );
         },
         'roles': ['admin', 'guru'],
+      },
+      // Di bagian _getDashboardCards, tambahkan:
+      {
+        'title': 'Kelola Jadwal Mengajar',
+        'icon': Icons.schedule,
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => KelolaJadwalMengajarScreen()),
+        ),
+        'roles': ['admin'],
       },
     ];
 

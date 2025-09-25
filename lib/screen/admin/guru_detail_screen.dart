@@ -32,8 +32,21 @@ class _GuruDetailScreenState extends State<GuruDetailScreen> {
       // Mengambil data detail guru dari API
       final guruDetail = await _apiService.getGuruById(widget.guru['id']);
 
+      // Load mata pelajaran guru
+      final mataPelajaranGuru = await _apiService.getMataPelajaranByGuru(
+        widget.guru['id'],
+      );
+
+      // Gabungkan data
+      final combinedData = Map<String, dynamic>.from(guruDetail);
+      combinedData['mata_pelajaran_list'] = mataPelajaranGuru;
+      combinedData['mata_pelajaran_names'] = mataPelajaranGuru
+          .map((mp) => mp['nama']?.toString() ?? '')
+          .where((name) => name.isNotEmpty)
+          .join(', ');
+
       setState(() {
-        _guruDetail = guruDetail;
+        _guruDetail = combinedData;
         _isLoading = false;
       });
     } catch (e) {
@@ -181,7 +194,9 @@ class _GuruDetailScreenState extends State<GuruDetailScreen> {
                   ),
                   _buildInfoRow(
                     'Mata Pelajaran',
-                    guru['mata_pelajaran_nama'] ?? 'Tidak ditugaskan',
+                    guru['mata_pelajaran_names']?.isNotEmpty == true
+                        ? guru['mata_pelajaran_names']
+                        : 'Tidak ditugaskan',
                   ),
                   _buildInfoRow('Role', guru['role']?.toUpperCase() ?? 'GURU'),
                   // Di dalam method build, tambahkan informasi wali kelas:

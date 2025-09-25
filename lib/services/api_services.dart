@@ -5,8 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // static const String baseUrl = 'http://10.0.2.2:3000/api'; // Android emulator
-  static const String baseUrl =
-      'http://localhost:3001/api'; // iOS simulator atau web
+  // static const String baseUrl =
+  //     'http://localhost:3001/api'; // iOS simulator atau web
+  
+  static const String baseUrl = 'https://backendmanajemensekolah.vercel.app/api';
 
   Future<dynamic> get(String endpoint) async {
     final response = await http.get(
@@ -498,6 +500,62 @@ class ApiService {
     );
 
     return _handleResponse(response);
+  }
+
+  // Jadwal Mengajar
+  static Future<List<dynamic>> getJadwalMengajar({
+    String? guruId,
+    String? kelasId,
+    String? hari,
+    String? semester,
+    String? tahunAjaran,
+  }) async {
+    String url = '$baseUrl/jadwal-mengajar?';
+    if (guruId != null) url += 'guru_id=$guruId&';
+    if (kelasId != null) url += 'kelas_id=$kelasId&';
+    if (hari != null) url += 'hari=$hari&';
+    if (semester != null) url += 'semester=$semester&';
+    if (tahunAjaran != null) url += 'tahun_ajaran=$tahunAjaran&';
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+    );
+
+    final result = _handleResponse(response);
+    return result is List ? result : [];
+  }
+
+  static Future<dynamic> tambahJadwalMengajar(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/jadwal-mengajar'),
+      headers: await _getHeaders(),
+      body: json.encode(data),
+    );
+
+    return _handleResponse(response);
+  }
+
+  static Future<void> updateJadwalMengajar(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/jadwal-mengajar/$id'),
+      headers: await _getHeaders(),
+      body: json.encode(data),
+    );
+
+    _handleResponse(response);
+  }
+
+  static Future<void> deleteJadwalMengajar(String id) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/jadwal-mengajar/$id'),
+      headers: await _getHeaders(),
+    );
+
+    _handleResponse(response);
   }
 
   // Check server health

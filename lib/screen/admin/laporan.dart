@@ -14,17 +14,6 @@ class LaporanScreen extends StatelessWidget {
 
 
 
-class JadwalMengajarScreen extends StatelessWidget {
-  const JadwalMengajarScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Jadwal Mengajar')),
-      body: Center(child: Text('Fitur Jadwal Mengajar')),
-    );
-  }
-}
 
 class KegiatanKelasScreen extends StatelessWidget {
   const KegiatanKelasScreen({super.key});

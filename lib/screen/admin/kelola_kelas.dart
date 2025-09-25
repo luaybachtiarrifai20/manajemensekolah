@@ -1,6 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 
+Color _getColorForIndex(int index) {
+  final colors = [
+    Color(0xFF6366F1),
+    Color(0xFF10B981),
+    Color(0xFFF59E0B),
+    Color(0xFFEF4444),
+    Color(0xFF8B5CF6),
+    Color(0xFF06B6D4),
+  ];
+  return colors[index % colors.length];
+}
+
 class KelolaKelasScreen extends StatefulWidget {
   const KelolaKelasScreen({super.key});
 
@@ -9,6 +21,18 @@ class KelolaKelasScreen extends StatefulWidget {
 }
 
 class KelolaKelasScreenState extends State<KelolaKelasScreen> {
+  Color _getColorForIndex(int index) {
+    final colors = [
+      Color(0xFF6366F1),
+      Color(0xFF10B981),
+      Color(0xFFF59E0B),
+      Color(0xFFEF4444),
+      Color(0xFF8B5CF6),
+      Color(0xFF06B6D4),
+    ];
+    return colors[index % colors.length];
+  }
+
   final _formKey = GlobalKey<FormState>();
   final _namaController = TextEditingController();
   String? _selectedGuruId;
@@ -285,6 +309,18 @@ class KelolaKelasScreenState extends State<KelolaKelasScreen> {
     );
   }
 
+  Color getColorForIndex(int index) {
+    final colors = [
+      Color(0xFF6366F1),
+      Color(0xFF10B981),
+      Color(0xFFF59E0B),
+      Color(0xFFEF4444),
+      Color(0xFF8B5CF6),
+      Color(0xFF06B6D4),
+    ];
+    return colors[index % colors.length];
+  }
+
   Widget _buildDetailItem(String label, String value) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 4),
@@ -301,136 +337,274 @@ class KelolaKelasScreenState extends State<KelolaKelasScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: Text('Kelola Kelas')),
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_errorMessage != null) {
-      return Scaffold(
-        appBar: AppBar(title: Text('Kelola Kelas')),
+        backgroundColor: Colors.grey.shade50,
+        appBar: AppBar(
+          title: Text('Kelola Kelas', style: TextStyle(color: Colors.white)),
+          backgroundColor: Color(0xFF4F46E5),
+          elevation: 0,
+        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('Terjadi kesalahan: $_errorMessage'),
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
+              ),
               SizedBox(height: 16),
-              ElevatedButton(onPressed: _loadData, child: Text('Coba Lagi')),
+              Text(
+                'Memuat data kelas...',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
             ],
           ),
         ),
       );
     }
 
+    if (_errorMessage != null) {
+      return Scaffold(
+        backgroundColor: Colors.grey.shade50,
+        appBar: AppBar(
+          title: Text('Kelola Kelas', style: TextStyle(color: Colors.white)),
+          backgroundColor: Color(0xFF4F46E5),
+          elevation: 0,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.grey.shade400),
+              SizedBox(height: 16),
+              Text(
+                'Terjadi kesalahan:',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+              Text(
+                _errorMessage!,
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+              SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadData,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF4F46E5),
+                ),
+                child: Text('Coba Lagi'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final TextEditingController searchController = TextEditingController();
+
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: Text('Kelola Kelas'),
+        title: Text(
+          'Kelola Kelas',
+          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+        ),
+        backgroundColor: Color(0xFF4F46E5),
+        elevation: 0,
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadData,
             tooltip: 'Refresh',
           ),
-          IconButton(
-            icon: Icon(Icons.add),
-            onPressed: _tambahKelas,
-            tooltip: 'Tambah Kelas',
+        ],
+      ),
+      body: Column(
+        children: [
+          Container(
+            margin: EdgeInsets.all(16),
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                hintText: 'Cari kelas...',
+                prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
+                border: InputBorder.none,
+                suffixIcon: searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, size: 20),
+                        onPressed: () {
+                          searchController.clear();
+                          // setState(() {}); // Uncomment if you want live search
+                        },
+                      )
+                    : null,
+              ),
+              onChanged: (value) {
+                // setState(() {}); // Uncomment if you want live search
+              },
+            ),
+          ),
+          Expanded(
+            child:
+                _daftarKelas.where((kelas) {
+                  final searchTerm = searchController.text.toLowerCase();
+                  return searchTerm.isEmpty ||
+                      kelas['nama'].toLowerCase().contains(searchTerm);
+                }).isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.class_,
+                          size: 80,
+                          color: Colors.grey.shade300,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Tidak ada kelas',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          searchController.text.isEmpty
+                              ? 'Tap + untuk menambah kelas'
+                              : 'Tidak ditemukan hasil pencarian',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.all(16),
+                    itemCount: _daftarKelas.where((kelas) {
+                      final searchTerm = searchController.text.toLowerCase();
+                      return searchTerm.isEmpty ||
+                          kelas['nama'].toLowerCase().contains(searchTerm);
+                    }).length,
+                    itemBuilder: (context, index) {
+                      final filteredList = _daftarKelas.where((kelas) {
+                        final searchTerm = searchController.text.toLowerCase();
+                        return searchTerm.isEmpty ||
+                            kelas['nama'].toLowerCase().contains(searchTerm);
+                      }).toList();
+
+                      final kelas = filteredList[index];
+                      final color = getColorForIndex(index);
+
+                      return Container(
+                        margin: EdgeInsets.only(bottom: 12),
+                        child: Material(
+                          elevation: 2,
+                          borderRadius: BorderRadius.circular(16),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: color.withOpacity(0.15),
+                              child: Text(
+                                kelas['nama'].substring(0, 1),
+                                style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              'Kelas ${kelas['nama']}',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Wali: ${kelas['wali_kelas_nama'] ?? 'Tidak ada'}',
+                                ),
+                                Text(
+                                  'Siswa: ${kelas['jumlah_siswa'] ?? 0} orang',
+                                ),
+                              ],
+                            ),
+                            trailing: PopupMenuButton(
+                              itemBuilder: (context) => [
+                                PopupMenuItem(
+                                  value: 'detail',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.info, size: 20),
+                                      SizedBox(width: 8),
+                                      Text('Detail'),
+                                    ],
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.edit, size: 20),
+                                      SizedBox(width: 8),
+                                      Text('Edit'),
+                                    ],
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.delete,
+                                        size: 20,
+                                        color: Colors.red,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Hapus',
+                                        style: TextStyle(color: Colors.red),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              onSelected: (value) {
+                                if (value == 'detail') {
+                                  _lihatDetailKelas(kelas);
+                                } else if (value == 'edit') {
+                                  _editKelas(kelas);
+                                } else if (value == 'delete') {
+                                  _hapusKelas(kelas['id']);
+                                }
+                              },
+                            ),
+                            onTap: () => _lihatDetailKelas(kelas),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
-      body: _daftarKelas.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.class_, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'Belum ada kelas',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Tekan tombol + untuk menambah kelas',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              itemCount: _daftarKelas.length,
-              itemBuilder: (context, index) {
-                final kelas = _daftarKelas[index];
-                return Card(
-                  margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      child: Text(kelas['nama'].substring(0, 1)),
-                    ),
-                    title: Text(
-                      'Kelas ${kelas['nama']}',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Wali: ${kelas['wali_kelas_nama'] ?? 'Tidak ada'}',
-                        ),
-                        Text('Siswa: ${kelas['jumlah_siswa'] ?? 0} orang'),
-                      ],
-                    ),
-                    trailing: PopupMenuButton(
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'detail',
-                          child: Row(
-                            children: [
-                              Icon(Icons.info, size: 20),
-                              SizedBox(width: 8),
-                              Text('Detail'),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit, size: 20),
-                              SizedBox(width: 8),
-                              Text('Edit'),
-                            ],
-                          ),
-                        ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete, size: 20, color: Colors.red),
-                              SizedBox(width: 8),
-                              Text(
-                                'Hapus',
-                                style: TextStyle(color: Colors.red),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      onSelected: (value) {
-                        if (value == 'detail') {
-                          _lihatDetailKelas(kelas);
-                        } else if (value == 'edit') {
-                          _editKelas(kelas);
-                        } else if (value == 'delete') {
-                          _hapusKelas(kelas['id']);
-                        }
-                      },
-                    ),
-                    onTap: () => _lihatDetailKelas(kelas),
-                  ),
-                );
-              },
-            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _tambahKelas,
+        backgroundColor: Color(0xFF4F46E5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Icon(Icons.add, color: Colors.white),
+      ),
     );
   }
 }
