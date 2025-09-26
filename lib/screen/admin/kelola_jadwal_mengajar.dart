@@ -1,18 +1,27 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:manajemensekolah/services/api_class_services.dart';
+import 'package:manajemensekolah/services/api_schedule_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:manajemensekolah/services/api_subject_services.dart';
+import 'package:manajemensekolah/services/api_teacher_services.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
 
 class KelolaJadwalMengajarScreen extends StatefulWidget {
   const KelolaJadwalMengajarScreen({super.key});
 
   @override
-  _KelolaJadwalMengajarScreenState createState() =>
-      _KelolaJadwalMengajarScreenState();
+  KelolaJadwalMengajarScreenState createState() =>
+      KelolaJadwalMengajarScreenState();
 }
 
-class _KelolaJadwalMengajarScreenState
+class KelolaJadwalMengajarScreenState
     extends State<KelolaJadwalMengajarScreen> {
   final ApiService _apiService = ApiService();
+  final ApiClassService apiServiceClass = ApiClassService();
+  final ApiSubjectService _apiSubjectService = ApiSubjectService();
+  final ApiTeacherService apiTeacherService = ApiTeacherService();
+
   List<dynamic> _jadwalList = [];
   List<dynamic> _guruList = [];
   List<dynamic> _mataPelajaranList = [];
@@ -40,13 +49,13 @@ class _KelolaJadwalMengajarScreenState
   Future<void> _loadData() async {
     try {
       final [jadwal, guru, mataPelajaran, kelas] = await Future.wait([
-        ApiService.getJadwalMengajar(
+        ApiScheduleService.getJadwalMengajar(
           semester: _selectedSemester,
           tahunAjaran: _selectedTahunAjaran,
         ),
-        _apiService.getGuru(),
-        _apiService.getMataPelajaran(),
-        _apiService.getKelas(),
+        apiTeacherService.getGuru(),
+        _apiSubjectService.getMataPelajaran(),
+        apiServiceClass.getKelas(),
       ]);
 
       setState(() {
@@ -57,7 +66,9 @@ class _KelolaJadwalMengajarScreenState
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading data: $e');
+      if (kDebugMode) {
+        print('Error loading data: $e');
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal memuat data: $e'),
@@ -79,29 +90,34 @@ class _KelolaJadwalMengajarScreenState
         hariOptions: _hariOptions,
         semester: _selectedSemester,
         tahunAjaran: _selectedTahunAjaran,
-        apiService: _apiService, // Tambahkan ini
+        apiService: _apiService,
+        apiTeacherService: apiTeacherService
       ),
     );
 
     if (result != null) {
       try {
-        await ApiService.tambahJadwalMengajar(result);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Jadwal berhasil ditambahkan'),
-            backgroundColor: Colors.green.shade400,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        await ApiScheduleService.tambahJadwalMengajar(result);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Jadwal berhasil ditambahkan'),
+              backgroundColor: Colors.green.shade400,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
         _loadData();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menambah jadwal: $e'),
-            backgroundColor: Colors.red.shade400,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal menambah jadwal: $e'),
+              backgroundColor: Colors.red.shade400,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     }
   }
@@ -117,29 +133,34 @@ class _KelolaJadwalMengajarScreenState
         semester: _selectedSemester,
         tahunAjaran: _selectedTahunAjaran,
         jadwal: jadwal,
-        apiService: _apiService, // Tambahkan ini
+        apiService: _apiService,
+        apiTeacherService: apiTeacherService
       ),
     );
 
     if (result != null) {
       try {
-        await ApiService.updateJadwalMengajar(jadwal['id'], result);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Jadwal berhasil diupdate'),
-            backgroundColor: Colors.green.shade400,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        await ApiScheduleService.updateJadwalMengajar(jadwal['id'], result);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Jadwal berhasil diupdate'),
+              backgroundColor: Colors.green.shade400,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
         _loadData();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal mengupdate jadwal: $e'),
-            backgroundColor: Colors.red.shade400,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal mengupdate jadwal: $e'),
+              backgroundColor: Colors.red.shade400,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     }
   }
@@ -178,23 +199,27 @@ class _KelolaJadwalMengajarScreenState
 
     if (confirmed == true) {
       try {
-        await ApiService.deleteJadwalMengajar(id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Jadwal berhasil dihapus'),
-            backgroundColor: Colors.green.shade400,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        await ApiScheduleService.deleteJadwalMengajar(id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Jadwal berhasil dihapus'),
+              backgroundColor: Colors.green.shade400,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
         _loadData();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menghapus jadwal: $e'),
-            backgroundColor: Colors.red.shade400,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal menghapus jadwal: $e'),
+              backgroundColor: Colors.red.shade400,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     }
   }
@@ -280,7 +305,7 @@ class _KelolaJadwalMengajarScreenState
                       Text(
                         '$_selectedSemester • $_selectedTahunAjaran',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 16,
                         ),
                       ),
@@ -365,8 +390,8 @@ class _KelolaJadwalMengajarScreenState
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                       colors: [
-                                        cardColor.withOpacity(0.9),
-                                        cardColor.withOpacity(0.7),
+                                        cardColor.withValues(alpha: 0.9),
+                                        cardColor.withValues(alpha: 0.7),
                                       ],
                                     ),
                                     borderRadius: BorderRadius.circular(16),
@@ -376,7 +401,7 @@ class _KelolaJadwalMengajarScreenState
                                     child: Row(
                                       children: [
                                         // Time Section
-                                        Container(
+                                        SizedBox(
                                           width: 70,
                                           child: Column(
                                             children: [
@@ -394,9 +419,7 @@ class _KelolaJadwalMengajarScreenState
                                               Container(
                                                 width: 1,
                                                 height: 20,
-                                                color: Colors.white.withOpacity(
-                                                  0.5,
-                                                ),
+                                                color: Colors.white10,
                                                 margin: EdgeInsets.symmetric(
                                                   vertical: 4,
                                                 ),
@@ -423,7 +446,9 @@ class _KelolaJadwalMengajarScreenState
                                           margin: EdgeInsets.symmetric(
                                             horizontal: 16,
                                           ),
-                                          color: Colors.white.withOpacity(0.3),
+                                          color: Colors.white.withValues(
+                                            alpha: 0.3,
+                                          ),
                                         ),
 
                                         // Content Section
@@ -449,7 +474,7 @@ class _KelolaJadwalMengajarScreenState
                                                     Icons.person,
                                                     size: 16,
                                                     color: Colors.white
-                                                        .withOpacity(0.8),
+                                                        .withValues(alpha: 0.8),
                                                   ),
                                                   SizedBox(width: 4),
                                                   Expanded(
@@ -457,7 +482,9 @@ class _KelolaJadwalMengajarScreenState
                                                       jadwal['guru_nama'],
                                                       style: TextStyle(
                                                         color: Colors.white
-                                                            .withOpacity(0.9),
+                                                            .withValues(
+                                                              alpha: 0.9,
+                                                            ),
                                                         fontSize: 14,
                                                       ),
                                                       overflow:
@@ -473,14 +500,16 @@ class _KelolaJadwalMengajarScreenState
                                                     Icons.class_,
                                                     size: 16,
                                                     color: Colors.white
-                                                        .withOpacity(0.8),
+                                                        .withValues(alpha: 0.8),
                                                   ),
                                                   SizedBox(width: 4),
                                                   Text(
                                                     jadwal['kelas_nama'],
                                                     style: TextStyle(
                                                       color: Colors.white
-                                                          .withOpacity(0.9),
+                                                          .withValues(
+                                                            alpha: 0.9,
+                                                          ),
                                                       fontSize: 14,
                                                     ),
                                                   ),
@@ -493,14 +522,16 @@ class _KelolaJadwalMengajarScreenState
                                                     Icons.calendar_month,
                                                     size: 16,
                                                     color: Colors.white
-                                                        .withOpacity(0.8),
+                                                        .withValues(alpha: 0.8),
                                                   ),
                                                   SizedBox(width: 4),
                                                   Text(
                                                     hari,
                                                     style: TextStyle(
                                                       color: Colors.white
-                                                          .withOpacity(0.9),
+                                                          .withValues(
+                                                            alpha: 0.9,
+                                                          ),
                                                       fontSize: 14,
                                                       fontWeight:
                                                           FontWeight.w600,
@@ -527,8 +558,8 @@ class _KelolaJadwalMengajarScreenState
                                             IconButton(
                                               icon: Icon(
                                                 Icons.delete,
-                                                color: Colors.white.withOpacity(
-                                                  0.8,
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.8,
                                                 ),
                                               ),
                                               onPressed: () =>
@@ -638,9 +669,9 @@ class _KelolaJadwalMengajarScreenState
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
+          color: Colors.white.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.2)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [
@@ -674,8 +705,10 @@ class JadwalFormDialog extends StatefulWidget {
   final String tahunAjaran;
   final dynamic jadwal;
   final ApiService apiService;
+  final ApiTeacherService apiTeacherService;
 
   const JadwalFormDialog({
+    super.key,
     required this.guruList,
     required this.mataPelajaranList,
     required this.kelasList,
@@ -684,13 +717,14 @@ class JadwalFormDialog extends StatefulWidget {
     required this.tahunAjaran,
     this.jadwal,
     required this.apiService,
+    required this.apiTeacherService
   });
 
   @override
-  _JadwalFormDialogState createState() => _JadwalFormDialogState();
+  JadwalFormDialogState createState() => JadwalFormDialogState();
 }
 
-class _JadwalFormDialogState extends State<JadwalFormDialog> {
+class JadwalFormDialogState extends State<JadwalFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late String _selectedGuru;
   late String _selectedMataPelajaran;
@@ -698,7 +732,7 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
   late String _selectedHari;
   late TimeOfDay _jamMulai;
   late TimeOfDay _jamSelesai;
-  
+
   List<dynamic> _filteredMataPelajaranList = [];
   bool _isLoadingMataPelajaran = false;
 
@@ -706,18 +740,28 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
   void initState() {
     super.initState();
     _selectedGuru = widget.jadwal != null ? widget.jadwal['guru_id'] : '';
-    _selectedMataPelajaran = widget.jadwal != null ? widget.jadwal['mata_pelajaran_id'] : '';
+    _selectedMataPelajaran = widget.jadwal != null
+        ? widget.jadwal['mata_pelajaran_id']
+        : '';
     _selectedKelas = widget.jadwal != null ? widget.jadwal['kelas_id'] : '';
-    _selectedHari = widget.jadwal != null ? widget.jadwal['hari'] : widget.hariOptions.first;
-    
+    _selectedHari = widget.jadwal != null
+        ? widget.jadwal['hari']
+        : widget.hariOptions.first;
+
     _filteredMataPelajaranList = widget.mataPelajaranList;
-    
+
     if (widget.jadwal != null) {
       final jamMulaiParts = widget.jadwal['jam_mulai'].split(':');
       final jamSelesaiParts = widget.jadwal['jam_selesai'].split(':');
-      _jamMulai = TimeOfDay(hour: int.parse(jamMulaiParts[0]), minute: int.parse(jamMulaiParts[1]));
-      _jamSelesai = TimeOfDay(hour: int.parse(jamSelesaiParts[0]), minute: int.parse(jamSelesaiParts[1]));
-      
+      _jamMulai = TimeOfDay(
+        hour: int.parse(jamMulaiParts[0]),
+        minute: int.parse(jamMulaiParts[1]),
+      );
+      _jamSelesai = TimeOfDay(
+        hour: int.parse(jamSelesaiParts[0]),
+        minute: int.parse(jamSelesaiParts[1]),
+      );
+
       if (_selectedGuru.isNotEmpty) {
         _filterMataPelajaranByGuru(_selectedGuru);
       }
@@ -732,37 +776,43 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
       setState(() {
         _isLoadingMataPelajaran = true;
       });
-      
-      final mataPelajaranGuru = await widget.apiService.getMataPelajaranByGuru(guruId);
-      
+      final mataPelajaranGuru = await widget.apiTeacherService.getMataPelajaranByGuru(
+        guruId,
+      );
+
       final filtered = widget.mataPelajaranList.where((mp) {
         return mataPelajaranGuru.any((mpGuru) => mpGuru['id'] == mp['id']);
       }).toList();
-      
+
       setState(() {
         _filteredMataPelajaranList = filtered;
         _isLoadingMataPelajaran = false;
-        
+
         if (_selectedMataPelajaran.isNotEmpty) {
-          final currentMpExists = filtered.any((mp) => mp['id'] == _selectedMataPelajaran);
+          final currentMpExists = filtered.any(
+            (mp) => mp['id'] == _selectedMataPelajaran,
+          );
           if (!currentMpExists) {
             _selectedMataPelajaran = '';
           }
         }
       });
     } catch (e) {
-      print('Error filtering mata pelajaran: $e');
+      if (kDebugMode) {
+        print('Error filtering mata pelajaran: $e');
+      }
       setState(() {
         _filteredMataPelajaranList = widget.mataPelajaranList;
         _isLoadingMataPelajaran = false;
       });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memuat mata pelajaran guru'),
-          backgroundColor: Colors.red.shade400,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memuat mata pelajaran guru'),
+            backgroundColor: Colors.red.shade400,
+          ),
+        );
+      }
     }
   }
 
@@ -773,15 +823,13 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.light().copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Color(0xFF4F46E5),
-            ),
+            colorScheme: ColorScheme.light(primary: Color(0xFF4F46E5)),
           ),
           child: child!,
         );
       },
     );
-    
+
     if (picked != null) {
       setState(() {
         if (isMulai) {
@@ -827,18 +875,19 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
                           _selectedGuru = value!;
                           _selectedMataPelajaran = '';
                         });
-                        
+
                         if (value != null && value.isNotEmpty) {
                           _filterMataPelajaranByGuru(value);
                         } else {
                           setState(() {
-                            _filteredMataPelajaranList = widget.mataPelajaranList;
+                            _filteredMataPelajaranList =
+                                widget.mataPelajaranList;
                           });
                         }
                       },
                     ),
                     SizedBox(height: 16),
-                    
+
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -853,9 +902,14 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
                         SizedBox(height: 4),
                         _isLoadingMataPelajaran
                             ? Container(
-                                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey.shade300),
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
+                                  ),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Row(
@@ -863,7 +917,9 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
                                     SizedBox(
                                       width: 16,
                                       height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     ),
                                     SizedBox(width: 12),
                                     Text(
@@ -880,12 +936,14 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
                                 _selectedMataPelajaran,
                                 _filteredMataPelajaranList,
                                 'nama',
-                                (value) => setState(() => _selectedMataPelajaran = value!),
+                                (value) => setState(
+                                  () => _selectedMataPelajaran = value!,
+                                ),
                                 'Pilih Mata Pelajaran',
                               ),
                       ],
                     ),
-                    
+
                     SizedBox(height: 16),
                     _buildDropdownField(
                       'Kelas',
@@ -898,7 +956,9 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
                     _buildDropdownField(
                       'Hari',
                       _selectedHari,
-                      widget.hariOptions.map((e) => {'value': e, 'nama': e}).toList(),
+                      widget.hariOptions
+                          .map((e) => {'value': e, 'nama': e})
+                          .toList(),
                       'nama',
                       (value) => setState(() => _selectedHari = value!),
                     ),
@@ -917,7 +977,9 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       padding: EdgeInsets.symmetric(vertical: 12),
                       side: BorderSide(color: Colors.grey.shade400),
                     ),
@@ -943,24 +1005,28 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
                           );
                           return;
                         }
-                        
+
                         if (_selectedMataPelajaran.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Pilih mata pelajaran terlebih dahulu'),
+                              content: Text(
+                                'Pilih mata pelajaran terlebih dahulu',
+                              ),
                               backgroundColor: Colors.red.shade400,
                             ),
                           );
                           return;
                         }
-                        
+
                         final data = {
                           'guru_id': _selectedGuru,
                           'mata_pelajaran_id': _selectedMataPelajaran,
                           'kelas_id': _selectedKelas,
                           'hari': _selectedHari,
-                          'jam_mulai': '${_jamMulai.hour.toString().padLeft(2, '0')}:${_jamMulai.minute.toString().padLeft(2, '0')}:00',
-                          'jam_selesai': '${_jamSelesai.hour.toString().padLeft(2, '0')}:${_jamSelesai.minute.toString().padLeft(2, '0')}:00',
+                          'jam_mulai':
+                              '${_jamMulai.hour.toString().padLeft(2, '0')}:${_jamMulai.minute.toString().padLeft(2, '0')}:00',
+                          'jam_selesai':
+                              '${_jamSelesai.hour.toString().padLeft(2, '0')}:${_jamSelesai.minute.toString().padLeft(2, '0')}:00',
                           'semester': widget.semester,
                           'tahun_ajaran': widget.tahunAjaran,
                         };
@@ -969,7 +1035,9 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF4F46E5),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       padding: EdgeInsets.symmetric(vertical: 12),
                     ),
                     child: Text(
@@ -988,7 +1056,13 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
     );
   }
 
-  Widget _buildDropdownField(String label, String value, List<dynamic> items, String displayField, ValueChanged<String?> onChanged) {
+  Widget _buildDropdownField(
+    String label,
+    String value,
+    List<dynamic> items,
+    String displayField,
+    ValueChanged<String?> onChanged,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1009,9 +1083,10 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: DropdownButtonFormField<String>(
-              value: value.isEmpty ? null : value,
+              initialValue: value.isEmpty ? null : value,
               items: items.map<DropdownMenuItem<String>>((item) {
-                final displayValue = item[displayField] ?? item['value'] ?? item.toString();
+                final displayValue =
+                    item[displayField] ?? item['value'] ?? item.toString();
                 return DropdownMenuItem<String>(
                   value: item['id'] ?? item['value'] ?? item,
                   child: Text(
@@ -1033,7 +1108,10 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
                 color: Colors.black, // Warna text hitam
               ),
               dropdownColor: Colors.white, // Background dropdown putih
-              icon: Icon(Icons.arrow_drop_down, color: Colors.black), // Icon hitam
+              icon: Icon(
+                Icons.arrow_drop_down,
+                color: Colors.black,
+              ), // Icon hitam
             ),
           ),
         ),
@@ -1041,7 +1119,13 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
     );
   }
 
-  Widget _buildDropdownFieldWithoutLabel(String value, List<dynamic> items, String displayField, ValueChanged<String?> onChanged, String hintText) {
+  Widget _buildDropdownFieldWithoutLabel(
+    String value,
+    List<dynamic> items,
+    String displayField,
+    ValueChanged<String?> onChanged,
+    String hintText,
+  ) {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
@@ -1050,9 +1134,10 @@ class _JadwalFormDialogState extends State<JadwalFormDialog> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: DropdownButtonFormField<String>(
-          value: value.isEmpty ? null : value,
+          initialValue: value.isEmpty ? null : value,
           items: items.map<DropdownMenuItem<String>>((item) {
-            final displayValue = item[displayField] ?? item['value'] ?? item.toString();
+            final displayValue =
+                item[displayField] ?? item['value'] ?? item.toString();
             return DropdownMenuItem<String>(
               value: item['id'] ?? item['value'] ?? item,
               child: Text(

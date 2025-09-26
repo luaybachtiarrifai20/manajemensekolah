@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/screen/admin/guru_detail_screen.dart';
-import 'package:manajemensekolah/services/api_services.dart';
+import 'package:manajemensekolah/services/api_class_services.dart';
+import 'package:manajemensekolah/services/api_subject_services.dart';
+import 'package:manajemensekolah/services/api_teacher_services.dart';
 
 class KelolaGuruScreen extends StatefulWidget {
   const KelolaGuruScreen({super.key});
@@ -10,7 +12,9 @@ class KelolaGuruScreen extends StatefulWidget {
 }
 
 class KelolaGuruScreenState extends State<KelolaGuruScreen> {
-  final ApiService _apiService = ApiService();
+  final ApiTeacherService _teacherService = ApiTeacherService();
+  final ApiClassService _classService = ApiClassService();
+  final ApiSubjectService _subjectService = ApiSubjectService();
   List<dynamic> _guru = [];
   List<dynamic> _mataPelajaran = [];
   List<dynamic> _kelas = [];
@@ -32,11 +36,9 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
         _errorMessage = null;
       });
 
-      final [guruData, mataPelajaranData, kelasData] = await Future.wait([
-        _apiService.getGuru(),
-        _apiService.getMataPelajaran(),
-        _apiService.getKelas(),
-      ]);
+      final guruData = await _teacherService.getGuru();
+      final mataPelajaranData = await _subjectService.getMataPelajaran();
+      final kelasData = await _classService.getKelas();
 
       setState(() {
         _guru = guruData;
@@ -62,7 +64,7 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
   ) async {
     try {
       // Get current mata pelajaran
-      final currentMataPelajaran = await _apiService.getMataPelajaranByGuru(
+      final currentMataPelajaran = await _teacherService.getMataPelajaranByGuru(
         guruId,
       );
       final currentIds = currentMataPelajaran
@@ -72,18 +74,19 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
       // Add new mata pelajaran
       for (final mpId in selectedMataPelajaranIds) {
         if (!currentIds.contains(mpId)) {
-          await _apiService.addMataPelajaranToGuru(guruId, mpId);
+          await _teacherService.addMataPelajaranToGuru(guruId, mpId);
         }
       }
 
       // Remove unselected mata pelajaran
       for (final currentId in currentIds) {
         if (!selectedMataPelajaranIds.contains(currentId)) {
-          await _apiService.removeMataPelajaranFromGuru(guruId, currentId);
+          await _teacherService.removeMataPelajaranFromGuru(guruId, currentId);
         }
       }
     } catch (error) {
-      print('Error handling guru mata pelajaran: $error');
+      debugPrint('Error handling guru mata pelajaran: $error');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal mengupdate mata pelajaran guru: $error')),
       );
@@ -219,35 +222,44 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
 
                       String guruId;
                       if (guru == null) {
-                        final result = await _apiService.tambahGuru(data);
+                        final result = await _teacherService.tambahGuru(data);
                         guruId = result['id'];
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Guru berhasil ditambahkan. Password default: password123',
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Guru berhasil ditambahkan. Password default: password123',
+                              ),
+                              duration: Duration(seconds: 5),
                             ),
-                            duration: Duration(seconds: 5),
-                          ),
-                        );
+                          );
+                        }
                       } else {
                         guruId = guru['id'];
-                        await _apiService.updateGuru(guruId, data);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Guru berhasil diupdate')),
-                        );
+                        await _teacherService.updateGuru(guruId, data);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Guru berhasil diupdate')),
+                          );
+                        }
                       }
 
                       await _handleGuruMataPelajaran(
                         guruId,
                         selectedMataPelajaranIds,
                       );
-
-                      Navigator.pop(context);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
                       _loadData();
                     } catch (error) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Gagal menyimpan data: $error')),
-                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Gagal menyimpan data: $error'),
+                          ),
+                        );
+                      }
                     }
                   },
                   child: Text('Simpan'),
@@ -264,102 +276,14 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
       showDialogWithSubjects([]);
     } else {
       // Edit guru: ambil data subject terbaru dari database
-      _apiService.getMataPelajaranByGuru(guru['id']).then((list) {
+      _teacherService.getMataPelajaranByGuru(guru['id']).then((list) {
         final ids = list.map((mp) => mp['id'].toString()).toList();
         showDialogWithSubjects(ids);
       });
     }
   }
 
-  void _showDeleteDialog(Map<String, dynamic> guru) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Hapus Guru'),
-        content: Text('Yakin ingin menghapus guru "${guru['nama']}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              try {
-                await _apiService.deleteGuru(guru['id']);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Guru berhasil dihapus')),
-                );
-                Navigator.pop(context);
-                _loadData();
-              } catch (error) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Gagal menghapus guru: $error')),
-                );
-              }
-            },
-            child: Text('Hapus', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _navigateToDetail(Map<String, dynamic> guru) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => GuruDetailScreen(guru: guru)),
-    );
-  }
-
-  // Fungsi untuk menampilkan popup menu tepat di bawah icon titik tiga
-  void _showPopupMenu(BuildContext context, Map<String, dynamic> guru, GlobalKey iconKey) {
-    final RenderBox iconRenderBox = iconKey.currentContext!.findRenderObject() as RenderBox;
-    final iconOffset = iconRenderBox.localToGlobal(Offset.zero);
-
-    // Hitung posisi tepat di bawah icon titik tiga
-    final left = iconOffset.dx - 120; // Sesuaikan agar popup sejajar dengan icon
-    final top = iconOffset.dy + iconRenderBox.size.height;
-    final right = MediaQuery.of(context).size.width - left - 180;
-    final bottom = MediaQuery.of(context).size.height - top - 50;
-
-    showMenu(
-      context: context,
-      position: RelativeRect.fromLTRB(left, top, right, bottom),
-      items: [
-        PopupMenuItem(
-          value: 'edit',
-          child: Row(
-            children: [
-              Icon(Icons.edit, color: Colors.blue.shade600, size: 20),
-              SizedBox(width: 8),
-              Text('Edit'),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: [
-              Icon(Icons.delete, color: Colors.red.shade600, size: 20),
-              SizedBox(width: 8),
-              Text('Hapus'),
-            ],
-          ),
-        ),
-      ],
-    ).then((value) {
-      if (value != null) {
-        if (value == 'edit') {
-          _showAddEditDialog(guru: guru);
-        } else if (value == 'delete') {
-          _showDeleteDialog(guru);
-        }
-      }
-    });
-  }
-
+  // Implement the build method as required by State
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -540,7 +464,7 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
                           guru['is_wali_kelas'] == 1 ||
                           guru['is_wali_kelas'] == true;
                       final color = _getColorForIndex(index);
-                      
+
                       // Buat GlobalKey khusus untuk icon titik tiga
                       final GlobalKey iconKey = GlobalKey();
 
@@ -657,7 +581,8 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
                                   color: Colors.grey.shade600,
                                   size: 20,
                                 ),
-                                onPressed: () => _showPopupMenu(context, guru, iconKey),
+                                onPressed: () =>
+                                    _showPopupMenu(context, guru, iconKey),
                                 tooltip: 'Menu',
                               ),
                             ),
@@ -683,6 +608,13 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
     );
   }
 
+  void _navigateToDetail(Map<String, dynamic> guru) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => GuruDetailScreen(guru: guru)),
+    );
+  }
+
   Color _getColorForIndex(int index) {
     final colors = [
       Color(0xFF6366F1),
@@ -693,5 +625,74 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
       Color(0xFF06B6D4),
     ];
     return colors[index % colors.length];
+  }
+
+  void _showPopupMenu(
+    BuildContext context,
+    Map<String, dynamic> guru,
+    GlobalKey iconKey,
+  ) async {
+    final RenderBox renderBox =
+        iconKey.currentContext?.findRenderObject() as RenderBox;
+    final Offset offset = renderBox.localToGlobal(Offset.zero);
+    final Size size = renderBox.size;
+
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        offset.dx,
+        offset.dy + size.height,
+        offset.dx + size.width,
+        offset.dy,
+      ),
+      items: [
+        PopupMenuItem(value: 'edit', child: Text('Edit')),
+        PopupMenuItem(value: 'delete', child: Text('Hapus')),
+      ],
+    );
+
+    if (selected == 'edit') {
+      _showAddEditDialog(guru: guru);
+    } else if (selected == 'delete') {
+      _confirmDeleteGuru(guru);
+    }
+  }
+
+  void _confirmDeleteGuru(Map<String, dynamic> guru) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Hapus Guru'),
+        content: Text('Apakah Anda yakin ingin menghapus guru ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _teacherService.deleteGuru(guru['id']);
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Guru berhasil dihapus')));
+        }
+        _loadData();
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal menghapus guru: $error')),
+          );
+        }
+      }
+    }
   }
 }

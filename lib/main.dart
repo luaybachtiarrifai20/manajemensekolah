@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:manajemensekolah/screen/admin/dashboard.dart';
+import 'package:manajemensekolah/screen/dashboard.dart';
 import 'package:manajemensekolah/screen/login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

@@ -33,8 +33,11 @@ class LoginScreenState extends State<LoginScreen> {
       setState(() {
         _serverConnected = false;
       });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Server tidak terhubung. Pastikan backend berjalan.')),
+        SnackBar(
+          content: Text('Server tidak terhubung. Pastikan backend berjalan.'),
+        ),
       );
     }
   }
@@ -66,22 +69,30 @@ class LoginScreenState extends State<LoginScreen> {
 
     try {
       final responseData = await ApiService.login(email, password);
-      
+
       // Simpan token dan user data ke shared preferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('token', responseData['token']);
       await prefs.setString('user', json.encode(responseData['user']));
-      
+
       // Navigasi ke dashboard berdasarkan role
-      Navigator.pushReplacementNamed(context, '/${responseData['user']['role']}');
-      
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(
+        context,
+        '/${responseData['user']['role']}',
+      );
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login berhasil! Selamat datang ${responseData['user']['nama']}')),
+        SnackBar(
+          content: Text(
+            'Login berhasil! Selamat datang ${responseData['user']['nama']}',
+          ),
+        ),
       );
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       setState(() {
         _isLoading = false;
@@ -115,7 +126,7 @@ class LoginScreenState extends State<LoginScreen> {
                     'Sistem Manajemen Sekolah',
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
-                  
+
                   if (!_serverConnected) ...[
                     SizedBox(height: 10),
                     Container(
@@ -139,7 +150,7 @@ class LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ],
-                  
+
                   SizedBox(height: 30),
                   TextField(
                     controller: emailController,

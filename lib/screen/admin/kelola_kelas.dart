@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
+import 'package:manajemensekolah/services/api_teacher_services.dart';
 
 Color _getColorForIndex(int index) {
   final colors = [
@@ -43,6 +45,10 @@ class KelolaKelasScreenState extends State<KelolaKelasScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
+  final apiService = ApiService();
+  final apiServiceClass = ApiClassService();
+  final ApiTeacherService apiTeacherService = ApiTeacherService();
+
   @override
   void initState() {
     super.initState();
@@ -62,9 +68,8 @@ class KelolaKelasScreenState extends State<KelolaKelasScreen> {
         _errorMessage = null;
       });
 
-      final apiService = ApiService();
-      final kelasData = await apiService.getKelas();
-      final guruData = await apiService.getGuru();
+      final kelasData = await apiServiceClass.getKelas();
+      final guruData = await apiTeacherService.getGuru();
 
       setState(() {
         _daftarKelas = kelasData;
@@ -76,6 +81,7 @@ class KelolaKelasScreenState extends State<KelolaKelasScreen> {
         _isLoading = false;
         _errorMessage = e.toString();
       });
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Gagal memuat data: $e')));
@@ -116,21 +122,29 @@ class KelolaKelasScreenState extends State<KelolaKelasScreen> {
             onPressed: () async {
               try {
                 // Implementasi API delete kelas
-                final apiService = ApiService();
-                await apiService.deleteKelas(id);
+                final apiServiceClass = ApiClassService();
+                await apiServiceClass.deleteKelas(id);
 
                 setState(() {
                   _daftarKelas.removeWhere((kelas) => kelas['id'] == id);
                 });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Kelas berhasil dihapus')),
-                );
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Kelas berhasil dihapus')),
+                  );
+                }
               } catch (e) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Gagal menghapus kelas: $e')),
-                );
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Gagal menghapus kelas: $e')),
+                  );
+                }
               }
             },
             child: Text('Hapus', style: TextStyle(color: Colors.red)),
@@ -145,8 +159,7 @@ class KelolaKelasScreenState extends State<KelolaKelasScreen> {
       try {
         if (_isEditMode) {
           // Implementasi API update kelas
-          final apiService = ApiService();
-          await apiService.updateKelas(_editingKelasId!, {
+          await apiServiceClass.updateKelas(_editingKelasId!, {
             'nama': _namaController.text,
             'wali_kelas_id': _selectedGuruId,
           });
@@ -164,13 +177,14 @@ class KelolaKelasScreenState extends State<KelolaKelasScreen> {
               )['nama'],
             };
           });
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Kelas berhasil diperbarui')));
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Kelas berhasil diperbarui')),
+            );
+          }
         } else {
           // Implementasi API tambah kelas
-          final apiService = ApiService();
-          await apiService.tambahKelas({
+          await apiServiceClass.tambahKelas({
             'nama': _namaController.text,
             'wali_kelas_id': _selectedGuruId,
           });
@@ -189,16 +203,21 @@ class KelolaKelasScreenState extends State<KelolaKelasScreen> {
             _daftarKelas.add(newKelas);
           });
           await _loadData();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Kelas berhasil ditambahkan')),
+            );
+          }
+        }
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      } catch (e) {
+        if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('Kelas berhasil ditambahkan')));
+          ).showSnackBar(SnackBar(content: Text('Gagal menyimpan kelas: $e')));
         }
-
-        Navigator.pop(context);
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal menyimpan kelas: $e')));
       }
     }
   }
@@ -516,7 +535,7 @@ class KelolaKelasScreenState extends State<KelolaKelasScreen> {
                           borderRadius: BorderRadius.circular(16),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: color.withOpacity(0.15),
+                              backgroundColor: color.withValues(alpha: 0.15),
                               child: Text(
                                 kelas['nama'].substring(0, 1),
                                 style: TextStyle(

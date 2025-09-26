@@ -405,12 +405,14 @@ class Dashboard extends StatelessWidget {
           };
 
           if (guruData['id']!.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: ID guru tidak ditemukan')),
-            );
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: ID guru tidak ditemukan')),
+              );
+            }
             return;
           }
-
+          if (!context.mounted) return;
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => MateriPage(guru: guruData)),
@@ -455,7 +457,7 @@ class Dashboard extends StatelessWidget {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: _getCardColor(role).withOpacity(0.12),
+                  color: _getCardColor(role).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 padding: EdgeInsets.all(16),

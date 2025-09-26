@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:manajemensekolah/models/siswa.dart';
 import 'package:manajemensekolah/services/api_services.dart';
+import 'package:manajemensekolah/services/api_student_services.dart';
+import 'package:manajemensekolah/services/api_subject_services.dart';
 
 
 class NilaiPage extends StatefulWidget {
   final Map<String, dynamic> guru;
 
-  const NilaiPage({Key? key, required this.guru}) : super(key: key);
+  const NilaiPage({super.key, required this.guru});
 
   @override
   NilaiPageState createState() => NilaiPageState();
@@ -17,6 +19,7 @@ class NilaiPageState extends State<NilaiPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nilaiController = TextEditingController();
   final TextEditingController _deskripsiController = TextEditingController();
+  final ApiSubjectService apiSubjectService = ApiSubjectService();
 
   DateTime _selectedDate = DateTime.now();
   String? _selectedMataPelajaran;
@@ -33,15 +36,15 @@ class NilaiPageState extends State<NilaiPage> {
 
   Future<void> _loadData() async {
     try {
-      final apiService = ApiService();
-      final mataPelajaran = await apiService.getMataPelajaran();
-      final siswa = await ApiService.getSiswa();
+      final mataPelajaran = await apiSubjectService.getMataPelajaran();
+      final siswa = await ApiStudentService.getSiswa();
       
       setState(() {
         _mataPelajaranList = mataPelajaran;
         _siswaList = siswa.map((s) => Siswa.fromJson(s)).toList();
       });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -74,7 +77,7 @@ class NilaiPageState extends State<NilaiPage> {
           'deskripsi': _deskripsiController.text,
           'tanggal': DateFormat('yyyy-MM-dd').format(_selectedDate),
         });
-
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Nilai berhasil disimpan')),
         );
@@ -107,7 +110,7 @@ class NilaiPageState extends State<NilaiPage> {
             children: [
               // Pilih Siswa
               DropdownButtonFormField<String>(
-                value: _selectedSiswa,
+                initialValue: _selectedSiswa,
                 decoration: const InputDecoration(
                   labelText: 'Siswa',
                   border: OutlineInputBorder(),
@@ -135,7 +138,7 @@ class NilaiPageState extends State<NilaiPage> {
 
               // Pilih Mata Pelajaran
               DropdownButtonFormField<String>(
-                value: _selectedMataPelajaran,
+                initialValue: _selectedMataPelajaran,
                 decoration: const InputDecoration(
                   labelText: 'Mata Pelajaran',
                   border: OutlineInputBorder(),
@@ -163,7 +166,7 @@ class NilaiPageState extends State<NilaiPage> {
 
               // Pilih Jenis Nilai
               DropdownButtonFormField<String>(
-                value: _selectedJenis,
+                initialValue: _selectedJenis,
                 decoration: const InputDecoration(
                   labelText: 'Jenis Nilai',
                   border: OutlineInputBorder(),

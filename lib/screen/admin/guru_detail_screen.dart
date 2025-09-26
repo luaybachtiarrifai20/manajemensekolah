@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/services/api_services.dart';
+import 'package:manajemensekolah/services/api_teacher_services.dart';
 
 class GuruDetailScreen extends StatefulWidget {
   final Map<String, dynamic> guru;
@@ -7,11 +8,11 @@ class GuruDetailScreen extends StatefulWidget {
   const GuruDetailScreen({super.key, required this.guru});
 
   @override
-  _GuruDetailScreenState createState() => _GuruDetailScreenState();
+  GuruDetailScreenState createState() => GuruDetailScreenState();
 }
 
-class _GuruDetailScreenState extends State<GuruDetailScreen> {
-  final ApiService _apiService = ApiService();
+class GuruDetailScreenState extends State<GuruDetailScreen> {
+  final ApiTeacherService apiTeacherService = ApiTeacherService();
   Map<String, dynamic>? _guruDetail;
   bool _isLoading = true;
   String? _errorMessage;
@@ -30,10 +31,10 @@ class _GuruDetailScreenState extends State<GuruDetailScreen> {
       });
 
       // Mengambil data detail guru dari API
-      final guruDetail = await _apiService.getGuruById(widget.guru['id']);
+      final guruDetail = await apiTeacherService.getGuruById(widget.guru['id']);
 
       // Load mata pelajaran guru
-      final mataPelajaranGuru = await _apiService.getMataPelajaranByGuru(
+      final mataPelajaranGuru = await apiTeacherService.getMataPelajaranByGuru(
         widget.guru['id'],
       );
 

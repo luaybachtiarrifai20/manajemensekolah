@@ -1,23 +1,24 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:manajemensekolah/services/api_services.dart';
+import 'package:manajemensekolah/services/api_schedule_services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class JadwalMengajarScreen extends StatefulWidget {
   const JadwalMengajarScreen({super.key});
 
   @override
-  _JadwalMengajarScreenState createState() => _JadwalMengajarScreenState();
+  JadwalMengajarScreenState createState() => JadwalMengajarScreenState();
 }
 
-class _JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
+class JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
   List<dynamic> _jadwalList = [];
   bool _isLoading = true;
   String _guruId = '';
   String _selectedHari = 'Semua Hari'; // Default: Semua Hari
   String _selectedSemester = 'Ganjil';
-  String _selectedTahunAjaran = '2024/2025';
+  final String _selectedTahunAjaran = '2024/2025';
 
   // Opsi hari sekarang termasuk "Semua Hari"
   final List<String> _hariOptions = ['Semua Hari', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -36,7 +37,9 @@ class _JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
       setState(() => _guruId = userData['id'] ?? '');
       _loadJadwal();
     } catch (e) {
-      print('Error loading user data: $e');
+      if (kDebugMode) {
+        print('Error loading user data: $e');
+      }
       setState(() => _isLoading = false);
     }
   }
@@ -46,7 +49,7 @@ class _JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
 
     try {
       // Jika "Semua Hari" dipilih, kirim string kosong ke API
-      final jadwal = await ApiService.getJadwalMengajar(
+      final jadwal = await ApiScheduleService.getJadwalMengajar(
         guruId: _guruId,
         hari: _selectedHari == 'Semua Hari' ? '' : _selectedHari,
         semester: _selectedSemester,
@@ -58,7 +61,10 @@ class _JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading jadwal: $e');
+      if (kDebugMode) {
+        print('Error loading jadwal: $e');
+      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Gagal memuat jadwal: $e'),
@@ -159,7 +165,7 @@ class _JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
                             ? 'Semua Hari • $_selectedSemester • $_selectedTahunAjaran'
                             : '$_selectedHari • $_selectedSemester • $_selectedTahunAjaran',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 16,
                         ),
                       ),
@@ -246,8 +252,8 @@ class _JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                       colors: [
-                                        cardColor.withOpacity(0.9),
-                                        cardColor.withOpacity(0.7),
+                                        cardColor.withValues(alpha: 0.9),
+                                        cardColor.withValues(alpha: 0.7),
                                       ],
                                     ),
                                     borderRadius: BorderRadius.circular(16),
@@ -257,7 +263,7 @@ class _JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
                                     child: Row(
                                       children: [
                                         // Time Section
-                                        Container(
+                                        SizedBox(
                                           width: 70,
                                           child: Column(
                                             children: [
@@ -272,7 +278,7 @@ class _JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
                                               Container(
                                                 width: 1,
                                                 height: 20,
-                                                color: Colors.white.withOpacity(0.5),
+                                                color: Colors.white.withValues(alpha: 0.5),
                                                 margin: EdgeInsets.symmetric(vertical: 4),
                                               ),
                                               Text(
@@ -292,7 +298,7 @@ class _JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
                                           width: 1,
                                           height: 60,
                                           margin: EdgeInsets.symmetric(horizontal: 16),
-                                          color: Colors.white.withOpacity(0.3),
+                                          color: Colors.white.withValues(alpha: 0.3),
                                         ),
                                         
                                         // Content Section
@@ -313,12 +319,12 @@ class _JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
                                               SizedBox(height: 8),
                                               Row(
                                                 children: [
-                                                  Icon(Icons.class_, size: 16, color: Colors.white.withOpacity(0.8)),
+                                                  Icon(Icons.class_, size: 16, color: Colors.white.withValues(alpha: 0.8)),
                                                   SizedBox(width: 4),
                                                   Text(
                                                     jadwal['kelas_nama'],
                                                     style: TextStyle(
-                                                      color: Colors.white.withOpacity(0.9),
+                                                      color: Colors.white.withValues(alpha: 0.9),
                                                       fontSize: 14,
                                                     ),
                                                   ),
@@ -327,12 +333,12 @@ class _JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
                                               SizedBox(height: 4),
                                               Row(
                                                 children: [
-                                                  Icon(Icons.calendar_month, size: 16, color: Colors.white.withOpacity(0.8)),
+                                                  Icon(Icons.calendar_month, size: 16, color: Colors.white.withValues(alpha: 0.8)),
                                                   SizedBox(width: 4),
                                                   Text(
                                                     hari,
                                                     style: TextStyle(
-                                                      color: Colors.white.withOpacity(0.9),
+                                                      color: Colors.white.withValues(alpha: 0.9),
                                                       fontSize: 14,
                                                       fontWeight: FontWeight.w600,
                                                     ),
@@ -347,7 +353,7 @@ class _JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
                                         Container(
                                           padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                           decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(0.2),
+                                            color: Colors.white.withValues(alpha: 0.2),
                                             borderRadius: BorderRadius.circular(12),
                                           ),
                                           child: Text(
@@ -379,7 +385,7 @@ class _JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
+          color: Colors.white.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -393,7 +399,7 @@ class _JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
                   Text(
                     label,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: 12,
                     ),
                   ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:manajemensekolah/data/data_dummy.dart';
 
 class PengumumanScreen extends StatelessWidget {
+  const PengumumanScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:manajemensekolah/models/siswa.dart';
+import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
+import 'package:manajemensekolah/services/api_student_services.dart';
+import 'package:manajemensekolah/services/api_subject_services.dart';
 
 class AbsensiPage extends StatefulWidget {
   final Map<String, dynamic> guru;
 
-  const AbsensiPage({Key? key, required this.guru}) : super(key: key);
+  const AbsensiPage({super.key, required this.guru});
 
   @override
   AbsensiPageState createState() => AbsensiPageState();
@@ -21,11 +24,12 @@ class AbsensiPageState extends State<AbsensiPage> with SingleTickerProviderState
   List<dynamic> _kelasList = [];
   List<Siswa> _siswaList = [];
   List<Siswa> _filteredSiswaList = [];
-  Map<String, String> _absensiStatus = {};
+  final Map<String, String> _absensiStatus = {};
   int _currentStudentIndex = 0;
   bool _isLoading = true;
   int _viewMode = 0; // 0: Default, 1: Gulungan, 2: Buku Absensi
   final ScrollController _scrollController = ScrollController();
+  final ApiSubjectService apiSubjectService = ApiSubjectService();
   
   // Animation controller for rolling effect
   late AnimationController _animationController;
@@ -70,11 +74,11 @@ class AbsensiPageState extends State<AbsensiPage> with SingleTickerProviderState
 
   Future<void> _loadData() async {
     try {
-      final apiService = ApiService();
+      final apiServiceClass = ApiClassService();
       final [mataPelajaran, kelas, siswa] = await Future.wait([
-        apiService.getMataPelajaran(),
-        apiService.getKelas(),
-        ApiService.getSiswa(),
+        apiSubjectService.getMataPelajaran(),
+        apiServiceClass.getKelas(),
+        ApiStudentService.getSiswa(),
       ]);
       
       setState(() {
@@ -183,7 +187,7 @@ class AbsensiPageState extends State<AbsensiPage> with SingleTickerProviderState
           'keterangan': '',
         });
       }
-
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Absensi berhasil disimpan')),
       );
@@ -220,8 +224,8 @@ class AbsensiPageState extends State<AbsensiPage> with SingleTickerProviderState
       height: 60, // Fixed height for each student row
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: statusColor.withOpacity(isRolling ? 0.3 * opacity : 0.1),
-        border: Border.all(color: statusColor.withOpacity(0.5), width: 1),
+        color: statusColor.withValues(alpha: isRolling ? 0.3 * opacity : 0.1),
+        border: Border.all(color: statusColor.withValues(alpha: 0.5), width: 1),
       ),
       child: Center(
         child: Text(
@@ -229,7 +233,7 @@ class AbsensiPageState extends State<AbsensiPage> with SingleTickerProviderState
           style: TextStyle(
             fontSize: isRolling ? 20 * scale : 18,
             fontWeight: FontWeight.bold,
-            color: statusColor.withOpacity(opacity),
+            color: statusColor.withValues(alpha: opacity),
           ),
           textAlign: TextAlign.center,
           maxLines: 1,
@@ -271,7 +275,7 @@ class AbsensiPageState extends State<AbsensiPage> with SingleTickerProviderState
       icon: Icon(icon, color: isSelected ? Colors.white : color),
       label: Text(status),
       style: ElevatedButton.styleFrom(
-        backgroundColor: isSelected ? color : color.withOpacity(0.1),
+        backgroundColor: isSelected ? color : color.withValues(alpha: 0.1),
         foregroundColor: isSelected ? Colors.white : color,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         shape: RoundedRectangleBorder(
@@ -441,7 +445,7 @@ class AbsensiPageState extends State<AbsensiPage> with SingleTickerProviderState
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 10,
                         offset: const Offset(0, 5),
                       ),
@@ -476,7 +480,7 @@ class AbsensiPageState extends State<AbsensiPage> with SingleTickerProviderState
                         child: Container(
                           margin: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Stack(
@@ -602,12 +606,12 @@ class AbsensiPageState extends State<AbsensiPage> with SingleTickerProviderState
       height: isCurrent ? 70 : 50,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: statusColor.withOpacity(isCurrent ? 0.3 : 0.2),
-        border: Border.all(color: statusColor.withOpacity(0.7), width: isCurrent ? 2 : 1),
+        color: statusColor.withValues(alpha: isCurrent ? 0.3 : 0.2),
+        border: Border.all(color: statusColor.withValues(alpha: 0.7), width: isCurrent ? 2 : 1),
         borderRadius: BorderRadius.circular(12),
         boxShadow: isCurrent ? [
           BoxShadow(
-            color: statusColor.withOpacity(0.4),
+            color: statusColor.withValues(alpha: 0.4),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -656,7 +660,7 @@ class AbsensiPageState extends State<AbsensiPage> with SingleTickerProviderState
             margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
             child: ListTile(
               leading: CircleAvatar(
-                backgroundColor: statusColor.withOpacity(0.2),
+                backgroundColor: statusColor.withValues(alpha: 0.2),
                 child: Text(
                   siswa.nama[0],
                   style: TextStyle(
@@ -742,7 +746,7 @@ class AbsensiPageState extends State<AbsensiPage> with SingleTickerProviderState
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: _selectedKelas,
+                        initialValue: _selectedKelas,
                         decoration: const InputDecoration(
                           labelText: 'Filter Kelas',
                           border: OutlineInputBorder(),
@@ -759,7 +763,7 @@ class AbsensiPageState extends State<AbsensiPage> with SingleTickerProviderState
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: _selectedMataPelajaran,
+                        initialValue: _selectedMataPelajaran,
                         decoration: const InputDecoration(
                           labelText: 'Mata Pelajaran',
                           border: OutlineInputBorder(),

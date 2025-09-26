@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/services/api_services.dart';
+import 'package:manajemensekolah/services/api_subject_services.dart';
+import 'package:manajemensekolah/services/api_teacher_services.dart';
 
 class MateriPage extends StatefulWidget {
   final Map<String, dynamic> guru;
@@ -24,21 +27,29 @@ class MateriPageState extends State<MateriPage> {
 
   // State untuk expanded/collapsed
   final Map<String, bool> _expandedBab = {};
-  
+
   // State untuk ceklis
   final Map<String, bool> _checkedBab = {};
   final Map<String, bool> _checkedSubBab = {};
-  
+
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    
-    print('Guru data received: ${widget.guru}');
-    print('Guru ID: ${widget.guru['id']}');
-    print('Guru keys: ${widget.guru.keys}');
-    print('Guru values: ${widget.guru}');
+
+    if (kDebugMode) {
+      print('Guru data received: ${widget.guru}');
+    }
+    if (kDebugMode) {
+      print('Guru ID: ${widget.guru['id']}');
+    }
+    if (kDebugMode) {
+      print('Guru keys: ${widget.guru.keys}');
+    }
+    if (kDebugMode) {
+      print('Guru values: ${widget.guru}');
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
@@ -52,7 +63,9 @@ class MateriPageState extends State<MateriPage> {
       });
 
       final String? guruId = widget.guru['id'];
-      print('Loading data for guru ID: $guruId');
+      if (kDebugMode) {
+        print('Loading data for guru ID: $guruId');
+      }
 
       if (guruId == null || guruId.isEmpty) {
         setState(() {
@@ -64,11 +77,17 @@ class MateriPageState extends State<MateriPage> {
         return;
       }
 
-      final apiService = ApiService();
-      final mataPelajaran = await apiService.getMataPelajaranByGuru(guruId);
+      final ApiTeacherService apiTeacherService = ApiTeacherService();
+      final mataPelajaran = await apiTeacherService.getMataPelajaranByGuru(
+        guruId,
+      );
 
-      print('Mata pelajaran found: ${mataPelajaran.length}');
-      print('Mata pelajaran details: $mataPelajaran');
+      if (kDebugMode) {
+        print('Mata pelajaran found: ${mataPelajaran.length}');
+      }
+      if (kDebugMode) {
+        print('Mata pelajaran details: $mataPelajaran');
+      }
 
       // Jika guru tidak memiliki mata pelajaran, tampilkan pesan
       if (mataPelajaran.isEmpty) {
@@ -76,17 +95,19 @@ class MateriPageState extends State<MateriPage> {
           _isLoading = false;
           _mataPelajaranList = [];
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Guru ini belum memiliki mata pelajaran yang ditugaskan',
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Guru ini belum memiliki mata pelajaran yang ditugaskan',
+              ),
             ),
-          ),
-        );
+          );
+        }
         return;
       }
 
-      final materi = await ApiService.getMateri(guruId: guruId);
+      final materi = await ApiSubjectService.getMateri(guruId: guruId);
 
       setState(() {
         _mataPelajaranList = mataPelajaran;
@@ -102,16 +123,20 @@ class MateriPageState extends State<MateriPage> {
       setState(() {
         _isLoading = false;
       });
-      print('Error in _loadData: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      if (kDebugMode) {
+        print('Error in _loadData: $e');
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      }
     }
   }
 
   Future<void> _loadBabMateri(String mataPelajaranId) async {
     try {
-      final babMateri = await ApiService.getBabMateri(
+      final babMateri = await ApiSubjectService.getBabMateri(
         mataPelajaranId: mataPelajaranId,
       );
 
@@ -124,15 +149,19 @@ class MateriPageState extends State<MateriPage> {
         }
       });
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     }
   }
 
   Future<void> _loadSubBabMateri(String babId) async {
     try {
-      final subBabMateri = await ApiService.getSubBabMateri(babId: babId);
+      final subBabMateri = await ApiSubjectService.getSubBabMateri(
+        babId: babId,
+      );
 
       setState(() {
         _subBabMateriList = subBabMateri
@@ -144,9 +173,11 @@ class MateriPageState extends State<MateriPage> {
         }
       });
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     }
   }
 
@@ -154,12 +185,12 @@ class MateriPageState extends State<MateriPage> {
   void _handleSubBabCheck(String subBabId, String babId, bool? value) {
     setState(() {
       _checkedSubBab[subBabId] = value ?? false;
-      
+
       // Cek apakah semua sub bab dalam bab ini sudah dicentang
       final allSubBabsChecked = _subBabMateriList
           .where((subBab) => subBab['bab_id'] == babId)
           .every((subBab) => _checkedSubBab[subBab['id']] == true);
-      
+
       // Set status ceklis bab berdasarkan apakah semua sub bab sudah dicentang
       _checkedBab[babId] = allSubBabsChecked;
     });
@@ -169,17 +200,22 @@ class MateriPageState extends State<MateriPage> {
   void _handleBabCheck(String babId, bool? value) {
     setState(() {
       _checkedBab[babId] = value ?? false;
-      
+
       // Jika bab dicentang/tidak dicentang, set semua sub bab dalam bab tersebut
       // dengan nilai yang sama
-      for (var subBab in _subBabMateriList.where((subBab) => subBab['bab_id'] == babId)) {
+      for (var subBab in _subBabMateriList.where(
+        (subBab) => subBab['bab_id'] == babId,
+      )) {
         _checkedSubBab[subBab['id']] = value ?? false;
       }
     });
   }
 
   // Navigasi ke halaman detail sub bab
-  void _navigateToSubBabDetail(Map<String, dynamic> subBab, Map<String, dynamic> bab) {
+  void _navigateToSubBabDetail(
+    Map<String, dynamic> subBab,
+    Map<String, dynamic> bab,
+  ) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -222,7 +258,7 @@ class MateriPageState extends State<MateriPage> {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      value: _selectedMataPelajaran,
+                      initialValue: _selectedMataPelajaran,
                       decoration: const InputDecoration(
                         labelText: 'Mata Pelajaran',
                         border: OutlineInputBorder(),
@@ -313,20 +349,30 @@ class MateriPageState extends State<MateriPage> {
                                                   child: Text(
                                                     '${subBab['urutan']}. ${subBab['judul_sub_bab']}',
                                                     style: const TextStyle(
-                                                      fontWeight: FontWeight.w600,
+                                                      fontWeight:
+                                                          FontWeight.w600,
                                                     ),
                                                   ),
                                                 ),
                                                 Checkbox(
-                                                  value: _checkedSubBab[subBab['id']] ?? false,
+                                                  value:
+                                                      _checkedSubBab[subBab['id']] ??
+                                                      false,
                                                   onChanged: (value) {
-                                                    _handleSubBabCheck(subBab['id'], bab['id'], value);
+                                                    _handleSubBabCheck(
+                                                      subBab['id'],
+                                                      bab['id'],
+                                                      value,
+                                                    );
                                                   },
                                                 ),
                                               ],
                                             ),
                                             onTap: () {
-                                              _navigateToSubBabDetail(subBab, bab);
+                                              _navigateToSubBabDetail(
+                                                subBab,
+                                                bab,
+                                              );
                                             },
                                           ),
                                         );
@@ -361,10 +407,10 @@ class SubBabDetailPage extends StatefulWidget {
   });
 
   @override
-  _SubBabDetailPageState createState() => _SubBabDetailPageState();
+  SubBabDetailPageState createState() => SubBabDetailPageState();
 }
 
-class _SubBabDetailPageState extends State<SubBabDetailPage> {
+class SubBabDetailPageState extends State<SubBabDetailPage> {
   late bool _isChecked;
   List<dynamic> _kontenMateriList = [];
   bool _isLoading = false;
@@ -382,7 +428,9 @@ class _SubBabDetailPageState extends State<SubBabDetailPage> {
         _isLoading = true;
       });
 
-      final kontenMateri = await ApiService.getKontenMateri(subBabId: widget.subBab['id']);
+      final kontenMateri = await ApiSubjectService.getKontenMateri(
+        subBabId: widget.subBab['id'],
+      );
 
       setState(() {
         _kontenMateriList = kontenMateri
@@ -394,9 +442,11 @@ class _SubBabDetailPageState extends State<SubBabDetailPage> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     }
   }
 
@@ -444,7 +494,8 @@ class _SubBabDetailPageState extends State<SubBabDetailPage> {
                                 child: Padding(
                                   padding: const EdgeInsets.all(16.0),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         konten['judul_konten'],
@@ -458,9 +509,7 @@ class _SubBabDetailPageState extends State<SubBabDetailPage> {
                                       const SizedBox(height: 8),
                                       Text(
                                         konten['isi_konten'],
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                        ),
+                                        style: const TextStyle(fontSize: 14),
                                       ),
                                     ],
                                   ),

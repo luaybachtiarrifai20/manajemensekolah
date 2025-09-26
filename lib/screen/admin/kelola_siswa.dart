@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
+import 'package:manajemensekolah/services/api_student_services.dart';
 
 class KelolaSiswaScreen extends StatefulWidget {
   const KelolaSiswaScreen({super.key});
@@ -21,10 +23,14 @@ class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
     ];
     return colors[index % colors.length];
   }
+
   List<dynamic> _siswa = [];
   List<dynamic> _daftarKelas = [];
   bool _isLoading = true;
   String? _errorMessage;
+  final apiService = ApiService();
+  final apiServiceClass = ApiClassService();
+  final ApiStudentService apiStudentService = ApiStudentService();
 
   @override
   void initState() {
@@ -33,37 +39,35 @@ class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
   }
 
   Future<void> _loadData() async {
-  try {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
 
-    final siswaData = await ApiService.getSiswa();
-    final apiService = ApiService();
-    final kelasData = await apiService.getKelas();
+      final siswaData = await ApiStudentService.getSiswa();
+      final kelasData = await apiServiceClass.getKelas();
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _siswa = siswaData;
-      _daftarKelas = kelasData;
-      _isLoading = false;
-    });
-  } catch (e) {
-    if (!mounted) return;
+      setState(() {
+        _siswa = siswaData;
+        _daftarKelas = kelasData;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
 
-    setState(() {
-      _isLoading = false;
-      _errorMessage = e.toString();
-    });
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString();
+      });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Gagal memuat data siswa/kelas: $e')),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat data siswa/kelas: $e')),
+      );
+    }
   }
-}
-
 
   // Tambah/Edit Siswa Dialog
   void _showSiswaDialog({Map<String, dynamic>? siswa}) {
@@ -195,23 +199,29 @@ class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
                 };
 
                 if (isEdit) {
-                  await ApiService.updateSiswa(siswa['id'], data);
+                  await ApiStudentService.updateSiswa(siswa['id'], data);
                   await _loadData(); // Reload data untuk mendapatkan perubahan
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Siswa berhasil diperbarui')),
-                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Siswa berhasil diperbarui')),
+                    );
+                  }
                 } else {
-                  await ApiService.tambahSiswa(data);
+                  await ApiStudentService.tambahSiswa(data);
                   await _loadData(); // Reload data untuk mendapatkan data baru
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Siswa berhasil ditambahkan')),
+                    );
+                    Navigator.pop(context);
+                  }
+                }
+              } catch (e) {
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Siswa berhasil ditambahkan')),
+                    SnackBar(content: Text('Gagal menyimpan siswa: $e')),
                   );
                 }
-                Navigator.pop(context);
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Gagal menyimpan siswa: $e')),
-                );
               }
             },
             child: Text(isEdit ? 'Perbarui' : 'Simpan'),
@@ -236,7 +246,7 @@ class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
           TextButton(
             onPressed: () async {
               try {
-                await ApiService.deleteSiswa(siswa['id']);
+                await ApiStudentService.deleteSiswa(siswa['id']);
                 setState(() {
                   _siswa.removeWhere((s) => s['id'] == siswa['id']);
                   final kelasIdx = _daftarKelas.indexWhere(
@@ -247,15 +257,19 @@ class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
                     _daftarKelas[kelasIdx]['jumlah_siswa'] -= 1;
                   }
                 });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Siswa berhasil dihapus')),
-                );
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Siswa berhasil dihapus')),
+                  );
+                }
               } catch (e) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Gagal menghapus siswa: $e')),
-                );
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Gagal menghapus siswa: $e')),
+                  );
+                }
               }
             },
             child: Text('Hapus', style: TextStyle(color: Colors.red)),
@@ -344,12 +358,14 @@ class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
             ),
           ),
           Expanded(
-            child: _siswa.where((siswa) {
-              final searchTerm = _searchController.text.toLowerCase();
-              return searchTerm.isEmpty ||
-                  siswa['nama'].toLowerCase().contains(searchTerm) ||
-                  (siswa['nis']?.toLowerCase().contains(searchTerm) ?? false);
-            }).isEmpty
+            child:
+                _siswa.where((siswa) {
+                  final searchTerm = _searchController.text.toLowerCase();
+                  return searchTerm.isEmpty ||
+                      siswa['nama'].toLowerCase().contains(searchTerm) ||
+                      (siswa['nis']?.toLowerCase().contains(searchTerm) ??
+                          false);
+                }).isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -387,14 +403,16 @@ class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
                       final searchTerm = _searchController.text.toLowerCase();
                       return searchTerm.isEmpty ||
                           siswa['nama'].toLowerCase().contains(searchTerm) ||
-                          (siswa['nis']?.toLowerCase().contains(searchTerm) ?? false);
+                          (siswa['nis']?.toLowerCase().contains(searchTerm) ??
+                              false);
                     }).length,
                     itemBuilder: (context, index) {
                       final filteredList = _siswa.where((siswa) {
                         final searchTerm = _searchController.text.toLowerCase();
                         return searchTerm.isEmpty ||
                             siswa['nama'].toLowerCase().contains(searchTerm) ||
-                            (siswa['nis']?.toLowerCase().contains(searchTerm) ?? false);
+                            (siswa['nis']?.toLowerCase().contains(searchTerm) ??
+                                false);
                       }).toList();
 
                       final siswa = filteredList[index];
@@ -407,9 +425,10 @@ class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
                           borderRadius: BorderRadius.circular(16),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: color.withOpacity(0.15),
+                              backgroundColor: color.withValues(alpha: 0.15),
                               child: Text(
-                                siswa['nama'] != null && siswa['nama'].isNotEmpty
+                                siswa['nama'] != null &&
+                                        siswa['nama'].isNotEmpty
                                     ? siswa['nama'][0]
                                     : '?',
                                 style: TextStyle(
@@ -422,13 +441,21 @@ class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Kelas: ${siswa['kelas_nama'] ?? 'Tidak ada'}'),
+                                Text(
+                                  'Kelas: ${siswa['kelas_nama'] ?? 'Tidak ada'}',
+                                ),
                               ],
                             ),
                             trailing: PopupMenuButton(
                               itemBuilder: (context) => [
-                                PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                PopupMenuItem(value: 'delete', child: Text('Hapus')),
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Hapus'),
+                                ),
                               ],
                               onSelected: (value) {
                                 if (value == 'edit') {
