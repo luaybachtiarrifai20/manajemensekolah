@@ -7,16 +7,16 @@ import 'package:manajemensekolah/services/api_subject_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
 // import 'package:shared_preferences/shared_preferences.dart';
 
-class KelolaJadwalMengajarScreen extends StatefulWidget {
-  const KelolaJadwalMengajarScreen({super.key});
+class TeachingScheduleManagementScreen extends StatefulWidget {
+  const TeachingScheduleManagementScreen({super.key});
 
   @override
-  KelolaJadwalMengajarScreenState createState() =>
-      KelolaJadwalMengajarScreenState();
+  TeachingScheduleManagementScreenState createState() =>
+      TeachingScheduleManagementScreenState();
 }
 
-class KelolaJadwalMengajarScreenState
-    extends State<KelolaJadwalMengajarScreen> {
+class TeachingScheduleManagementScreenState
+    extends State<TeachingScheduleManagementScreen> {
   final ApiService _apiService = ApiService();
   final ApiClassService apiServiceClass = ApiClassService();
   final ApiSubjectService _apiSubjectService = ApiSubjectService();
@@ -49,13 +49,13 @@ class KelolaJadwalMengajarScreenState
   Future<void> _loadData() async {
     try {
       final [jadwal, guru, mataPelajaran, kelas] = await Future.wait([
-        ApiScheduleService.getJadwalMengajar(
+        ApiScheduleService.getSchedule(
           semester: _selectedSemester,
           tahunAjaran: _selectedTahunAjaran,
         ),
-        apiTeacherService.getGuru(),
-        _apiSubjectService.getMataPelajaran(),
-        apiServiceClass.getKelas(),
+        apiTeacherService.getTeacher(),
+        _apiSubjectService.getSubject(),
+        apiServiceClass.getClass(),
       ]);
 
       setState(() {
@@ -97,7 +97,7 @@ class KelolaJadwalMengajarScreenState
 
     if (result != null) {
       try {
-        await ApiScheduleService.tambahJadwalMengajar(result);
+        await ApiScheduleService.addSchedule(result);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -140,7 +140,7 @@ class KelolaJadwalMengajarScreenState
 
     if (result != null) {
       try {
-        await ApiScheduleService.updateJadwalMengajar(jadwal['id'], result);
+        await ApiScheduleService.updateSchedule(jadwal['id'], result);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -199,7 +199,7 @@ class KelolaJadwalMengajarScreenState
 
     if (confirmed == true) {
       try {
-        await ApiScheduleService.deleteJadwalMengajar(id);
+        await ApiScheduleService.deleteSchedule(id);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -776,7 +776,7 @@ class JadwalFormDialogState extends State<JadwalFormDialog> {
       setState(() {
         _isLoadingMataPelajaran = true;
       });
-      final mataPelajaranGuru = await widget.apiTeacherService.getMataPelajaranByGuru(
+      final mataPelajaranGuru = await widget.apiTeacherService.getSubjectByTeacher(
         guruId,
       );
 

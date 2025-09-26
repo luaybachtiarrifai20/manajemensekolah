@@ -29,24 +29,24 @@ class ApiSubjectService {
     }
   }
 
-  Future<List<dynamic>> getMataPelajaran() async {
+  Future<List<dynamic>> getSubject() async {
     final result = await ApiService().get('/mata-pelajaran');
     return result is List ? result : [];
   }
 
-  Future<dynamic> tambahMataPelajaran(Map<String, dynamic> data) async {
+  Future<dynamic> addSubject(Map<String, dynamic> data) async {
     return await ApiService().post('/mata-pelajaran', data);
   }
 
-  Future<void> updateMataPelajaran(String id, Map<String, dynamic> data) async {
+  Future<void> updateSubject(String id, Map<String, dynamic> data) async {
     await ApiService().put('/mata-pelajaran/$id', data);
   }
 
-  Future<void> deleteMataPelajaran(String id) async {
+  Future<void> deleteSubject(String id) async {
     await ApiService().delete('/mata-pelajaran/$id');
   }
 
-  static Future<List<dynamic>> getKontenMateri({
+  static Future<List<dynamic>> getContentMateri({
     required String subBabId,
   }) async {
     final response = await http.get(
@@ -83,7 +83,7 @@ class ApiSubjectService {
   }
 
   // Tambah Bab Materi
-  static Future<dynamic> tambahBabMateri(Map<String, dynamic> data) async {
+  static Future<dynamic> addBabMateri(Map<String, dynamic> data) async {
     final response = await http.post(
       Uri.parse('$baseUrl/bab-materi'),
       headers: await _getHeaders(),
@@ -94,7 +94,7 @@ class ApiSubjectService {
   }
 
   // Tambah Sub Bab Materi
-  static Future<dynamic> tambahSubBabMateri(Map<String, dynamic> data) async {
+  static Future<dynamic> addSubBabMateri(Map<String, dynamic> data) async {
     final response = await http.post(
       Uri.parse('$baseUrl/sub-bab-materi'),
       headers: await _getHeaders(),
@@ -105,7 +105,7 @@ class ApiSubjectService {
   }
 
   // Tambah Konten Materi
-  static Future<dynamic> tambahKontenMateri(Map<String, dynamic> data) async {
+  static Future<dynamic> addContentMateri(Map<String, dynamic> data) async {
     final response = await http.post(
       Uri.parse('$baseUrl/konten-materi'),
       headers: await _getHeaders(),
@@ -144,7 +144,7 @@ class ApiSubjectService {
   }
 
   // Update Konten Materi
-  static Future<void> updateKontenMateri(
+  static Future<void> updateContentMateri(
     String id,
     Map<String, dynamic> data,
   ) async {
@@ -178,7 +178,7 @@ class ApiSubjectService {
   }
 
   // Delete Konten Materi
-  static Future<void> deleteKontenMateri(String id) async {
+  static Future<void> deleteContentMateri(String id) async {
     final response = await http.delete(
       Uri.parse('$baseUrl/konten-materi/$id'),
       headers: await _getHeaders(),
@@ -205,7 +205,7 @@ class ApiSubjectService {
     return result is List ? result : [];
   }
 
-  static Future<dynamic> tambahMateri(Map<String, dynamic> data) async {
+  static Future<dynamic> addMateri(Map<String, dynamic> data) async {
     final response = await http.post(
       Uri.parse('$baseUrl/materi'),
       headers: await _getHeaders(),

@@ -29,7 +29,7 @@ class ApiStudentService {
     }
   }
   // Kelola Siswa
-  static Future<List<dynamic>> getSiswa() async {
+  static Future<List<dynamic>> getStudent() async {
     final response = await http.get(
       Uri.parse('$baseUrl/siswa'),
       headers: await _getHeaders(),
@@ -40,7 +40,7 @@ class ApiStudentService {
     return result is List ? result : [];
   }
 
-  static Future<dynamic> tambahSiswa(Map<String, dynamic> data) async {
+  static Future<dynamic> addStudent(Map<String, dynamic> data) async {
     final response = await http.post(
       Uri.parse('$baseUrl/siswa'),
       headers: await _getHeaders(),
@@ -49,7 +49,7 @@ class ApiStudentService {
     return _handleResponse(response);
   }
 
-  static Future<void> updateSiswa(String id, Map<String, dynamic> data) async {
+  static Future<void> updateStudent(String id, Map<String, dynamic> data) async {
     final response = await http.put(
       Uri.parse('$baseUrl/siswa/$id'),
       headers: await _getHeaders(),
@@ -58,7 +58,7 @@ class ApiStudentService {
     _handleResponse(response);
   }
 
-  static Future<void> deleteSiswa(String id) async {
+  static Future<void> deleteStudent(String id) async {
     final response = await http.delete(
       Uri.parse('$baseUrl/siswa/$id'),
       headers: await _getHeaders(),

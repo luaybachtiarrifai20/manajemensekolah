@@ -3,7 +3,7 @@ import 'package:manajemensekolah/data/data_dummy.dart';
 
 class InventarisScreen extends StatelessWidget {
 
-  InventarisScreen({super.key});
+  const InventarisScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

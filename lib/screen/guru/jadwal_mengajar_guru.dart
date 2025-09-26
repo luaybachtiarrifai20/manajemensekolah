@@ -49,7 +49,7 @@ class JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
 
     try {
       // Jika "Semua Hari" dipilih, kirim string kosong ke API
-      final jadwal = await ApiScheduleService.getJadwalMengajar(
+      final jadwal = await ApiScheduleService.getSchedule(
         guruId: _guruId,
         hari: _selectedHari == 'Semua Hari' ? '' : _selectedHari,
         semester: _selectedSemester,

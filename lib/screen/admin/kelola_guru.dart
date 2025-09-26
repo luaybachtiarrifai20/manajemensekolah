@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:manajemensekolah/screen/admin/guru_detail_screen.dart';
+import 'package:manajemensekolah/screen/admin/teacher_detail_screen.dart';
 import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_subject_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
 
-class KelolaGuruScreen extends StatefulWidget {
-  const KelolaGuruScreen({super.key});
+class TeacherAdminScreen extends StatefulWidget {
+  const TeacherAdminScreen({super.key});
 
   @override
-  KelolaGuruScreenState createState() => KelolaGuruScreenState();
+  TeacherAdminScreenState createState() => TeacherAdminScreenState();
 }
 
-class KelolaGuruScreenState extends State<KelolaGuruScreen> {
+class TeacherAdminScreenState extends State<TeacherAdminScreen> {
   final ApiTeacherService _teacherService = ApiTeacherService();
   final ApiClassService _classService = ApiClassService();
   final ApiSubjectService _subjectService = ApiSubjectService();
@@ -36,9 +36,9 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
         _errorMessage = null;
       });
 
-      final guruData = await _teacherService.getGuru();
-      final mataPelajaranData = await _subjectService.getMataPelajaran();
-      final kelasData = await _classService.getKelas();
+      final guruData = await _teacherService.getTeacher();
+      final mataPelajaranData = await _subjectService.getSubject();
+      final kelasData = await _classService.getClass();
 
       setState(() {
         _guru = guruData;
@@ -64,7 +64,7 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
   ) async {
     try {
       // Get current mata pelajaran
-      final currentMataPelajaran = await _teacherService.getMataPelajaranByGuru(
+      final currentMataPelajaran = await _teacherService.getSubjectByTeacher(
         guruId,
       );
       final currentIds = currentMataPelajaran
@@ -74,14 +74,14 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
       // Add new mata pelajaran
       for (final mpId in selectedMataPelajaranIds) {
         if (!currentIds.contains(mpId)) {
-          await _teacherService.addMataPelajaranToGuru(guruId, mpId);
+          await _teacherService.addSubjectToTeacher(guruId, mpId);
         }
       }
 
       // Remove unselected mata pelajaran
       for (final currentId in currentIds) {
         if (!selectedMataPelajaranIds.contains(currentId)) {
-          await _teacherService.removeMataPelajaranFromGuru(guruId, currentId);
+          await _teacherService.removeSubjectFromTeacher(guruId, currentId);
         }
       }
     } catch (error) {
@@ -222,7 +222,7 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
 
                       String guruId;
                       if (guru == null) {
-                        final result = await _teacherService.tambahGuru(data);
+                        final result = await _teacherService.addTeacher(data);
                         guruId = result['id'];
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -236,7 +236,7 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
                         }
                       } else {
                         guruId = guru['id'];
-                        await _teacherService.updateGuru(guruId, data);
+                        await _teacherService.updateTeacher(guruId, data);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('Guru berhasil diupdate')),
@@ -276,7 +276,7 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
       showDialogWithSubjects([]);
     } else {
       // Edit guru: ambil data subject terbaru dari database
-      _teacherService.getMataPelajaranByGuru(guru['id']).then((list) {
+      _teacherService.getSubjectByTeacher(guru['id']).then((list) {
         final ids = list.map((mp) => mp['id'].toString()).toList();
         showDialogWithSubjects(ids);
       });
@@ -480,8 +480,8 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: [
-                                    color.withOpacity(0.8),
-                                    color.withOpacity(0.6),
+                                    color.withValues(alpha: 0.8),
+                                    color.withValues(alpha: 0.6),
                                   ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
@@ -611,7 +611,7 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
   void _navigateToDetail(Map<String, dynamic> guru) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => GuruDetailScreen(guru: guru)),
+      MaterialPageRoute(builder: (context) => TeacherDetailScreen(guru: guru)),
     );
   }
 
@@ -679,7 +679,7 @@ class KelolaGuruScreenState extends State<KelolaGuruScreen> {
 
     if (confirm == true) {
       try {
-        await _teacherService.deleteGuru(guru['id']);
+        await _teacherService.deleteTeacher(guru['id']);
         if (mounted) {
           ScaffoldMessenger.of(
             context,

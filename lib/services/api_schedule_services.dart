@@ -30,7 +30,7 @@ class ApiScheduleService {
   }
 
   // Jadwal Mengajar
-  static Future<List<dynamic>> getJadwalMengajar({
+  static Future<List<dynamic>> getSchedule({
     String? guruId,
     String? kelasId,
     String? hari,
@@ -53,7 +53,7 @@ class ApiScheduleService {
     return result is List ? result : [];
   }
 
-  static Future<dynamic> tambahJadwalMengajar(Map<String, dynamic> data) async {
+  static Future<dynamic> addSchedule(Map<String, dynamic> data) async {
     final response = await http.post(
       Uri.parse('$baseUrl/jadwal-mengajar'),
       headers: await _getHeaders(),
@@ -63,7 +63,7 @@ class ApiScheduleService {
     return _handleResponse(response);
   }
 
-  static Future<void> updateJadwalMengajar(
+  static Future<void> updateSchedule(
     String id,
     Map<String, dynamic> data,
   ) async {
@@ -76,7 +76,7 @@ class ApiScheduleService {
     _handleResponse(response);
   }
 
-  static Future<void> deleteJadwalMengajar(String id) async {
+  static Future<void> deleteSchedule(String id) async {
     final response = await http.delete(
       Uri.parse('$baseUrl/jadwal-mengajar/$id'),
       headers: await _getHeaders(),

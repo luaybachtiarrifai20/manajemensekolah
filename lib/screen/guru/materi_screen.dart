@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_subject_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
 
@@ -78,7 +77,7 @@ class MateriPageState extends State<MateriPage> {
       }
 
       final ApiTeacherService apiTeacherService = ApiTeacherService();
-      final mataPelajaran = await apiTeacherService.getMataPelajaranByGuru(
+      final mataPelajaran = await apiTeacherService.getSubjectByTeacher(
         guruId,
       );
 
@@ -428,7 +427,7 @@ class SubBabDetailPageState extends State<SubBabDetailPage> {
         _isLoading = true;
       });
 
-      final kontenMateri = await ApiSubjectService.getKontenMateri(
+      final kontenMateri = await ApiSubjectService.getContentMateri(
         subBabId: widget.subBab['id'],
       );
 

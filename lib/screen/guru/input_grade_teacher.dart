@@ -36,8 +36,8 @@ class NilaiPageState extends State<NilaiPage> {
 
   Future<void> _loadData() async {
     try {
-      final mataPelajaran = await apiSubjectService.getMataPelajaran();
-      final siswa = await ApiStudentService.getSiswa();
+      final mataPelajaran = await apiSubjectService.getSubject();
+      final siswa = await ApiStudentService.getStudent();
       
       setState(() {
         _mataPelajaranList = mataPelajaran;

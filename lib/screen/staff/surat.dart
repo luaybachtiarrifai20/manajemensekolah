@@ -6,21 +6,23 @@ class SuratMenyuratScreen extends StatelessWidget {
       'judul': 'Surat Undangan Rapat Guru',
       'tanggal': '2024-01-15',
       'status': 'Terkirim',
-      'jenis': 'Keluar'
+      'jenis': 'Keluar',
     },
     {
       'judul': 'Surat Permohonan Izin Kegiatan',
       'tanggal': '2024-01-12',
       'status': 'Diterima',
-      'jenis': 'Masuk'
+      'jenis': 'Masuk',
     },
     {
       'judul': 'Surat Edaran Libur Semester',
       'tanggal': '2024-01-10',
       'status': 'Terkirim',
-      'jenis': 'Keluar'
+      'jenis': 'Keluar',
     },
   ];
+  
+  SuratMenyuratScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +43,9 @@ class SuratMenyuratScreen extends StatelessWidget {
               subtitle: Text('${item['tanggal']} - ${item['jenis']}'),
               trailing: Chip(
                 label: Text(item['status']),
-                backgroundColor: item['status'] == 'Terkirim' ? Colors.blue[100] : Colors.green[100],
+                backgroundColor: item['status'] == 'Terkirim'
+                    ? Colors.blue[100]
+                    : Colors.green[100],
               ),
             ),
           );

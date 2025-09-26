@@ -76,9 +76,9 @@ class AbsensiPageState extends State<AbsensiPage> with SingleTickerProviderState
     try {
       final apiServiceClass = ApiClassService();
       final [mataPelajaran, kelas, siswa] = await Future.wait([
-        apiSubjectService.getMataPelajaran(),
-        apiServiceClass.getKelas(),
-        ApiStudentService.getSiswa(),
+        apiSubjectService.getSubject(),
+        apiServiceClass.getClass(),
+        ApiStudentService.getStudent(),
       ]);
       
       setState(() {

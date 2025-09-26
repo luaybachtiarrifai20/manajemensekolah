@@ -45,8 +45,8 @@ class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
         _errorMessage = null;
       });
 
-      final siswaData = await ApiStudentService.getSiswa();
-      final kelasData = await apiServiceClass.getKelas();
+      final siswaData = await ApiStudentService.getStudent();
+      final kelasData = await apiServiceClass.getClass();
 
       if (!mounted) return;
 
@@ -199,7 +199,7 @@ class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
                 };
 
                 if (isEdit) {
-                  await ApiStudentService.updateSiswa(siswa['id'], data);
+                  await ApiStudentService.updateStudent(siswa['id'], data);
                   await _loadData(); // Reload data untuk mendapatkan perubahan
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -207,7 +207,7 @@ class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
                     );
                   }
                 } else {
-                  await ApiStudentService.tambahSiswa(data);
+                  await ApiStudentService.addStudent(data);
                   await _loadData(); // Reload data untuk mendapatkan data baru
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -246,7 +246,7 @@ class KelolaSiswaScreenState extends State<KelolaSiswaScreen> {
           TextButton(
             onPressed: () async {
               try {
-                await ApiStudentService.deleteSiswa(siswa['id']);
+                await ApiStudentService.deleteStudent(siswa['id']);
                 setState(() {
                   _siswa.removeWhere((s) => s['id'] == siswa['id']);
                   final kelasIdx = _daftarKelas.indexWhere(

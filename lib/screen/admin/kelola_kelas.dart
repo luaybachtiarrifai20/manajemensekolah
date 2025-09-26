@@ -68,8 +68,8 @@ class KelolaKelasScreenState extends State<KelolaKelasScreen> {
         _errorMessage = null;
       });
 
-      final kelasData = await apiServiceClass.getKelas();
-      final guruData = await apiTeacherService.getGuru();
+      final kelasData = await apiServiceClass.getClass();
+      final guruData = await apiTeacherService.getTeacher();
 
       setState(() {
         _daftarKelas = kelasData;
@@ -123,7 +123,7 @@ class KelolaKelasScreenState extends State<KelolaKelasScreen> {
               try {
                 // Implementasi API delete kelas
                 final apiServiceClass = ApiClassService();
-                await apiServiceClass.deleteKelas(id);
+                await apiServiceClass.deleteClass(id);
 
                 setState(() {
                   _daftarKelas.removeWhere((kelas) => kelas['id'] == id);
@@ -159,7 +159,7 @@ class KelolaKelasScreenState extends State<KelolaKelasScreen> {
       try {
         if (_isEditMode) {
           // Implementasi API update kelas
-          await apiServiceClass.updateKelas(_editingKelasId!, {
+          await apiServiceClass.updateClass(_editingKelasId!, {
             'nama': _namaController.text,
             'wali_kelas_id': _selectedGuruId,
           });
@@ -184,7 +184,7 @@ class KelolaKelasScreenState extends State<KelolaKelasScreen> {
           }
         } else {
           // Implementasi API tambah kelas
-          await apiServiceClass.tambahKelas({
+          await apiServiceClass.addClass({
             'nama': _namaController.text,
             'wali_kelas_id': _selectedGuruId,
           });
