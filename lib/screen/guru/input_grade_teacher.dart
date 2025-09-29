@@ -6,16 +6,16 @@ import 'package:manajemensekolah/services/api_student_services.dart';
 import 'package:manajemensekolah/services/api_subject_services.dart';
 
 
-class NilaiPage extends StatefulWidget {
+class GradePage extends StatefulWidget {
   final Map<String, dynamic> guru;
 
-  const NilaiPage({super.key, required this.guru});
+  const GradePage({super.key, required this.guru});
 
   @override
-  NilaiPageState createState() => NilaiPageState();
+  GradePageState createState() => GradePageState();
 }
 
-class NilaiPageState extends State<NilaiPage> {
+class GradePageState extends State<GradePage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nilaiController = TextEditingController();
   final TextEditingController _deskripsiController = TextEditingController();

@@ -1,11 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:manajemensekolah/components/confirmation_dialog.dart';
+import 'package:manajemensekolah/components/empty_state.dart';
+import 'package:manajemensekolah/components/loading_screen.dart';
+import 'package:manajemensekolah/components/search_bar.dart';
 import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_schedule_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_subject_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
-// import 'package:shared_preferences/shared_preferences.dart';
+import 'package:manajemensekolah/utils/color_utils.dart';
 
 class TeachingScheduleManagementScreen extends StatefulWidget {
   const TeachingScheduleManagementScreen({super.key});
@@ -168,32 +172,9 @@ class TeachingScheduleManagementScreenState
   Future<void> _hapusJadwal(String id) async {
     final confirmed = await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Hapus Jadwal',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.red.shade700,
-          ),
-        ),
-        content: Text('Apakah Anda yakin ingin menghapus jadwal ini?'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Batal', style: TextStyle(color: Colors.grey.shade600)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade500,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text('Hapus', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+      builder: (context) => ConfirmationDialog(
+        title: 'Hapus Jadwal',
+        content: 'Apakah Anda yakin ingin menghapus jadwal ini?',
       ),
     );
 
@@ -224,20 +205,21 @@ class TeachingScheduleManagementScreenState
     }
   }
 
-  Color _getHariColor(String hari) {
-    final Map<String, Color> hariColorMap = {
-      'Senin': Color(0xFF6366F1),
-      'Selasa': Color(0xFF10B981),
-      'Rabu': Color(0xFFF59E0B),
-      'Kamis': Color(0xFFEF4444),
-      'Jumat': Color(0xFF8B5CF6),
-      'Sabtu': Color(0xFF06B6D4),
-    };
-    return hariColorMap[hari] ?? Color(0xFF6B7280);
-  }
-
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return LoadingScreen(message: 'Memuat data jadwal...');
+    }
+
+    final TextEditingController searchController = TextEditingController();
+    final filteredJadwal = _jadwalList.where((jadwal) {
+      final searchTerm = searchController.text.toLowerCase();
+      return searchTerm.isEmpty ||
+          jadwal['mata_pelajaran_nama'].toLowerCase().contains(searchTerm) ||
+          jadwal['guru_nama'].toLowerCase().contains(searchTerm) ||
+          jadwal['kelas_nama'].toLowerCase().contains(searchTerm);
+    }).toList();
+
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
@@ -245,7 +227,7 @@ class TeachingScheduleManagementScreenState
           'Kelola Jadwal Mengajar',
           style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
         ),
-        backgroundColor: Color(0xFF4F46E5),
+        backgroundColor: ColorUtils.primaryColor,
         elevation: 0,
         centerTitle: true,
         actions: [
@@ -256,332 +238,265 @@ class TeachingScheduleManagementScreenState
           ),
         ],
       ),
-      body: _isLoading
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Color(0xFF4F46E5),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Memuat data...',
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
-                  ),
-                ],
+      body: Column(
+        children: [
+          // Header dengan Filter
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [ColorUtils.primaryColor, Color(0xFF7C73FA)],
               ),
-            )
-          : Column(
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(24),
+                bottomRight: Radius.circular(24),
+              ),
+            ),
+            child: Column(
               children: [
-                // Header dengan Filter
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF4F46E5), Color(0xFF7C73FA)],
-                    ),
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(24),
-                      bottomRight: Radius.circular(24),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Kelola Jadwal Mengajar',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        '$_selectedSemester • $_selectedTahunAjaran',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 16,
-                        ),
-                      ),
-                      SizedBox(height: 16),
-
-                      // Filter Section
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildFilterCard(
-                              'Semester',
-                              _selectedSemester,
-                              Icons.school,
-                              () => _showSemesterFilter(),
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: _buildFilterCard(
-                              'Tahun Ajaran',
-                              _selectedTahunAjaran,
-                              Icons.calendar_today,
-                              () => _showTahunAjaranDialog(),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                Text(
+                  'Kelola Jadwal Mengajar',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-
+                SizedBox(height: 8),
+                Text(
+                  '$_selectedSemester • $_selectedTahunAjaran',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 16,
+                  ),
+                ),
                 SizedBox(height: 16),
 
-                // Content
-                Expanded(
-                  child: _jadwalList.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.schedule_outlined,
-                                size: 80,
-                                color: Colors.grey.shade300,
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Belum ada jadwal mengajar',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              Text(
-                                'Tap + untuk menambah jadwal baru',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: EdgeInsets.all(16),
-                          itemCount: _jadwalList.length,
-                          itemBuilder: (context, index) {
-                            final jadwal = _jadwalList[index];
-                            final hari = jadwal['hari'];
-                            final cardColor = _getHariColor(hari);
+                // Filter Section
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildFilterCard(
+                        'Semester',
+                        _selectedSemester,
+                        Icons.school,
+                        () => _showSemesterFilter(),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: _buildFilterCard(
+                        'Tahun Ajaran',
+                        _selectedTahunAjaran,
+                        Icons.calendar_today,
+                        () => _showTahunAjaranDialog(),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
 
-                            return Container(
-                              margin: EdgeInsets.only(bottom: 16),
-                              child: Material(
-                                elevation: 3,
-                                borderRadius: BorderRadius.circular(16),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        cardColor.withValues(alpha: 0.9),
-                                        cardColor.withValues(alpha: 0.7),
-                                      ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Row(
+          SizedBox(height: 16),
+
+          // Search Bar
+          CustomSearchBar(
+            controller: searchController,
+            hintText: 'Cari jadwal...',
+            onChanged: (value) => setState(() {}),
+          ),
+
+          // Content
+          Expanded(
+            child: filteredJadwal.isEmpty
+                ? EmptyState(
+                    title: 'Belum ada jadwal mengajar',
+                    subtitle: searchController.text.isEmpty
+                        ? 'Tap + untuk menambah jadwal baru'
+                        : 'Tidak ditemukan hasil pencarian',
+                    icon: Icons.schedule_outlined,
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.all(16),
+                    itemCount: filteredJadwal.length,
+                    itemBuilder: (context, index) {
+                      final jadwal = filteredJadwal[index];
+                      final hari = jadwal['hari'];
+                      final cardColor = ColorUtils.getHariColor(hari);
+
+                      return Container(
+                        margin: EdgeInsets.only(bottom: 16),
+                        child: Material(
+                          elevation: 3,
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  cardColor.withValues(alpha: 0.9),
+                                  cardColor.withValues(alpha: 0.7),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  // Time Section
+                                  SizedBox(
+                                    width: 70,
+                                    child: Column(
                                       children: [
-                                        // Time Section
-                                        SizedBox(
-                                          width: 70,
-                                          child: Column(
-                                            children: [
-                                              Text(
-                                                jadwal['jam_mulai'].substring(
-                                                  0,
-                                                  5,
-                                                ),
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                              Container(
-                                                width: 1,
-                                                height: 20,
-                                                color: Colors.white10,
-                                                margin: EdgeInsets.symmetric(
-                                                  vertical: 4,
-                                                ),
-                                              ),
-                                              Text(
-                                                jadwal['jam_selesai'].substring(
-                                                  0,
-                                                  5,
-                                                ),
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                            ],
+                                        Text(
+                                          jadwal['jam_mulai'].substring(0, 5),
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
                                           ),
                                         ),
-
-                                        // Vertical Divider
                                         Container(
                                           width: 1,
-                                          height: 60,
-                                          margin: EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                          ),
-                                          color: Colors.white.withValues(
-                                            alpha: 0.3,
+                                          height: 20,
+                                          color: Colors.white10,
+                                          margin: EdgeInsets.symmetric(vertical: 4),
+                                        ),
+                                        Text(
+                                          jadwal['jam_selesai'].substring(0, 5),
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
                                           ),
                                         ),
+                                      ],
+                                    ),
+                                  ),
 
-                                        // Content Section
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                jadwal['mata_pelajaran_nama'],
+                                  // Vertical Divider
+                                  Container(
+                                    width: 1,
+                                    height: 60,
+                                    margin: EdgeInsets.symmetric(horizontal: 16),
+                                    color: Colors.white.withValues(alpha: 0.3),
+                                  ),
+
+                                  // Content Section
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          jadwal['mata_pelajaran_nama'],
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        SizedBox(height: 8),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.person,
+                                              size: 16,
+                                              color: Colors.white.withValues(alpha: 0.8),
+                                            ),
+                                            SizedBox(width: 4),
+                                            Expanded(
+                                              child: Text(
+                                                jadwal['guru_nama'],
                                                 style: TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
+                                                  color: Colors.white.withValues(alpha: 0.9),
+                                                  fontSize: 14,
                                                 ),
-                                                maxLines: 2,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
-                                              SizedBox(height: 8),
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.person,
-                                                    size: 16,
-                                                    color: Colors.white
-                                                        .withValues(alpha: 0.8),
-                                                  ),
-                                                  SizedBox(width: 4),
-                                                  Expanded(
-                                                    child: Text(
-                                                      jadwal['guru_nama'],
-                                                      style: TextStyle(
-                                                        color: Colors.white
-                                                            .withValues(
-                                                              alpha: 0.9,
-                                                            ),
-                                                        fontSize: 14,
-                                                      ),
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              SizedBox(height: 4),
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.class_,
-                                                    size: 16,
-                                                    color: Colors.white
-                                                        .withValues(alpha: 0.8),
-                                                  ),
-                                                  SizedBox(width: 4),
-                                                  Text(
-                                                    jadwal['kelas_nama'],
-                                                    style: TextStyle(
-                                                      color: Colors.white
-                                                          .withValues(
-                                                            alpha: 0.9,
-                                                          ),
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              SizedBox(height: 4),
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.calendar_month,
-                                                    size: 16,
-                                                    color: Colors.white
-                                                        .withValues(alpha: 0.8),
-                                                  ),
-                                                  SizedBox(width: 4),
-                                                  Text(
-                                                    hari,
-                                                    style: TextStyle(
-                                                      color: Colors.white
-                                                          .withValues(
-                                                            alpha: 0.9,
-                                                          ),
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-
-                                        // Action Buttons
-                                        Column(
-                                          children: [
-                                            IconButton(
-                                              icon: Icon(
-                                                Icons.edit,
-                                                color: Colors.white,
-                                              ),
-                                              onPressed: () =>
-                                                  _editJadwal(jadwal),
-                                              tooltip: 'Edit Jadwal',
                                             ),
-                                            IconButton(
-                                              icon: Icon(
-                                                Icons.delete,
-                                                color: Colors.white.withValues(
-                                                  alpha: 0.8,
-                                                ),
+                                          ],
+                                        ),
+                                        SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.class_,
+                                              size: 16,
+                                              color: Colors.white.withValues(alpha: 0.8),
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              jadwal['kelas_nama'],
+                                              style: TextStyle(
+                                                color: Colors.white.withValues(alpha: 0.9),
+                                                fontSize: 14,
                                               ),
-                                              onPressed: () =>
-                                                  _hapusJadwal(jadwal['id']),
-                                              tooltip: 'Hapus Jadwal',
+                                            ),
+                                          ],
+                                        ),
+                                        SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.calendar_month,
+                                              size: 16,
+                                              color: Colors.white.withValues(alpha: 0.8),
+                                            ),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              hari,
+                                              style: TextStyle(
+                                                color: Colors.white.withValues(alpha: 0.9),
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                              ),
                                             ),
                                           ],
                                         ),
                                       ],
                                     ),
                                   ),
-                                ),
+
+                                  // Action Buttons
+                                  Column(
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(Icons.edit, color: Colors.white),
+                                        onPressed: () => _editJadwal(jadwal),
+                                        tooltip: 'Edit Jadwal',
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.delete,
+                                          color: Colors.white.withValues(alpha: 0.8),
+                                        ),
+                                        onPressed: () => _hapusJadwal(jadwal['id']),
+                                        tooltip: 'Hapus Jadwal',
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                            );
-                          },
+                            ),
+                          ),
                         ),
-                ),
-              ],
-            ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _tambahJadwal,
-        backgroundColor: Color(0xFF4F46E5),
+        backgroundColor: ColorUtils.primaryColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Icon(Icons.add, color: Colors.white),
       ),
@@ -589,9 +504,7 @@ class TeachingScheduleManagementScreenState
   }
 
   Future<void> _showTahunAjaranDialog() async {
-    final TextEditingController controller = TextEditingController(
-      text: _selectedTahunAjaran,
-    );
+    final TextEditingController controller = TextEditingController(text: _selectedTahunAjaran);
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -609,10 +522,8 @@ class TeachingScheduleManagementScreenState
           ElevatedButton(
             onPressed: () => Navigator.pop(context, controller.text),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF4F46E5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              backgroundColor: ColorUtils.primaryColor,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: Text('Pilih', style: TextStyle(color: Colors.white)),
           ),
@@ -658,12 +569,7 @@ class TeachingScheduleManagementScreenState
     }
   }
 
-  Widget _buildFilterCard(
-    String label,
-    String value,
-    IconData icon,
-    VoidCallback onTap,
-  ) {
+  Widget _buildFilterCard(String label, String value, IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1211,3 +1117,7 @@ class JadwalFormDialogState extends State<JadwalFormDialog> {
     );
   }
 }
+
+
+// JadwalFormDialog tetap sama seperti sebelumnya...
+// [Kode JadwalFormDialog tetap seperti semula]

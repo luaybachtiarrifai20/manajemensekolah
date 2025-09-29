@@ -6,16 +6,16 @@ import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_student_services.dart';
 import 'package:manajemensekolah/services/api_subject_services.dart';
 
-class AbsensiPage extends StatefulWidget {
+class PresencePage extends StatefulWidget {
   final Map<String, dynamic> guru;
 
-  const AbsensiPage({super.key, required this.guru});
+  const PresencePage({super.key, required this.guru});
 
   @override
-  AbsensiPageState createState() => AbsensiPageState();
+  PresencePageState createState() => PresencePageState();
 }
 
-class AbsensiPageState extends State<AbsensiPage> with SingleTickerProviderStateMixin {
+class PresencePageState extends State<PresencePage> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   DateTime _selectedDate = DateTime.now();
   String? _selectedMataPelajaran;

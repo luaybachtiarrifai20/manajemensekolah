@@ -1,17 +1,17 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:manajemensekolah/screen/admin/kelola_guru.dart';
-import 'package:manajemensekolah/screen/admin/kelola_jadwal_mengajar.dart';
-import 'package:manajemensekolah/screen/admin/kelola_kelas.dart';
-import 'package:manajemensekolah/screen/admin/kelola_mata_pelajaran.dart';
-import 'package:manajemensekolah/screen/admin/kelola_siswa.dart';
+import 'package:manajemensekolah/screen/admin/teacher_admin.dart';
+import 'package:manajemensekolah/screen/admin/teaching_schedule_management.dart';
+import 'package:manajemensekolah/screen/admin/class_management.dart';
+import 'package:manajemensekolah/screen/admin/subject_management.dart';
+import 'package:manajemensekolah/screen/admin/student_management.dart';
 import 'package:manajemensekolah/screen/admin/keuangan.dart';
 import 'package:manajemensekolah/screen/admin/laporan.dart';
 import 'package:manajemensekolah/screen/admin/pengumuman.dart';
-import 'package:manajemensekolah/screen/guru/absensi_teacher.dart';
+import 'package:manajemensekolah/screen/guru/presence_teacher.dart';
 import 'package:manajemensekolah/screen/guru/input_grade_teacher.dart';
-import 'package:manajemensekolah/screen/guru/jadwal_mengajar_guru.dart';
+import 'package:manajemensekolah/screen/guru/teaching_schedule.dart';
 
 import 'package:manajemensekolah/screen/guru/materi_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -293,7 +293,7 @@ class Dashboard extends StatelessWidget {
         'icon': Icons.people,
         'onTap': () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => KelolaSiswaScreen()),
+          MaterialPageRoute(builder: (context) => StudentManagementScreen()),
         ),
         'roles': ['admin'], // Hanya admin
       },
@@ -311,7 +311,7 @@ class Dashboard extends StatelessWidget {
         'icon': Icons.class_,
         'onTap': () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => KelolaKelasScreen()),
+          MaterialPageRoute(builder: (context) => ClassManagementScreen()),
         ),
         'roles': ['admin'], // Hanya admin
       },
@@ -320,7 +320,7 @@ class Dashboard extends StatelessWidget {
         'icon': Icons.menu_book,
         'onTap': () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => KelolaMataPelajaranScreen()),
+          MaterialPageRoute(builder: (context) => SubjectManagementScreen()),
         ),
         'roles': ['admin'], // Hanya admin
       },
@@ -357,7 +357,7 @@ class Dashboard extends StatelessWidget {
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => AbsensiPage(guru: {'role': role}),
+            builder: (context) => PresencePage(guru: {'role': role}),
           ),
         ),
         'roles': ['admin', 'guru'], // Admin dan guru
@@ -368,7 +368,7 @@ class Dashboard extends StatelessWidget {
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => NilaiPage(guru: {'role': role}),
+            builder: (context) => GradePage(guru: {'role': role}),
           ),
         ),
         'roles': ['admin', 'guru'], // Admin dan guru
@@ -378,7 +378,7 @@ class Dashboard extends StatelessWidget {
         'icon': Icons.schedule,
         'onTap': () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => JadwalMengajarScreen()),
+          MaterialPageRoute(builder: (context) => TeachingScheduleScreen()),
         ),
         'roles': ['admin', 'guru'], // Guru
       },

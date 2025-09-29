@@ -5,14 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:manajemensekolah/services/api_schedule_services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class JadwalMengajarScreen extends StatefulWidget {
-  const JadwalMengajarScreen({super.key});
+class TeachingScheduleScreen extends StatefulWidget {
+  const TeachingScheduleScreen({super.key});
 
   @override
-  JadwalMengajarScreenState createState() => JadwalMengajarScreenState();
+  TeachingScheduleScreenState createState() => TeachingScheduleScreenState();
 }
 
-class JadwalMengajarScreenState extends State<JadwalMengajarScreen> {
+class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
   List<dynamic> _jadwalList = [];
   bool _isLoading = true;
   String _guruId = '';
