@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:manajemensekolah/components/class_form_dialog.dart';
 import 'package:manajemensekolah/components/class_list_item.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
@@ -9,6 +10,7 @@ import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
+import 'package:manajemensekolah/utils/language_utils.dart';
 
 class ClassManagementScreen extends StatefulWidget {
   const ClassManagementScreen({super.key});
@@ -18,12 +20,12 @@ class ClassManagementScreen extends StatefulWidget {
 }
 
 class ClassManagementScreenState extends State<ClassManagementScreen> {
-  final _namaController = TextEditingController();
-  String? _selectedGuruId;
+  final _nameController = TextEditingController();
+  String? _selectedTeacherId;
   bool _isEditMode = false;
-  String? _editingKelasId;
-  List<dynamic> _daftarKelas = [];
-  List<dynamic> _daftarGuru = [];
+  String? _editingClassId;
+  List<dynamic> _classList = [];
+  List<dynamic> _teacherList = [];
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -39,7 +41,7 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
 
   @override
   void dispose() {
-    _namaController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -50,12 +52,12 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
         _errorMessage = null;
       });
 
-      final kelasData = await apiServiceClass.getClass();
-      final guruData = await apiTeacherService.getTeacher();
+      final classData = await apiServiceClass.getClass();
+      final teacherData = await apiTeacherService.getTeacher();
 
       setState(() {
-        _daftarKelas = kelasData;
-        _daftarGuru = guruData;
+        _classList = classData;
+        _teacherList = teacherData;
         _isLoading = false;
       });
     } catch (e) {
@@ -65,40 +67,45 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memuat data: $e')),
+        SnackBar(content: Text('Failed to load data: $e')),
       );
     }
   }
 
-  void _tambahKelas() {
+  void _addClass() {
     setState(() {
       _isEditMode = false;
-      _namaController.clear();
-      _selectedGuruId = null;
+      _nameController.clear();
+      _selectedTeacherId = null;
     });
-    _showKelasDialog();
+    _showClassDialog();
   }
 
-  void _editKelas(dynamic kelas) {
+  void _editClass(dynamic classData) {
     setState(() {
       _isEditMode = true;
-      _editingKelasId = kelas['id'];
-      _namaController.text = kelas['nama'];
-      _selectedGuruId = kelas['wali_kelas_id'];
+      _editingClassId = classData['id'];
+      _nameController.text = classData['name'];
+      _selectedTeacherId = classData['homeroom_teacher_id'];
     });
-    _showKelasDialog();
+    _showClassDialog();
   }
 
-  Future<void> _hapusKelas(String id) async {
+  Future<void> _deleteClass(String id) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Hapus Kelas'),
-        content: Text('Apakah Anda yakin ingin menghapus kelas ini?'),
+        title: Text(AppLocalizations.delete.tr),
+        content: Text(
+          context.read<LanguageProvider>().getTranslatedText({
+            'en': 'Are you sure you want to delete this class?',
+            'id': 'Apakah Anda yakin ingin menghapus kelas ini?',
+          }),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Batal'),
+            child: Text(AppLocalizations.cancel.tr),
           ),
           TextButton(
             onPressed: () async {
@@ -107,14 +114,21 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
                 await apiServiceClass.deleteClass(id);
 
                 setState(() {
-                  _daftarKelas.removeWhere((kelas) => kelas['id'] == id);
+                  _classList.removeWhere((classItem) => classItem['id'] == id);
                 });
                 if (context.mounted) {
                   Navigator.pop(context);
                 }
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Kelas berhasil dihapus')),
+                    SnackBar(
+                      content: Text(
+                        context.read<LanguageProvider>().getTranslatedText({
+                          'en': 'Class successfully deleted',
+                          'id': 'Kelas berhasil dihapus',
+                        }),
+                      ),
+                    ),
                   );
                 }
               } catch (e) {
@@ -123,67 +137,91 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
                 }
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Gagal menghapus kelas: $e')),
+                    SnackBar(
+                      content: Text(
+                        context.read<LanguageProvider>().getTranslatedText({
+                          'en': 'Failed to delete class: $e',
+                          'id': 'Gagal menghapus kelas: $e',
+                        }),
+                      ),
+                    ),
                   );
                 }
               }
             },
-            child: Text('Hapus', style: TextStyle(color: Colors.red)),
+            child: Text(
+              AppLocalizations.delete.tr,
+              style: TextStyle(color: Colors.red),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _simpanKelas(String nama, String? waliKelasId) async {
+  Future<void> _saveClass(String name, String? homeroomTeacherId) async {
     try {
       if (_isEditMode) {
-        await apiServiceClass.updateClass(_editingKelasId!, {
-          'nama': nama,
-          'wali_kelas_id': waliKelasId,
+        await apiServiceClass.updateClass(_editingClassId!, {
+          'name': name,
+          'homeroom_teacher_id': homeroomTeacherId,
         });
 
         setState(() {
-          final index = _daftarKelas.indexWhere(
-            (k) => k['id'] == _editingKelasId,
+          final index = _classList.indexWhere(
+            (k) => k['id'] == _editingClassId,
           );
-          _daftarKelas[index] = {
-            ..._daftarKelas[index],
-            'nama': nama,
-            'wali_kelas_id': waliKelasId,
-            'wali_kelas_nama': _daftarGuru.firstWhere(
-              (g) => g['id'] == waliKelasId,
-            )['nama'],
+          _classList[index] = {
+            ..._classList[index],
+            'name': name,
+            'homeroom_teacher_id': homeroomTeacherId,
+            'homeroom_teacher_name': _teacherList.firstWhere(
+              (g) => g['id'] == homeroomTeacherId,
+            )['name'],
           };
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Kelas berhasil diperbarui')),
+            SnackBar(
+              content: Text(
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Class successfully updated',
+                  'id': 'Kelas berhasil diperbarui',
+                }),
+              ),
+            ),
           );
         }
       } else {
         await apiServiceClass.addClass({
-          'nama': nama,
-          'wali_kelas_id': waliKelasId,
+          'name': name,
+          'homeroom_teacher_id': homeroomTeacherId,
         });
 
-        final newKelas = {
+        final newClass = {
           'id': DateTime.now().millisecondsSinceEpoch.toString(),
-          'nama': nama,
-          'wali_kelas_id': waliKelasId,
-          'wali_kelas_nama': _daftarGuru.firstWhere(
-            (g) => g['id'] == waliKelasId,
-          )['nama'],
-          'jumlah_siswa': 0,
+          'name': name,
+          'homeroom_teacher_id': homeroomTeacherId,
+          'homeroom_teacher_name': _teacherList.firstWhere(
+            (g) => g['id'] == homeroomTeacherId,
+          )['name'],
+          'student_count': 0,
         };
 
         setState(() {
-          _daftarKelas.add(newKelas);
+          _classList.add(newClass);
         });
         await _loadData();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Kelas berhasil ditambahkan')),
+            SnackBar(
+              content: Text(
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Class successfully added',
+                  'id': 'Kelas berhasil ditambahkan',
+                }),
+              ),
+            ),
           );
         }
       }
@@ -193,42 +231,70 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menyimpan kelas: $e')),
+          SnackBar(
+            content: Text(
+              context.read<LanguageProvider>().getTranslatedText({
+                'en': 'Failed to save class: $e',
+                'id': 'Gagal menyimpan kelas: $e',
+              }),
+            ),
+          ),
         );
       }
     }
   }
 
-  void _showKelasDialog() {
+  void _showClassDialog() {
     showDialog(
       context: context,
       builder: (context) => ClassFormDialog(
         isEditMode: _isEditMode,
-        initialName: _namaController.text,
-        initialTeacherId: _selectedGuruId,
-        teachers: _daftarGuru,
-        onSave: _simpanKelas,
+        initialName: _nameController.text,
+        initialTeacherId: _selectedTeacherId,
+        teachers: _teacherList,
+        onSave: _saveClass,
       ),
     );
   }
 
-  void _lihatDetailKelas(dynamic kelas) {
+  void _viewClassDetail(dynamic classData) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Detail Kelas ${kelas['nama']}'),
+        title: Text(
+          context.read<LanguageProvider>().getTranslatedText({
+            'en': 'Class Details ${classData['name']}',
+            'id': 'Detail Kelas ${classData['name']}',
+          }),
+        ),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildDetailItem('Nama Kelas', kelas['nama']),
               _buildDetailItem(
-                'Wali Kelas',
-                kelas['wali_kelas_nama'] ?? 'Tidak ada',
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Class Name',
+                  'id': 'Nama Kelas',
+                }),
+                classData['name'],
               ),
               _buildDetailItem(
-                'Jumlah Siswa',
-                (kelas['jumlah_siswa'] ?? 0).toString(),
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Homeroom Teacher',
+                  'id': 'Wali Kelas',
+                }),
+                classData['homeroom_teacher_name'] ?? 
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Not assigned',
+                  'id': 'Tidak ada',
+                }),
+              ),
+              _buildDetailItem(
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Number of Students',
+                  'id': 'Jumlah Siswa',
+                }),
+                (classData['student_count'] ?? 0).toString(),
               ),
             ],
           ),
@@ -236,7 +302,12 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Tutup'),
+            child: Text(
+              context.read<LanguageProvider>().getTranslatedText({
+                'en': 'Close',
+                'id': 'Tutup',
+              }),
+            ),
           ),
         ],
       ),
@@ -255,96 +326,117 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
     );
   }
 
-  List<dynamic> _getFilteredKelas(String searchTerm) {
-    return _daftarKelas.where((kelas) {
+  List<dynamic> _getFilteredClasses(String searchTerm) {
+    return _classList.where((classItem) {
       return searchTerm.isEmpty ||
-          kelas['nama'].toLowerCase().contains(searchTerm.toLowerCase());
+          classItem['name'].toLowerCase().contains(searchTerm.toLowerCase());
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return LoadingScreen(message: 'Memuat data kelas...');
-    }
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        if (_isLoading) {
+          return LoadingScreen(
+            message: languageProvider.getTranslatedText({
+              'en': 'Loading class data...',
+              'id': 'Memuat data kelas...',
+            }),
+          );
+        }
 
-    if (_errorMessage != null) {
-      return ErrorScreen(
-        errorMessage: _errorMessage!,
-        onRetry: _loadData,
-      );
-    }
+        if (_errorMessage != null) {
+          return ErrorScreen(
+            errorMessage: _errorMessage!,
+            onRetry: _loadData,
+          );
+        }
 
-    final TextEditingController searchController = TextEditingController();
-    final filteredKelas = _getFilteredKelas(searchController.text);
+        final TextEditingController searchController = TextEditingController();
+        final filteredClasses = _getFilteredClasses(searchController.text);
 
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Text(
-          'Kelola Kelas',
-          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
-        ),
-        backgroundColor: ColorUtils.primaryColor,
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: Colors.white),
-            onPressed: _loadData,
-            tooltip: 'Refresh',
+        return Scaffold(
+          backgroundColor: Colors.grey.shade50,
+          appBar: AppBar(
+            title: Text(
+              AppLocalizations.manageClasses.tr,
+              style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+            ),
+            backgroundColor: ColorUtils.primaryColor,
+            elevation: 0,
+            centerTitle: true,
+            actions: [
+              IconButton(
+                icon: Icon(Icons.refresh, color: Colors.white),
+                onPressed: _loadData,
+                tooltip: AppLocalizations.refresh.tr,
+              ),
+            ],
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          CustomSearchBar(
-            controller: searchController,
-            hintText: 'Cari kelas...',
-            onChanged: (value) {
-              setState(() {});
-            },
-          ),
-          Expanded(
-            child: filteredKelas.isEmpty
-                ? EmptyState(
-                    title: 'Tidak ada kelas',
-                    subtitle: searchController.text.isEmpty
-                        ? 'Tap + untuk menambah kelas'
-                        : 'Tidak ditemukan hasil pencarian',
-                    icon: Icons.class_,
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.all(16),
-                    itemCount: filteredKelas.length,
-                    itemBuilder: (context, index) {
-                      final kelas = filteredKelas[index];
-                      
-                      return ClassListItem(
-                        kelas: kelas,
-                        index: index,
-                        onTap: () => _lihatDetailKelas(kelas),
-                        onMenuSelected: (value) {
-                          if (value == 'detail') {
-                            _lihatDetailKelas(kelas);
-                          } else if (value == 'edit') {
-                            _editKelas(kelas);
-                          } else if (value == 'delete') {
-                            _hapusKelas(kelas['id']);
-                          }
+          body: Column(
+            children: [
+              CustomSearchBar(
+                controller: searchController,
+                hintText: languageProvider.getTranslatedText({
+                  'en': 'Search classes...',
+                  'id': 'Cari kelas...',
+                }),
+                onChanged: (value) {
+                  setState(() {});
+                },
+              ),
+              Expanded(
+                child: filteredClasses.isEmpty
+                    ? EmptyState(
+                        title: languageProvider.getTranslatedText({
+                          'en': 'No classes',
+                          'id': 'Tidak ada kelas',
+                        }),
+                        subtitle: searchController.text.isEmpty
+                            ? languageProvider.getTranslatedText({
+                                'en': 'Tap + to add a class',
+                                'id': 'Tap + untuk menambah kelas',
+                              })
+                            : languageProvider.getTranslatedText({
+                                'en': 'No search results found',
+                                'id': 'Tidak ditemukan hasil pencarian',
+                              }),
+                        icon: Icons.class_,
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.all(16),
+                        itemCount: filteredClasses.length,
+                        itemBuilder: (context, index) {
+                          final classData = filteredClasses[index];
+                          
+                          return ClassListItem(
+                            classData: classData,
+                            index: index,
+                            onTap: () => _viewClassDetail(classData),
+                            onMenuSelected: (value) {
+                              if (value == 'detail') {
+                                _viewClassDetail(classData);
+                              } else if (value == 'edit') {
+                                _editClass(classData);
+                              } else if (value == 'delete') {
+                                _deleteClass(classData['id']);
+                              }
+                            },
+                          );
                         },
-                      );
-                    },
-                  ),
+                      ),
+              ),
+            ],
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _tambahKelas,
-        backgroundColor: ColorUtils.primaryColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Icon(Icons.add, color: Colors.white),
-      ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: _addClass,
+            backgroundColor: ColorUtils.primaryColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Icon(Icons.add, color: Colors.white),
+          ),
+        );
+      },
     );
   }
 }

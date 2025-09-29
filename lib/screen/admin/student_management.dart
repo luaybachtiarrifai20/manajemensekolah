@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:manajemensekolah/components/confirmation_dialog.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/error_screen.dart';
@@ -9,6 +10,7 @@ import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_student_services.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
+import 'package:manajemensekolah/utils/language_utils.dart';
 
 class StudentManagementScreen extends StatefulWidget {
   const StudentManagementScreen({super.key});
@@ -20,8 +22,8 @@ class StudentManagementScreen extends StatefulWidget {
 class StudentManagementScreenState extends State<StudentManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
   
-  List<dynamic> _siswa = [];
-  List<dynamic> _daftarKelas = [];
+  List<dynamic> _students = [];
+  List<dynamic> _classList = [];
   bool _isLoading = true;
   String? _errorMessage;
   final apiService = ApiService();
@@ -41,14 +43,14 @@ class StudentManagementScreenState extends State<StudentManagementScreen> {
         _errorMessage = null;
       });
 
-      final siswaData = await ApiStudentService.getStudent();
-      final kelasData = await apiServiceClass.getClass();
+      final studentData = await ApiStudentService.getStudent();
+      final classData = await apiServiceClass.getClass();
 
       if (!mounted) return;
 
       setState(() {
-        _siswa = siswaData;
-        _daftarKelas = kelasData;
+        _students = studentData;
+        _classList = classData;
         _isLoading = false;
       });
     } catch (e) {
@@ -60,191 +62,320 @@ class StudentManagementScreenState extends State<StudentManagementScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal memuat data siswa/kelas: $e')),
+        SnackBar(
+          content: Text(
+            context.read<LanguageProvider>().getTranslatedText({
+              'en': 'Failed to load student/class data: $e',
+              'id': 'Gagal memuat data siswa/kelas: $e',
+            }),
+          ),
+        ),
       );
     }
   }
 
-  // Tambah/Edit Siswa Dialog
-  void _showSiswaDialog({Map<String, dynamic>? siswa}) {
-    final namaController = TextEditingController(text: siswa?['nama'] ?? '');
-    final nisController = TextEditingController(text: siswa?['nis'] ?? '');
-    final alamatController = TextEditingController(text: siswa?['alamat'] ?? '');
-    final tanggalLahirController = TextEditingController(
-      text: siswa != null && siswa['tanggal_lahir'] != null
-          ? siswa['tanggal_lahir'].toString().substring(0, 10)
+  void _showStudentDialog({Map<String, dynamic>? student}) {
+    final nameController = TextEditingController(text: student?['name'] ?? '');
+    final nisController = TextEditingController(text: student?['nis'] ?? '');
+    final addressController = TextEditingController(text: student?['address'] ?? '');
+    final birthDateController = TextEditingController(
+      text: student != null && student['birth_date'] != null
+          ? student['birth_date'].toString().substring(0, 10)
           : '',
     );
-    final namaWaliController = TextEditingController(text: siswa?['nama_wali'] ?? '');
-    final noTeleponController = TextEditingController(text: siswa?['no_telepon'] ?? '');
+    final parentNameController = TextEditingController(text: student?['parent_name'] ?? '');
+    final phoneController = TextEditingController(text: student?['phone'] ?? '');
 
-    String? selectedKelasId = siswa?['kelas_id'];
-    String? selectedJenisKelamin = siswa?['jenis_kelamin'];
+    String? selectedClassId = student?['class_id'];
+    String? selectedGender = student?['gender'];
 
-    final isEdit = siswa != null;
+    final isEdit = student != null;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isEdit ? 'Edit Siswa' : 'Tambah Siswa'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: namaController,
-                decoration: InputDecoration(labelText: 'Nama'),
+      builder: (context) => Consumer<LanguageProvider>(
+        builder: (context, languageProvider, child) {
+          return AlertDialog(
+            title: Text(
+              isEdit
+                  ? languageProvider.getTranslatedText({
+                      'en': 'Edit Student',
+                      'id': 'Edit Siswa',
+                    })
+                  : languageProvider.getTranslatedText({
+                      'en': 'Add Student',
+                      'id': 'Tambah Siswa',
+                    }),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: languageProvider.getTranslatedText({
+                        'en': 'Name',
+                        'id': 'Nama',
+                      }),
+                    ),
+                  ),
+                  TextField(
+                    controller: nisController,
+                    decoration: InputDecoration(
+                      labelText: 'NIS',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedClassId,
+                    decoration: InputDecoration(
+                      labelText: languageProvider.getTranslatedText({
+                        'en': 'Class',
+                        'id': 'Kelas',
+                      }),
+                    ),
+                    items: _classList.map((classItem) {
+                      return DropdownMenuItem<String>(
+                        value: classItem['id'],
+                        child: Text(classItem['name']),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      selectedClassId = value;
+                    },
+                  ),
+                  TextField(
+                    controller: addressController,
+                    decoration: InputDecoration(
+                      labelText: languageProvider.getTranslatedText({
+                        'en': 'Address',
+                        'id': 'Alamat',
+                      }),
+                    ),
+                    maxLines: 2,
+                  ),
+                  TextField(
+                    controller: birthDateController,
+                    decoration: InputDecoration(
+                      labelText: languageProvider.getTranslatedText({
+                        'en': 'Birth Date',
+                        'id': 'Tanggal Lahir',
+                      }),
+                      hintText: 'YYYY-MM-DD',
+                    ),
+                  ),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedGender,
+                    decoration: InputDecoration(
+                      labelText: languageProvider.getTranslatedText({
+                        'en': 'Gender',
+                        'id': 'Jenis Kelamin',
+                      }),
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: 'L',
+                        child: Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Male',
+                            'id': 'Laki-laki',
+                          }),
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'P',
+                        child: Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Female',
+                            'id': 'Perempuan',
+                          }),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      selectedGender = value;
+                    },
+                  ),
+                  TextField(
+                    controller: parentNameController,
+                    decoration: InputDecoration(
+                      labelText: languageProvider.getTranslatedText({
+                        'en': 'Parent Name',
+                        'id': 'Nama Wali Murid',
+                      }),
+                    ),
+                  ),
+                  TextField(
+                    controller: phoneController,
+                    decoration: InputDecoration(
+                      labelText: languageProvider.getTranslatedText({
+                        'en': 'Phone Number',
+                        'id': 'No. Telepon',
+                      }),
+                    ),
+                    keyboardType: TextInputType.phone,
+                  ),
+                ],
               ),
-              TextField(
-                controller: nisController,
-                decoration: InputDecoration(labelText: 'NIS'),
-                keyboardType: TextInputType.number,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(AppLocalizations.cancel.tr),
               ),
-              DropdownButtonFormField<String>(
-                initialValue: selectedKelasId,
-                decoration: InputDecoration(labelText: 'Kelas'),
-                items: _daftarKelas.map((kelas) {
-                  return DropdownMenuItem<String>(
-                    value: kelas['id'],
-                    child: Text(kelas['nama']),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  selectedKelasId = value;
+              ElevatedButton(
+                onPressed: () async {
+                  final name = nameController.text.trim();
+                  final nis = nisController.text.trim();
+                  final address = addressController.text.trim();
+                  final birthDate = birthDateController.text.trim();
+                  final parentName = parentNameController.text.trim();
+                  final phone = phoneController.text.trim();
+
+                  if (name.isEmpty || nis.isEmpty || selectedClassId == null || 
+                      address.isEmpty || birthDate.isEmpty || selectedGender == null || 
+                      parentName.isEmpty || phone.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'All fields must be filled',
+                            'id': 'Semua field harus diisi',
+                          }),
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
+                  try {
+                    final data = {
+                      'name': name,
+                      'nis': nis,
+                      'class_id': selectedClassId,
+                      'address': address,
+                      'birth_date': birthDate,
+                      'gender': selectedGender,
+                      'parent_name': parentName,
+                      'phone': phone,
+                    };
+
+                    if (isEdit) {
+                      await ApiStudentService.updateStudent(student['id'], data);
+                      await _loadData();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              languageProvider.getTranslatedText({
+                                'en': 'Student successfully updated',
+                                'id': 'Siswa berhasil diperbarui',
+                              }),
+                            ),
+                          ),
+                        );
+                      }
+                    } else {
+                      await ApiStudentService.addStudent(data);
+                      await _loadData();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              languageProvider.getTranslatedText({
+                                'en': 'Student successfully added',
+                                'id': 'Siswa berhasil ditambahkan',
+                              }),
+                            ),
+                          ),
+                        );
+                        Navigator.pop(context);
+                      }
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            languageProvider.getTranslatedText({
+                              'en': 'Failed to save student: $e',
+                              'id': 'Gagal menyimpan siswa: $e',
+                            }),
+                          ),
+                        ),
+                      );
+                    }
+                  }
                 },
-              ),
-              TextField(
-                controller: alamatController,
-                decoration: InputDecoration(labelText: 'Alamat'),
-                maxLines: 2,
-              ),
-              TextField(
-                controller: tanggalLahirController,
-                decoration: InputDecoration(
-                  labelText: 'Tanggal Lahir',
-                  hintText: 'YYYY-MM-DD',
+                child: Text(
+                  isEdit 
+                    ? languageProvider.getTranslatedText({
+                        'en': 'Update',
+                        'id': 'Perbarui',
+                      })
+                    : AppLocalizations.save.tr,
                 ),
               ),
-              DropdownButtonFormField<String>(
-                initialValue: selectedJenisKelamin,
-                decoration: InputDecoration(labelText: 'Jenis Kelamin'),
-                items: [
-                  DropdownMenuItem(value: 'L', child: Text('Laki-laki')),
-                  DropdownMenuItem(value: 'P', child: Text('Perempuan')),
-                ],
-                onChanged: (value) {
-                  selectedJenisKelamin = value;
-                },
-              ),
-              TextField(
-                controller: namaWaliController,
-                decoration: InputDecoration(labelText: 'Nama Wali Murid'),
-              ),
-              TextField(
-                controller: noTeleponController,
-                decoration: InputDecoration(labelText: 'No. Telepon'),
-                keyboardType: TextInputType.phone,
-              ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final nama = namaController.text.trim();
-              final nis = nisController.text.trim();
-              final alamat = alamatController.text.trim();
-              final tanggalLahir = tanggalLahirController.text.trim();
-              final namaWali = namaWaliController.text.trim();
-              final noTelepon = noTeleponController.text.trim();
-
-              if (nama.isEmpty || nis.isEmpty || selectedKelasId == null || 
-                  alamat.isEmpty || tanggalLahir.isEmpty || selectedJenisKelamin == null || 
-                  namaWali.isEmpty || noTelepon.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Semua field harus diisi')),
-                );
-                return;
-              }
-
-              try {
-                final data = {
-                  'nama': nama,
-                  'nis': nis,
-                  'kelas_id': selectedKelasId,
-                  'alamat': alamat,
-                  'tanggal_lahir': tanggalLahir,
-                  'jenis_kelamin': selectedJenisKelamin,
-                  'nama_wali': namaWali,
-                  'no_telepon': noTelepon,
-                };
-
-                if (isEdit) {
-                  await ApiStudentService.updateStudent(siswa['id'], data);
-                  await _loadData();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Siswa berhasil diperbarui')),
-                    );
-                  }
-                } else {
-                  await ApiStudentService.addStudent(data);
-                  await _loadData();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Siswa berhasil ditambahkan')),
-                    );
-                    Navigator.pop(context);
-                  }
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Gagal menyimpan siswa: $e')),
-                  );
-                }
-              }
-            },
-            child: Text(isEdit ? 'Perbarui' : 'Simpan'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
-  // Hapus Siswa
-  Future<void> _hapusSiswa(Map<String, dynamic> siswa) async {
+  Future<void> _deleteStudent(Map<String, dynamic> student) async {
     final confirmed = await showDialog(
       context: context,
-      builder: (context) => ConfirmationDialog(
-        title: 'Hapus Siswa',
-        content: 'Yakin ingin menghapus siswa ini?',
+      builder: (context) => Consumer<LanguageProvider>(
+        builder: (context, languageProvider, child) {
+          return ConfirmationDialog(
+            title: languageProvider.getTranslatedText({
+              'en': 'Delete Student',
+              'id': 'Hapus Siswa',
+            }),
+            content: languageProvider.getTranslatedText({
+              'en': 'Are you sure you want to delete this student?',
+              'id': 'Yakin ingin menghapus siswa ini?',
+            }),
+          );
+        },
       ),
     );
 
     if (confirmed == true) {
       try {
-        await ApiStudentService.deleteStudent(siswa['id']);
+        await ApiStudentService.deleteStudent(student['id']);
         setState(() {
-          _siswa.removeWhere((s) => s['id'] == siswa['id']);
-          final kelasIdx = _daftarKelas.indexWhere((k) => k['id'] == siswa['kelas_id']);
-          if (kelasIdx != -1 && (_daftarKelas[kelasIdx]['jumlah_siswa'] ?? 0) > 0) {
-            _daftarKelas[kelasIdx]['jumlah_siswa'] -= 1;
+          _students.removeWhere((s) => s['id'] == student['id']);
+          final classIndex = _classList.indexWhere((c) => c['id'] == student['class_id']);
+          if (classIndex != -1 && (_classList[classIndex]['student_count'] ?? 0) > 0) {
+            _classList[classIndex]['student_count'] -= 1;
           }
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Siswa berhasil dihapus')),
+            SnackBar(
+              content: Text(
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Student successfully deleted',
+                  'id': 'Siswa berhasil dihapus',
+                }),
+              ),
+            ),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Gagal menghapus siswa: $e')),
+            SnackBar(
+              content: Text(
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Failed to delete student: $e',
+                  'id': 'Gagal menghapus siswa: $e',
+                }),
+              ),
+            ),
           );
         }
       }
@@ -253,81 +384,102 @@ class StudentManagementScreenState extends State<StudentManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return LoadingScreen(message: 'Memuat data siswa...');
-    }
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        if (_isLoading) {
+          return LoadingScreen(
+            message: languageProvider.getTranslatedText({
+              'en': 'Loading student data...',
+              'id': 'Memuat data siswa...',
+            }),
+          );
+        }
 
-    if (_errorMessage != null) {
-      return ErrorScreen(
-        errorMessage: _errorMessage!,
-        onRetry: _loadData,
-      );
-    }
+        if (_errorMessage != null) {
+          return ErrorScreen(
+            errorMessage: _errorMessage!,
+            onRetry: _loadData,
+          );
+        }
 
-    final filteredSiswa = _siswa.where((siswa) {
-      final searchTerm = _searchController.text.toLowerCase();
-      return searchTerm.isEmpty ||
-          siswa['nama'].toLowerCase().contains(searchTerm) ||
-          (siswa['nis']?.toLowerCase().contains(searchTerm) ?? false);
-    }).toList();
+        final filteredStudents = _students.where((student) {
+          final searchTerm = _searchController.text.toLowerCase();
+          return searchTerm.isEmpty ||
+              student['name'].toLowerCase().contains(searchTerm) ||
+              (student['nis']?.toLowerCase().contains(searchTerm) ?? false);
+        }).toList();
 
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Text(
-          'Kelola Siswa',
-          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
-        ),
-        backgroundColor: ColorUtils.primaryColor,
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: Colors.white),
-            onPressed: _loadData,
-            tooltip: 'Refresh',
+        return Scaffold(
+          backgroundColor: Colors.grey.shade50,
+          appBar: AppBar(
+            title: Text(
+              AppLocalizations.manageStudents.tr,
+              style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+            ),
+            backgroundColor: ColorUtils.primaryColor,
+            elevation: 0,
+            centerTitle: true,
+            actions: [
+              IconButton(
+                icon: Icon(Icons.refresh, color: Colors.white),
+                onPressed: _loadData,
+                tooltip: AppLocalizations.refresh.tr,
+              ),
+            ],
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          CustomSearchBar(
-            controller: _searchController,
-            hintText: 'Cari siswa...',
-            onChanged: (value) => setState(() {}),
+          body: Column(
+            children: [
+              CustomSearchBar(
+                controller: _searchController,
+                hintText: languageProvider.getTranslatedText({
+                  'en': 'Search students...',
+                  'id': 'Cari siswa...',
+                }),
+                onChanged: (value) => setState(() {}),
+              ),
+              Expanded(
+                child: filteredStudents.isEmpty
+                    ? EmptyState(
+                        title: languageProvider.getTranslatedText({
+                          'en': 'No students',
+                          'id': 'Tidak ada siswa',
+                        }),
+                        subtitle: _searchController.text.isEmpty
+                            ? languageProvider.getTranslatedText({
+                                'en': 'Tap + to add a student',
+                                'id': 'Tap + untuk menambah siswa',
+                              })
+                            : languageProvider.getTranslatedText({
+                                'en': 'No search results found',
+                                'id': 'Tidak ditemukan hasil pencarian',
+                              }),
+                        icon: Icons.people_outline,
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.all(16),
+                        itemCount: filteredStudents.length,
+                        itemBuilder: (context, index) {
+                          final student = filteredStudents[index];
+                          
+                          return StudentListItem(
+                            student: student,
+                            index: index,
+                            onEdit: () => _showStudentDialog(student: student),
+                            onDelete: () => _deleteStudent(student),
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
-          Expanded(
-            child: filteredSiswa.isEmpty
-                ? EmptyState(
-                    title: 'Tidak ada siswa',
-                    subtitle: _searchController.text.isEmpty
-                        ? 'Tap + untuk menambah siswa'
-                        : 'Tidak ditemukan hasil pencarian',
-                    icon: Icons.people_outline,
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.all(16),
-                    itemCount: filteredSiswa.length,
-                    itemBuilder: (context, index) {
-                      final siswa = filteredSiswa[index];
-                      
-                      return StudentListItem(
-                        siswa: siswa,
-                        index: index,
-                        onEdit: () => _showSiswaDialog(siswa: siswa),
-                        onDelete: () => _hapusSiswa(siswa),
-                      );
-                    },
-                  ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () => _showStudentDialog(),
+            backgroundColor: ColorUtils.primaryColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Icon(Icons.add, color: Colors.white),
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showSiswaDialog(),
-        backgroundColor: ColorUtils.primaryColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Icon(Icons.add, color: Colors.white),
-      ),
+        );
+      },
     );
   }
 }

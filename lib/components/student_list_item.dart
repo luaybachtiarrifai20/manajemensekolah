@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import '../utils/color_utils.dart';
 
 class StudentListItem extends StatelessWidget {
-  final dynamic siswa;
+  final dynamic student;
   final int index;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const StudentListItem({
     super.key,
-    required this.siswa,
+    required this.student,
     required this.index,
     required this.onEdit,
     required this.onDelete,
@@ -29,16 +29,16 @@ class StudentListItem extends StatelessWidget {
           leading: CircleAvatar(
             backgroundColor: color.withValues(alpha: 0.15),
             child: Text(
-              siswa['nama'] != null && siswa['nama'].isNotEmpty
-                  ? siswa['nama'][0]
+              student['nama'] != null && student['nama'].isNotEmpty
+                  ? student['nama'][0]
                   : '?',
               style: TextStyle(color: color, fontWeight: FontWeight.bold),
             ),
           ),
-          title: Text(siswa['nama'] ?? 'Nama tidak tersedia'),
+          title: Text(student['nama'] ?? 'Nama tidak tersedia'),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [Text('Kelas: ${siswa['kelas_nama'] ?? 'Tidak ada'}')],
+            children: [Text('Kelas: ${student['kelas_nama'] ?? 'Tidak ada'}')],
           ),
           trailing: PopupMenuButton(
             itemBuilder: (context) => [

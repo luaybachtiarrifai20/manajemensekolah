@@ -19,10 +19,10 @@ class TeacherDetailScreenState extends State<TeacherDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _loadGuruDetail();
+    _loadTeacherDetail();
   }
 
-  Future<void> _loadGuruDetail() async {
+  Future<void> _loadTeacherDetail() async {
     try {
       setState(() {
         _isLoading = true;
@@ -99,7 +99,7 @@ class TeacherDetailScreenState extends State<TeacherDetailScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),
-            onPressed: _loadGuruDetail,
+            onPressed: _loadTeacherDetail,
             tooltip: 'Refresh',
           ),
         ],
@@ -114,7 +114,7 @@ class TeacherDetailScreenState extends State<TeacherDetailScreen> {
                   Text('Terjadi kesalahan: $_errorMessage'),
                   SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: _loadGuruDetail,
+                    onPressed: _loadTeacherDetail,
                     child: Text('Coba Lagi'),
                   ),
                 ],

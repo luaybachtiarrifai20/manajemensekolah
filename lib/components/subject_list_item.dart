@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import '../utils/color_utils.dart';
 
 class SubjectListItem extends StatelessWidget {
-  final dynamic mataPelajaran;
+  final dynamic subject;
   final int index;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const SubjectListItem({
     super.key,
-    required this.mataPelajaran,
+    required this.subject,
     required this.index,
     required this.onEdit,
     required this.onDelete,
@@ -39,16 +39,16 @@ class SubjectListItem extends StatelessWidget {
             child: Icon(Icons.school, color: Colors.white),
           ),
           title: Text(
-            mataPelajaran['nama'],
+            subject['nama'],
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Kode: ${mataPelajaran['kode']}', style: TextStyle(fontSize: 12)),
-              if (mataPelajaran['deskripsi'] != null)
+              Text('Kode: ${subject['kode']}', style: TextStyle(fontSize: 12)),
+              if (subject['deskripsi'] != null)
                 Text(
-                  mataPelajaran['deskripsi'],
+                  subject['deskripsi'],
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),

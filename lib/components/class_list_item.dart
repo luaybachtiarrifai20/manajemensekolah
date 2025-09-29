@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import '../utils/color_utils.dart';
 
 class ClassListItem extends StatelessWidget {
-  final dynamic kelas;
+  final dynamic classData;
   final int index;
   final VoidCallback onTap;
   final Function(String) onMenuSelected;
 
   const ClassListItem({
     super.key,
-    required this.kelas,
+    required this.classData,
     required this.index,
     required this.onTap,
     required this.onMenuSelected,
@@ -28,7 +28,7 @@ class ClassListItem extends StatelessWidget {
           leading: CircleAvatar(
             backgroundColor: color.withValues(alpha: 0.15),
             child: Text(
-              kelas['nama'].substring(0, 1),
+              classData['nama'].substring(0, 1),
               style: TextStyle(
                 color: color,
                 fontWeight: FontWeight.bold,
@@ -36,17 +36,17 @@ class ClassListItem extends StatelessWidget {
             ),
           ),
           title: Text(
-            'Kelas ${kelas['nama']}',
+            'Kelas ${classData['nama']}',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Wali: ${kelas['wali_kelas_nama'] ?? 'Tidak ada'}',
+                'Wali: ${classData['wali_kelas_nama'] ?? 'Tidak ada'}',
               ),
               Text(
-                'Siswa: ${kelas['jumlah_siswa'] ?? 0} orang',
+                'Siswa: ${classData['jumlah_siswa'] ?? 0} orang',
               ),
             ],
           ),

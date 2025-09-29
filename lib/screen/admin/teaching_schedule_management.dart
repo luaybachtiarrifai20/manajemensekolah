@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:manajemensekolah/components/confirmation_dialog.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
@@ -10,6 +11,7 @@ import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_subject_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
+import 'package:manajemensekolah/utils/language_utils.dart';
 
 class TeachingScheduleManagementScreen extends StatefulWidget {
   const TeachingScheduleManagementScreen({super.key});
@@ -26,22 +28,22 @@ class TeachingScheduleManagementScreenState
   final ApiSubjectService _apiSubjectService = ApiSubjectService();
   final ApiTeacherService apiTeacherService = ApiTeacherService();
 
-  List<dynamic> _jadwalList = [];
-  List<dynamic> _guruList = [];
-  List<dynamic> _mataPelajaranList = [];
-  List<dynamic> _kelasList = [];
+  List<dynamic> _scheduleList = [];
+  List<dynamic> _teacherList = [];
+  List<dynamic> _subjectList = [];
+  List<dynamic> _classList = [];
   bool _isLoading = true;
   String _selectedSemester = 'Ganjil';
-  String _selectedTahunAjaran = '2024/2025';
+  String _selectedAcademicYear = '2024/2025';
 
   final List<String> _semesterOptions = ['Ganjil', 'Genap'];
-  final List<String> _hariOptions = [
-    'Senin',
-    'Selasa',
-    'Rabu',
-    'Kamis',
-    'Jumat',
-    'Sabtu',
+  final List<String> _dayOptions = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
   ];
 
   @override
@@ -52,10 +54,10 @@ class TeachingScheduleManagementScreenState
 
   Future<void> _loadData() async {
     try {
-      final [jadwal, guru, mataPelajaran, kelas] = await Future.wait([
+      final [schedule, teacher, subject, classData] = await Future.wait([
         ApiScheduleService.getSchedule(
           semester: _selectedSemester,
-          tahunAjaran: _selectedTahunAjaran,
+          tahunAjaran: _selectedAcademicYear,
         ),
         apiTeacherService.getTeacher(),
         _apiSubjectService.getSubject(),
@@ -63,10 +65,10 @@ class TeachingScheduleManagementScreenState
       ]);
 
       setState(() {
-        _jadwalList = jadwal;
-        _guruList = guru;
-        _mataPelajaranList = mataPelajaran;
-        _kelasList = kelas;
+        _scheduleList = schedule;
+        _teacherList = teacher;
+        _subjectList = subject;
+        _classList = classData;
         _isLoading = false;
       });
     } catch (e) {
@@ -75,7 +77,12 @@ class TeachingScheduleManagementScreenState
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal memuat data: $e'),
+          content: Text(
+            context.read<LanguageProvider>().getTranslatedText({
+              'en': 'Failed to load data: $e',
+              'id': 'Gagal memuat data: $e',
+            }),
+          ),
           backgroundColor: Colors.red.shade400,
           behavior: SnackBarBehavior.floating,
         ),
@@ -84,16 +91,57 @@ class TeachingScheduleManagementScreenState
     }
   }
 
-  Future<void> _tambahJadwal() async {
+  // Method helper untuk mendapatkan hari yang valid
+  String _getValidDay(String? day) {
+    if (day == null || day.isEmpty) return 'Monday';
+    
+    final dayMapping = {
+      'Senin': 'Monday',
+      'Selasa': 'Tuesday', 
+      'Rabu': 'Wednesday',
+      'Kamis': 'Thursday',
+      'Jumat': 'Friday',
+      'Sabtu': 'Saturday',
+      'Minggu': 'Monday'
+    };
+    
+    return dayMapping[day] ?? day;
+  }
+
+  // Method helper untuk mendapatkan display day (dalam bahasa Indonesia)
+  String _getDisplayDay(String? day) {
+    if (day == null || day.isEmpty) return 'Senin';
+    
+    final dayMapping = {
+      'Monday': 'Senin',
+      'Tuesday': 'Selasa',
+      'Wednesday': 'Rabu',
+      'Thursday': 'Kamis',
+      'Friday': 'Jumat',
+      'Saturday': 'Sabtu',
+      'Sunday': 'Minggu',
+      'Senin': 'Senin',
+      'Selasa': 'Selasa',
+      'Rabu': 'Rabu',
+      'Kamis': 'Kamis',
+      'Jumat': 'Jumat',
+      'Sabtu': 'Sabtu',
+      'Minggu': 'Minggu'
+    };
+    
+    return dayMapping[day] ?? 'Senin';
+  }
+
+  Future<void> _addSchedule() async {
     final result = await showDialog(
       context: context,
-      builder: (context) => JadwalFormDialog(
-        guruList: _guruList,
-        mataPelajaranList: _mataPelajaranList,
-        kelasList: _kelasList,
-        hariOptions: _hariOptions,
+      builder: (context) => ScheduleFormDialog(
+        teacherList: _teacherList,
+        subjectList: _subjectList,
+        classList: _classList,
+        dayOptions: _dayOptions,
         semester: _selectedSemester,
-        tahunAjaran: _selectedTahunAjaran,
+        academicYear: _selectedAcademicYear,
         apiService: _apiService,
         apiTeacherService: apiTeacherService
       ),
@@ -105,7 +153,12 @@ class TeachingScheduleManagementScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Jadwal berhasil ditambahkan'),
+              content: Text(
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Schedule successfully added',
+                  'id': 'Jadwal berhasil ditambahkan',
+                }),
+              ),
               backgroundColor: Colors.green.shade400,
               behavior: SnackBarBehavior.floating,
             ),
@@ -116,7 +169,12 @@ class TeachingScheduleManagementScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Gagal menambah jadwal: $e'),
+              content: Text(
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Failed to add schedule: $e',
+                  'id': 'Gagal menambah jadwal: $e',
+                }),
+              ),
               backgroundColor: Colors.red.shade400,
               behavior: SnackBarBehavior.floating,
             ),
@@ -126,17 +184,17 @@ class TeachingScheduleManagementScreenState
     }
   }
 
-  Future<void> _editJadwal(dynamic jadwal) async {
+  Future<void> _editSchedule(dynamic schedule) async {
     final result = await showDialog(
       context: context,
-      builder: (context) => JadwalFormDialog(
-        guruList: _guruList,
-        mataPelajaranList: _mataPelajaranList,
-        kelasList: _kelasList,
-        hariOptions: _hariOptions,
+      builder: (context) => ScheduleFormDialog(
+        teacherList: _teacherList,
+        subjectList: _subjectList,
+        classList: _classList,
+        dayOptions: _dayOptions,
         semester: _selectedSemester,
-        tahunAjaran: _selectedTahunAjaran,
-        jadwal: jadwal,
+        academicYear: _selectedAcademicYear,
+        schedule: schedule,
         apiService: _apiService,
         apiTeacherService: apiTeacherService
       ),
@@ -144,11 +202,16 @@ class TeachingScheduleManagementScreenState
 
     if (result != null) {
       try {
-        await ApiScheduleService.updateSchedule(jadwal['id'], result);
+        await ApiScheduleService.updateSchedule(schedule['id'], result);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Jadwal berhasil diupdate'),
+              content: Text(
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Schedule successfully updated',
+                  'id': 'Jadwal berhasil diupdate',
+                }),
+              ),
               backgroundColor: Colors.green.shade400,
               behavior: SnackBarBehavior.floating,
             ),
@@ -159,7 +222,12 @@ class TeachingScheduleManagementScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Gagal mengupdate jadwal: $e'),
+              content: Text(
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Failed to update schedule: $e',
+                  'id': 'Gagal mengupdate jadwal: $e',
+                }),
+              ),
               backgroundColor: Colors.red.shade400,
               behavior: SnackBarBehavior.floating,
             ),
@@ -169,12 +237,22 @@ class TeachingScheduleManagementScreenState
     }
   }
 
-  Future<void> _hapusJadwal(String id) async {
+  Future<void> _deleteSchedule(String id) async {
     final confirmed = await showDialog(
       context: context,
-      builder: (context) => ConfirmationDialog(
-        title: 'Hapus Jadwal',
-        content: 'Apakah Anda yakin ingin menghapus jadwal ini?',
+      builder: (context) => Consumer<LanguageProvider>(
+        builder: (context, languageProvider, child) {
+          return ConfirmationDialog(
+            title: languageProvider.getTranslatedText({
+              'en': 'Delete Schedule',
+              'id': 'Hapus Jadwal',
+            }),
+            content: languageProvider.getTranslatedText({
+              'en': 'Are you sure you want to delete this schedule?',
+              'id': 'Apakah Anda yakin ingin menghapus jadwal ini?',
+            }),
+          );
+        },
       ),
     );
 
@@ -184,7 +262,12 @@ class TeachingScheduleManagementScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Jadwal berhasil dihapus'),
+              content: Text(
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Schedule successfully deleted',
+                  'id': 'Jadwal berhasil dihapus',
+                }),
+              ),
               backgroundColor: Colors.green.shade400,
               behavior: SnackBarBehavior.floating,
             ),
@@ -195,7 +278,12 @@ class TeachingScheduleManagementScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Gagal menghapus jadwal: $e'),
+              content: Text(
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Failed to delete schedule: $e',
+                  'id': 'Gagal menghapus jadwal: $e',
+                }),
+              ),
               backgroundColor: Colors.red.shade400,
               behavior: SnackBarBehavior.floating,
             ),
@@ -207,332 +295,387 @@ class TeachingScheduleManagementScreenState
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return LoadingScreen(message: 'Memuat data jadwal...');
-    }
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        if (_isLoading) {
+          return LoadingScreen(
+            message: languageProvider.getTranslatedText({
+              'en': 'Loading schedule data...',
+              'id': 'Memuat data jadwal...',
+            }),
+          );
+        }
 
-    final TextEditingController searchController = TextEditingController();
-    final filteredJadwal = _jadwalList.where((jadwal) {
-      final searchTerm = searchController.text.toLowerCase();
-      return searchTerm.isEmpty ||
-          jadwal['mata_pelajaran_nama'].toLowerCase().contains(searchTerm) ||
-          jadwal['guru_nama'].toLowerCase().contains(searchTerm) ||
-          jadwal['kelas_nama'].toLowerCase().contains(searchTerm);
-    }).toList();
+        final TextEditingController searchController = TextEditingController();
+        final filteredSchedules = _scheduleList.where((schedule) {
+          final searchTerm = searchController.text.toLowerCase();
+          return searchTerm.isEmpty ||
+              schedule['subject_name'].toLowerCase().contains(searchTerm) ||
+              schedule['teacher_name'].toLowerCase().contains(searchTerm) ||
+              schedule['class_name'].toLowerCase().contains(searchTerm);
+        }).toList();
 
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Text(
-          'Kelola Jadwal Mengajar',
-          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
-        ),
-        backgroundColor: ColorUtils.primaryColor,
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: Colors.white),
-            onPressed: _loadData,
-            tooltip: 'Refresh Data',
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Header dengan Filter
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [ColorUtils.primaryColor, Color(0xFF7C73FA)],
-              ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(24),
-                bottomRight: Radius.circular(24),
-              ),
+        return Scaffold(
+          backgroundColor: Colors.grey.shade50,
+          appBar: AppBar(
+            title: Text(
+              AppLocalizations.manageTeachingSchedule.tr,
+              style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
             ),
-            child: Column(
-              children: [
-                Text(
-                  'Kelola Jadwal Mengajar',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+            backgroundColor: ColorUtils.primaryColor,
+            elevation: 0,
+            centerTitle: true,
+            actions: [
+              IconButton(
+                icon: Icon(Icons.refresh, color: Colors.white),
+                onPressed: _loadData,
+                tooltip: AppLocalizations.refresh.tr,
+              ),
+            ],
+          ),
+          body: Column(
+            children: [
+              // Header dengan Filter
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [ColorUtils.primaryColor, Color(0xFF7C73FA)],
+                  ),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(24),
+                    bottomRight: Radius.circular(24),
                   ),
                 ),
-                SizedBox(height: 8),
-                Text(
-                  '$_selectedSemester • $_selectedTahunAjaran',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 16,
-                  ),
-                ),
-                SizedBox(height: 16),
-
-                // Filter Section
-                Row(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: _buildFilterCard(
-                        'Semester',
-                        _selectedSemester,
-                        Icons.school,
-                        () => _showSemesterFilter(),
+                    Text(
+                      AppLocalizations.manageTeachingSchedule.tr,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: _buildFilterCard(
-                        'Tahun Ajaran',
-                        _selectedTahunAjaran,
-                        Icons.calendar_today,
-                        () => _showTahunAjaranDialog(),
+                    SizedBox(height: 8),
+                    Text(
+                      '$_selectedSemester • $_selectedAcademicYear',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.9),
+                        fontSize: 16,
                       ),
+                    ),
+                    SizedBox(height: 16),
+
+                    // Filter Section
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildFilterCard(
+                            languageProvider.getTranslatedText({
+                              'en': 'Semester',
+                              'id': 'Semester',
+                            }),
+                            _selectedSemester,
+                            Icons.school,
+                            () => _showSemesterFilter(),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: _buildFilterCard(
+                            languageProvider.getTranslatedText({
+                              'en': 'Academic Year',
+                              'id': 'Tahun Ajaran',
+                            }),
+                            _selectedAcademicYear,
+                            Icons.calendar_today,
+                            () => _showAcademicYearDialog(),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          SizedBox(height: 16),
+              SizedBox(height: 16),
 
-          // Search Bar
-          CustomSearchBar(
-            controller: searchController,
-            hintText: 'Cari jadwal...',
-            onChanged: (value) => setState(() {}),
-          ),
+              // Search Bar
+              CustomSearchBar(
+                controller: searchController,
+                hintText: languageProvider.getTranslatedText({
+                  'en': 'Search schedules...',
+                  'id': 'Cari jadwal...',
+                }),
+                onChanged: (value) => setState(() {}),
+              ),
 
-          // Content
-          Expanded(
-            child: filteredJadwal.isEmpty
-                ? EmptyState(
-                    title: 'Belum ada jadwal mengajar',
-                    subtitle: searchController.text.isEmpty
-                        ? 'Tap + untuk menambah jadwal baru'
-                        : 'Tidak ditemukan hasil pencarian',
-                    icon: Icons.schedule_outlined,
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.all(16),
-                    itemCount: filteredJadwal.length,
-                    itemBuilder: (context, index) {
-                      final jadwal = filteredJadwal[index];
-                      final hari = jadwal['hari'];
-                      final cardColor = ColorUtils.getHariColor(hari);
+              // Content
+              Expanded(
+                child: filteredSchedules.isEmpty
+                    ? EmptyState(
+                        title: languageProvider.getTranslatedText({
+                          'en': 'No teaching schedules',
+                          'id': 'Belum ada jadwal mengajar',
+                        }),
+                        subtitle: searchController.text.isEmpty
+                            ? languageProvider.getTranslatedText({
+                                'en': 'Tap + to add new schedule',
+                                'id': 'Tap + untuk menambah jadwal baru',
+                              })
+                            : languageProvider.getTranslatedText({
+                                'en': 'No search results found',
+                                'id': 'Tidak ditemukan hasil pencarian',
+                              }),
+                        icon: Icons.schedule_outlined,
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.all(16),
+                        itemCount: filteredSchedules.length,
+                        itemBuilder: (context, index) {
+                          final schedule = filteredSchedules[index];
+                          final day = schedule['day'];
+                          final validDay = _getValidDay(day);
+                          final displayDay = _getDisplayDay(day);
+                          final cardColor = ColorUtils.getDayColor(validDay);
 
-                      return Container(
-                        margin: EdgeInsets.only(bottom: 16),
-                        child: Material(
-                          elevation: 3,
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  cardColor.withValues(alpha: 0.9),
-                                  cardColor.withValues(alpha: 0.7),
-                                ],
-                              ),
+                          return Container(
+                            margin: EdgeInsets.only(bottom: 16),
+                            child: Material(
+                              elevation: 3,
                               borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  // Time Section
-                                  SizedBox(
-                                    width: 70,
-                                    child: Column(
-                                      children: [
-                                        Text(
-                                          jadwal['jam_mulai'].substring(0, 5),
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        Container(
-                                          width: 1,
-                                          height: 20,
-                                          color: Colors.white10,
-                                          margin: EdgeInsets.symmetric(vertical: 4),
-                                        ),
-                                        Text(
-                                          jadwal['jam_selesai'].substring(0, 5),
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      cardColor.withOpacity(0.9),
+                                      cardColor.withOpacity(0.7),
+                                    ],
                                   ),
-
-                                  // Vertical Divider
-                                  Container(
-                                    width: 1,
-                                    height: 60,
-                                    margin: EdgeInsets.symmetric(horizontal: 16),
-                                    color: Colors.white.withValues(alpha: 0.3),
-                                  ),
-
-                                  // Content Section
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          jadwal['mata_pelajaran_nama'],
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        SizedBox(height: 8),
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.person,
-                                              size: 16,
-                                              color: Colors.white.withValues(alpha: 0.8),
-                                            ),
-                                            SizedBox(width: 4),
-                                            Expanded(
-                                              child: Text(
-                                                jadwal['guru_nama'],
-                                                style: TextStyle(
-                                                  color: Colors.white.withValues(alpha: 0.9),
-                                                  fontSize: 14,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.class_,
-                                              size: 16,
-                                              color: Colors.white.withValues(alpha: 0.8),
-                                            ),
-                                            SizedBox(width: 4),
-                                            Text(
-                                              jadwal['kelas_nama'],
-                                              style: TextStyle(
-                                                color: Colors.white.withValues(alpha: 0.9),
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.calendar_month,
-                                              size: 16,
-                                              color: Colors.white.withValues(alpha: 0.8),
-                                            ),
-                                            SizedBox(width: 4),
-                                            Text(
-                                              hari,
-                                              style: TextStyle(
-                                                color: Colors.white.withValues(alpha: 0.9),
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-
-                                  // Action Buttons
-                                  Column(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
                                     children: [
-                                      IconButton(
-                                        icon: Icon(Icons.edit, color: Colors.white),
-                                        onPressed: () => _editJadwal(jadwal),
-                                        tooltip: 'Edit Jadwal',
-                                      ),
-                                      IconButton(
-                                        icon: Icon(
-                                          Icons.delete,
-                                          color: Colors.white.withValues(alpha: 0.8),
+                                      // Time Section
+                                      SizedBox(
+                                        width: 70,
+                                        child: Column(
+                                          children: [
+                                            Text(
+                                              schedule['jam_mulai'].substring(0, 5),
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            Container(
+                                              width: 1,
+                                              height: 20,
+                                              color: Colors.white10,
+                                              margin: EdgeInsets.symmetric(vertical: 4),
+                                            ),
+                                            Text(
+                                              schedule['jam_selesai'].substring(0, 5),
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        onPressed: () => _hapusJadwal(jadwal['id']),
-                                        tooltip: 'Hapus Jadwal',
+                                      ),
+
+                                      // Vertical Divider
+                                      Container(
+                                        width: 1,
+                                        height: 60,
+                                        margin: EdgeInsets.symmetric(horizontal: 16),
+                                        color: Colors.white.withOpacity(0.3),
+                                      ),
+
+                                      // Content Section
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              schedule['mata_pelajaran_nama'],
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.person,
+                                                  size: 16,
+                                                  color: Colors.white.withOpacity(0.8),
+                                                ),
+                                                SizedBox(width: 4),
+                                                Expanded(
+                                                  child: Text(
+                                                    schedule['guru_nama'],
+                                                    style: TextStyle(
+                                                      color: Colors.white.withOpacity(0.9),
+                                                      fontSize: 14,
+                                                    ),
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.class_,
+                                                  size: 16,
+                                                  color: Colors.white.withOpacity(0.8),
+                                                ),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  schedule['kelas_nama'],
+                                                  style: TextStyle(
+                                                    color: Colors.white.withOpacity(0.9),
+                                                    fontSize: 14,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.calendar_month,
+                                                  size: 16,
+                                                  color: Colors.white.withOpacity(0.8),
+                                                ),
+                                                SizedBox(width: 4),
+                                                Text(
+                                                  displayDay,
+                                                  style: TextStyle(
+                                                    color: Colors.white.withOpacity(0.9),
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      // Action Buttons
+                                      Column(
+                                        children: [
+                                          IconButton(
+                                            icon: Icon(Icons.edit, color: Colors.white),
+                                            onPressed: () => _editSchedule(schedule),
+                                            tooltip: languageProvider.getTranslatedText({
+                                              'en': 'Edit Schedule',
+                                              'id': 'Edit Jadwal',
+                                            }),
+                                          ),
+                                          IconButton(
+                                            icon: Icon(
+                                              Icons.delete,
+                                              color: Colors.white.withOpacity(0.8),
+                                            ),
+                                            onPressed: () => _deleteSchedule(schedule['id']),
+                                            tooltip: languageProvider.getTranslatedText({
+                                              'en': 'Delete Schedule',
+                                              'id': 'Hapus Jadwal',
+                                            }),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ],
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _tambahJadwal,
-        backgroundColor: ColorUtils.primaryColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Icon(Icons.add, color: Colors.white),
-      ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: _addSchedule,
+            backgroundColor: ColorUtils.primaryColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Icon(Icons.add, color: Colors.white),
+          ),
+        );
+      },
     );
   }
 
-  Future<void> _showTahunAjaranDialog() async {
-    final TextEditingController controller = TextEditingController(text: _selectedTahunAjaran);
+  Future<void> _showAcademicYearDialog() async {
+    final TextEditingController controller = TextEditingController(text: _selectedAcademicYear);
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Pilih Tahun Ajaran'),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(hintText: 'Contoh: 2024/2025'),
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: ColorUtils.primaryColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      builder: (context) => Consumer<LanguageProvider>(
+        builder: (context, languageProvider, child) {
+          return AlertDialog(
+            title: Text(
+              languageProvider.getTranslatedText({
+                'en': 'Select Academic Year',
+                'id': 'Pilih Tahun Ajaran',
+              }),
             ),
-            child: Text('Pilih', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+            content: TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                hintText: languageProvider.getTranslatedText({
+                  'en': 'Example: 2024/2025',
+                  'id': 'Contoh: 2024/2025',
+                }),
+              ),
+            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(AppLocalizations.cancel.tr),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, controller.text),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ColorUtils.primaryColor,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(
+                  languageProvider.getTranslatedText({
+                    'en': 'Select',
+                    'id': 'Pilih',
+                  }),
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
-    if (result != null && result.isNotEmpty && result != _selectedTahunAjaran) {
+    if (result != null && result.isNotEmpty && result != _selectedAcademicYear) {
       setState(() {
-        _selectedTahunAjaran = result;
+        _selectedAcademicYear = result;
         _isLoading = true;
       });
       await _loadData();
@@ -575,9 +718,9 @@ class TeachingScheduleManagementScreenState
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.15),
+          color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
         ),
         child: Row(
           children: [
@@ -602,119 +745,124 @@ class TeachingScheduleManagementScreenState
   }
 }
 
-class JadwalFormDialog extends StatefulWidget {
-  final List<dynamic> guruList;
-  final List<dynamic> mataPelajaranList;
-  final List<dynamic> kelasList;
-  final List<String> hariOptions;
+class ScheduleFormDialog extends StatefulWidget {
+  final List<dynamic> teacherList;
+  final List<dynamic> subjectList;
+  final List<dynamic> classList;
+  final List<String> dayOptions;
   final String semester;
-  final String tahunAjaran;
-  final dynamic jadwal;
+  final String academicYear;
+  final dynamic schedule;
   final ApiService apiService;
   final ApiTeacherService apiTeacherService;
 
-  const JadwalFormDialog({
+  const ScheduleFormDialog({
     super.key,
-    required this.guruList,
-    required this.mataPelajaranList,
-    required this.kelasList,
-    required this.hariOptions,
+    required this.teacherList,
+    required this.subjectList,
+    required this.classList,
+    required this.dayOptions,
     required this.semester,
-    required this.tahunAjaran,
-    this.jadwal,
+    required this.academicYear,
+    this.schedule,
     required this.apiService,
     required this.apiTeacherService
   });
 
   @override
-  JadwalFormDialogState createState() => JadwalFormDialogState();
+  ScheduleFormDialogState createState() => ScheduleFormDialogState();
 }
 
-class JadwalFormDialogState extends State<JadwalFormDialog> {
+class ScheduleFormDialogState extends State<ScheduleFormDialog> {
   final _formKey = GlobalKey<FormState>();
-  late String _selectedGuru;
-  late String _selectedMataPelajaran;
-  late String _selectedKelas;
-  late String _selectedHari;
-  late TimeOfDay _jamMulai;
-  late TimeOfDay _jamSelesai;
+  late String _selectedTeacher;
+  late String _selectedSubject;
+  late String _selectedClass;
+  late String _selectedDay;
+  late TimeOfDay _startTime;
+  late TimeOfDay _endTime;
 
-  List<dynamic> _filteredMataPelajaranList = [];
-  bool _isLoadingMataPelajaran = false;
+  List<dynamic> _filteredSubjectList = [];
+  bool _isLoadingSubjects = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedGuru = widget.jadwal != null ? widget.jadwal['guru_id'] : '';
-    _selectedMataPelajaran = widget.jadwal != null
-        ? widget.jadwal['mata_pelajaran_id']
+    _selectedTeacher = widget.schedule != null ? widget.schedule['teacher_id'] : '';
+    _selectedSubject = widget.schedule != null
+        ? widget.schedule['subject_id']
         : '';
-    _selectedKelas = widget.jadwal != null ? widget.jadwal['kelas_id'] : '';
-    _selectedHari = widget.jadwal != null
-        ? widget.jadwal['hari']
-        : widget.hariOptions.first;
+    _selectedClass = widget.schedule != null ? widget.schedule['class_id'] : '';
+    _selectedDay = widget.schedule != null
+        ? widget.schedule['day']
+        : widget.dayOptions.first;
 
-    _filteredMataPelajaranList = widget.mataPelajaranList;
+    _filteredSubjectList = widget.subjectList;
 
-    if (widget.jadwal != null) {
-      final jamMulaiParts = widget.jadwal['jam_mulai'].split(':');
-      final jamSelesaiParts = widget.jadwal['jam_selesai'].split(':');
-      _jamMulai = TimeOfDay(
-        hour: int.parse(jamMulaiParts[0]),
-        minute: int.parse(jamMulaiParts[1]),
+    if (widget.schedule != null) {
+      final startTimeParts = widget.schedule['start_time'].split(':');
+      final endTimeParts = widget.schedule['end_time'].split(':');
+      _startTime = TimeOfDay(
+        hour: int.parse(startTimeParts[0]),
+        minute: int.parse(startTimeParts[1]),
       );
-      _jamSelesai = TimeOfDay(
-        hour: int.parse(jamSelesaiParts[0]),
-        minute: int.parse(jamSelesaiParts[1]),
+      _endTime = TimeOfDay(
+        hour: int.parse(endTimeParts[0]),
+        minute: int.parse(endTimeParts[1]),
       );
 
-      if (_selectedGuru.isNotEmpty) {
-        _filterMataPelajaranByGuru(_selectedGuru);
+      if (_selectedTeacher.isNotEmpty) {
+        _filterSubjectsByTeacher(_selectedTeacher);
       }
     } else {
-      _jamMulai = TimeOfDay(hour: 7, minute: 0);
-      _jamSelesai = TimeOfDay(hour: 8, minute: 0);
+      _startTime = TimeOfDay(hour: 7, minute: 0);
+      _endTime = TimeOfDay(hour: 8, minute: 0);
     }
   }
 
-  Future<void> _filterMataPelajaranByGuru(String guruId) async {
+  Future<void> _filterSubjectsByTeacher(String teacherId) async {
     try {
       setState(() {
-        _isLoadingMataPelajaran = true;
+        _isLoadingSubjects = true;
       });
-      final mataPelajaranGuru = await widget.apiTeacherService.getSubjectByTeacher(
-        guruId,
+      final teacherSubjects = await widget.apiTeacherService.getSubjectByTeacher(
+        teacherId,
       );
 
-      final filtered = widget.mataPelajaranList.where((mp) {
-        return mataPelajaranGuru.any((mpGuru) => mpGuru['id'] == mp['id']);
+      final filtered = widget.subjectList.where((subject) {
+        return teacherSubjects.any((teacherSubject) => teacherSubject['id'] == subject['id']);
       }).toList();
 
       setState(() {
-        _filteredMataPelajaranList = filtered;
-        _isLoadingMataPelajaran = false;
+        _filteredSubjectList = filtered;
+        _isLoadingSubjects = false;
 
-        if (_selectedMataPelajaran.isNotEmpty) {
-          final currentMpExists = filtered.any(
-            (mp) => mp['id'] == _selectedMataPelajaran,
+        if (_selectedSubject.isNotEmpty) {
+          final currentSubjectExists = filtered.any(
+            (subject) => subject['id'] == _selectedSubject,
           );
-          if (!currentMpExists) {
-            _selectedMataPelajaran = '';
+          if (!currentSubjectExists) {
+            _selectedSubject = '';
           }
         }
       });
     } catch (e) {
       if (kDebugMode) {
-        print('Error filtering mata pelajaran: $e');
+        print('Error filtering subjects: $e');
       }
       setState(() {
-        _filteredMataPelajaranList = widget.mataPelajaranList;
-        _isLoadingMataPelajaran = false;
+        _filteredSubjectList = widget.subjectList;
+        _isLoadingSubjects = false;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal memuat mata pelajaran guru'),
+            content: Text(
+              context.read<LanguageProvider>().getTranslatedText({
+                'en': 'Failed to load teacher subjects',
+                'id': 'Gagal memuat mata pelajaran guru',
+              }),
+            ),
             backgroundColor: Colors.red.shade400,
           ),
         );
@@ -722,10 +870,10 @@ class JadwalFormDialogState extends State<JadwalFormDialog> {
     }
   }
 
-  Future<void> _selectTime(BuildContext context, bool isMulai) async {
+  Future<void> _selectTime(BuildContext context, bool isStart) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
-      initialTime: isMulai ? _jamMulai : _jamSelesai,
+      initialTime: isStart ? _startTime : _endTime,
       builder: (context, child) {
         return Theme(
           data: ThemeData.light().copyWith(
@@ -738,10 +886,10 @@ class JadwalFormDialogState extends State<JadwalFormDialog> {
 
     if (picked != null) {
       setState(() {
-        if (isMulai) {
-          _jamMulai = picked;
+        if (isStart) {
+          _startTime = picked;
         } else {
-          _jamSelesai = picked;
+          _endTime = picked;
         }
       });
     }
@@ -749,216 +897,267 @@ class JadwalFormDialogState extends State<JadwalFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              widget.jadwal != null ? 'Edit Jadwal' : 'Tambah Jadwal',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF4F46E5),
-              ),
-            ),
-            SizedBox(height: 20),
-            Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildDropdownField(
-                      'Guru',
-                      _selectedGuru,
-                      widget.guruList,
-                      'nama',
-                      (value) {
-                        setState(() {
-                          _selectedGuru = value!;
-                          _selectedMataPelajaran = '';
-                        });
-
-                        if (value != null && value.isNotEmpty) {
-                          _filterMataPelajaranByGuru(value);
-                        } else {
-                          setState(() {
-                            _filteredMataPelajaranList =
-                                widget.mataPelajaranList;
-                          });
-                        }
-                      },
-                    ),
-                    SizedBox(height: 16),
-
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.schedule != null 
+                    ? languageProvider.getTranslatedText({
+                        'en': 'Edit Schedule',
+                        'id': 'Edit Jadwal',
+                      })
+                    : languageProvider.getTranslatedText({
+                        'en': 'Add Schedule',
+                        'id': 'Tambah Jadwal',
+                      }),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF4F46E5),
+                  ),
+                ),
+                SizedBox(height: 20),
+                Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          'Mata Pelajaran',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: Colors.grey.shade700,
-                            fontSize: 14,
-                          ),
+                        _buildDropdownField(
+                          languageProvider.getTranslatedText({
+                            'en': 'Teacher',
+                            'id': 'Guru',
+                          }),
+                          _selectedTeacher,
+                          widget.teacherList,
+                          'name',
+                          (value) {
+                            setState(() {
+                              _selectedTeacher = value!;
+                              _selectedSubject = '';
+                            });
+
+                            if (value != null && value.isNotEmpty) {
+                              _filterSubjectsByTeacher(value);
+                            } else {
+                              setState(() {
+                                _filteredSubjectList = widget.subjectList;
+                              });
+                            }
+                          },
                         ),
-                        SizedBox(height: 4),
-                        _isLoadingMataPelajaran
-                            ? Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: Colors.grey.shade300,
-                                  ),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
-                                    SizedBox(width: 12),
-                                    Text(
-                                      'Memuat mata pelajaran...',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : _buildDropdownFieldWithoutLabel(
-                                _selectedMataPelajaran,
-                                _filteredMataPelajaranList,
-                                'nama',
-                                (value) => setState(
-                                  () => _selectedMataPelajaran = value!,
-                                ),
-                                'Pilih Mata Pelajaran',
+                        SizedBox(height: 16),
+
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              languageProvider.getTranslatedText({
+                                'en': 'Subject',
+                                'id': 'Mata Pelajaran',
+                              }),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey.shade700,
+                                fontSize: 14,
                               ),
+                            ),
+                            SizedBox(height: 4),
+                            _isLoadingSubjects
+                                ? Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                        SizedBox(width: 12),
+                                        Text(
+                                          languageProvider.getTranslatedText({
+                                            'en': 'Loading subjects...',
+                                            'id': 'Memuat mata pelajaran...',
+                                          }),
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : _buildDropdownFieldWithoutLabel(
+                                    _selectedSubject,
+                                    _filteredSubjectList,
+                                    'name',
+                                    (value) => setState(
+                                      () => _selectedSubject = value!,
+                                    ),
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Select Subject',
+                                      'id': 'Pilih Mata Pelajaran',
+                                    }),
+                                  ),
+                          ],
+                        ),
+
+                        SizedBox(height: 16),
+                        _buildDropdownField(
+                          languageProvider.getTranslatedText({
+                            'en': 'Class',
+                            'id': 'Kelas',
+                          }),
+                          _selectedClass,
+                          widget.classList,
+                          'name',
+                          (value) => setState(() => _selectedClass = value!),
+                        ),
+                        SizedBox(height: 16),
+                        _buildDropdownField(
+                          languageProvider.getTranslatedText({
+                            'en': 'Day',
+                            'id': 'Hari',
+                          }),
+                          _selectedDay,
+                          widget.dayOptions
+                              .map((e) => {'value': e, 'name': e})
+                              .toList(),
+                          'name',
+                          (value) => setState(() => _selectedDay = value!),
+                        ),
+                        SizedBox(height: 16),
+                        _buildTimeField(
+                          languageProvider.getTranslatedText({
+                            'en': 'Start Time',
+                            'id': 'Jam Mulai',
+                          }),
+                          _startTime, 
+                          true
+                        ),
+                        SizedBox(height: 16),
+                        _buildTimeField(
+                          languageProvider.getTranslatedText({
+                            'en': 'End Time',
+                            'id': 'Jam Selesai',
+                          }),
+                          _endTime, 
+                          false
+                        ),
                       ],
                     ),
+                  ),
+                ),
+                SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          side: BorderSide(color: Colors.grey.shade400),
+                        ),
+                        child: Text(
+                          AppLocalizations.cancel.tr,
+                          style: TextStyle(
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (_formKey.currentState!.validate()) {
+                            if (_selectedTeacher.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Please select teacher first',
+                                      'id': 'Pilih guru terlebih dahulu',
+                                    }),
+                                  ),
+                                  backgroundColor: Colors.red.shade400,
+                                ),
+                              );
+                              return;
+                            }
 
-                    SizedBox(height: 16),
-                    _buildDropdownField(
-                      'Kelas',
-                      _selectedKelas,
-                      widget.kelasList,
-                      'nama',
-                      (value) => setState(() => _selectedKelas = value!),
+                            if (_selectedSubject.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Please select subject first',
+                                      'id': 'Pilih mata pelajaran terlebih dahulu',
+                                    }),
+                                  ),
+                                  backgroundColor: Colors.red.shade400,
+                                ),
+                              );
+                              return;
+                            }
+
+                            final data = {
+                              'teacher_id': _selectedTeacher,
+                              'subject_id': _selectedSubject,
+                              'class_id': _selectedClass,
+                              'day': _selectedDay,
+                              'start_time':
+                                  '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}:00',
+                              'end_time':
+                                  '${_endTime.hour.toString().padLeft(2, '0')}:${_endTime.minute.toString().padLeft(2, '0')}:00',
+                              'semester': widget.semester,
+                              'academic_year': widget.academicYear,
+                            };
+                            Navigator.pop(context, data);
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFF4F46E5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: Text(
+                          AppLocalizations.save.tr,
+                          style: TextStyle(
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
                     ),
-                    SizedBox(height: 16),
-                    _buildDropdownField(
-                      'Hari',
-                      _selectedHari,
-                      widget.hariOptions
-                          .map((e) => {'value': e, 'nama': e})
-                          .toList(),
-                      'nama',
-                      (value) => setState(() => _selectedHari = value!),
-                    ),
-                    SizedBox(height: 16),
-                    _buildTimeField('Jam Mulai', _jamMulai, true),
-                    SizedBox(height: 16),
-                    _buildTimeField('Jam Selesai', _jamSelesai, false),
                   ],
-                ),
-              ),
-            ),
-            SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                      side: BorderSide(color: Colors.grey.shade400),
-                    ),
-                    child: Text(
-                      'Batal',
-                      style: TextStyle(
-                        color: Colors.black, // Warna text hitam
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        if (_selectedGuru.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Pilih guru terlebih dahulu'),
-                              backgroundColor: Colors.red.shade400,
-                            ),
-                          );
-                          return;
-                        }
-
-                        if (_selectedMataPelajaran.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Pilih mata pelajaran terlebih dahulu',
-                              ),
-                              backgroundColor: Colors.red.shade400,
-                            ),
-                          );
-                          return;
-                        }
-
-                        final data = {
-                          'guru_id': _selectedGuru,
-                          'mata_pelajaran_id': _selectedMataPelajaran,
-                          'kelas_id': _selectedKelas,
-                          'hari': _selectedHari,
-                          'jam_mulai':
-                              '${_jamMulai.hour.toString().padLeft(2, '0')}:${_jamMulai.minute.toString().padLeft(2, '0')}:00',
-                          'jam_selesai':
-                              '${_jamSelesai.hour.toString().padLeft(2, '0')}:${_jamSelesai.minute.toString().padLeft(2, '0')}:00',
-                          'semester': widget.semester,
-                          'tahun_ajaran': widget.tahunAjaran,
-                        };
-                        Navigator.pop(context, data);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF4F46E5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: Text(
-                      'Simpan',
-                      style: TextStyle(
-                        color: Colors.white, // Warna text putih
-                      ),
-                    ),
-                  ),
                 ),
               ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -998,7 +1197,7 @@ class JadwalFormDialogState extends State<JadwalFormDialog> {
                   child: Text(
                     displayValue.toString(),
                     style: TextStyle(
-                      color: Colors.black, // Warna text hitam
+                      color: Colors.black,
                     ),
                   ),
                 );
@@ -1008,16 +1207,16 @@ class JadwalFormDialogState extends State<JadwalFormDialog> {
                 border: InputBorder.none,
                 isDense: true,
               ),
-              validator: (value) => value == null ? 'Pilih $label' : null,
+              validator: (value) => value == null ? 'Select $label' : null,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.black, // Warna text hitam
+                color: Colors.black,
               ),
-              dropdownColor: Colors.white, // Background dropdown putih
+              dropdownColor: Colors.white,
               icon: Icon(
                 Icons.arrow_drop_down,
                 color: Colors.black,
-              ), // Icon hitam
+              ),
             ),
           ),
         ),
@@ -1049,7 +1248,7 @@ class JadwalFormDialogState extends State<JadwalFormDialog> {
               child: Text(
                 displayValue.toString(),
                 style: TextStyle(
-                  color: Colors.black, // Warna text hitam
+                  color: Colors.black,
                 ),
               ),
             );
@@ -1060,22 +1259,22 @@ class JadwalFormDialogState extends State<JadwalFormDialog> {
             isDense: true,
             hintText: hintText,
             hintStyle: TextStyle(
-              color: Colors.grey.shade600, // Warna hint abu-abu
+              color: Colors.grey.shade600,
             ),
           ),
-          validator: (value) => value == null ? 'Pilih Mata Pelajaran' : null,
+          validator: (value) => value == null ? 'Select Subject' : null,
           style: TextStyle(
             fontSize: 14,
-            color: Colors.black, // Warna text hitam
+            color: Colors.black,
           ),
-          dropdownColor: Colors.white, // Background dropdown putih
-          icon: Icon(Icons.arrow_drop_down, color: Colors.black), // Icon hitam
+          dropdownColor: Colors.white,
+          icon: Icon(Icons.arrow_drop_down, color: Colors.black),
         ),
       ),
     );
   }
 
-  Widget _buildTimeField(String label, TimeOfDay time, bool isMulai) {
+  Widget _buildTimeField(String label, TimeOfDay time, bool isStart) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1089,7 +1288,7 @@ class JadwalFormDialogState extends State<JadwalFormDialog> {
         ),
         SizedBox(height: 4),
         GestureDetector(
-          onTap: () => _selectTime(context, isMulai),
+          onTap: () => _selectTime(context, isStart),
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -1104,7 +1303,7 @@ class JadwalFormDialogState extends State<JadwalFormDialog> {
                   time.format(context),
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.black, // Warna text hitam
+                    color: Colors.black,
                   ),
                 ),
                 Spacer(),
@@ -1117,7 +1316,3 @@ class JadwalFormDialogState extends State<JadwalFormDialog> {
     );
   }
 }
-
-
-// JadwalFormDialog tetap sama seperti sebelumnya...
-// [Kode JadwalFormDialog tetap seperti semula]

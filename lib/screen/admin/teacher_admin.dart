@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:manajemensekolah/components/confirmation_dialog.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/error_screen.dart';
@@ -10,6 +11,7 @@ import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_subject_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
+import 'package:manajemensekolah/utils/language_utils.dart';
 
 class TeacherAdminScreen extends StatefulWidget {
   const TeacherAdminScreen({super.key});
@@ -22,9 +24,9 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
   final ApiTeacherService _teacherService = ApiTeacherService();
   final ApiClassService _classService = ApiClassService();
   final ApiSubjectService _subjectService = ApiSubjectService();
-  List<dynamic> _guru = [];
-  List<dynamic> _mataPelajaran = [];
-  List<dynamic> _kelas = [];
+  List<dynamic> _teachers = [];
+  List<dynamic> _subjects = [];
+  List<dynamic> _classes = [];
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -43,14 +45,14 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
         _errorMessage = null;
       });
 
-      final guruData = await _teacherService.getTeacher();
-      final mataPelajaranData = await _subjectService.getSubject();
-      final kelasData = await _classService.getClass();
+      final teacherData = await _teacherService.getTeacher();
+      final subjectData = await _subjectService.getSubject();
+      final classData = await _classService.getClass();
 
       setState(() {
-        _guru = guruData;
-        _mataPelajaran = mataPelajaranData;
-        _kelas = kelasData;
+        _teachers = teacherData;
+        _subjects = subjectData;
+        _classes = classData;
         _isLoading = false;
       });
     } catch (e) {
@@ -59,336 +61,455 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
         _errorMessage = e.toString();
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal memuat data: $e')));
-    }
-  }
-
-  Future<void> _manageTeacherSubject(String guruId, List<String> selectedMataPelajaranIds) async {
-    try {
-      final currentMataPelajaran = await _teacherService.getSubjectByTeacher(guruId);
-      final currentIds = currentMataPelajaran.map((mp) => mp['id'] as String).toList();
-
-      for (final mpId in selectedMataPelajaranIds) {
-        if (!currentIds.contains(mpId)) {
-          await _teacherService.addSubjectToTeacher(guruId, mpId);
-        }
-      }
-
-      for (final currentId in currentIds) {
-        if (!selectedMataPelajaranIds.contains(currentId)) {
-          await _teacherService.removeSubjectFromTeacher(guruId, currentId);
-        }
-      }
-    } catch (error) {
-      debugPrint('Error handling guru mata pelajaran: $error');
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengupdate mata pelajaran guru: $error')),
+        SnackBar(
+          content: Text(
+            context.read<LanguageProvider>().getTranslatedText({
+              'en': 'Failed to load data: $e',
+              'id': 'Gagal memuat data: $e',
+            }),
+          ),
+        ),
       );
     }
   }
 
-  void _showAddEditDialog({Map<String, dynamic>? guru}) {
-    final namaController = TextEditingController(text: guru?['nama']);
-    final emailController = TextEditingController(text: guru?['email']);
-    final nipController = TextEditingController(text: guru?['nip'] ?? '');
+  Future<void> _manageTeacherSubject(String teacherId, List<String> selectedSubjectIds) async {
+    try {
+      final currentSubjects = await _teacherService.getSubjectByTeacher(teacherId);
+      final currentIds = currentSubjects.map((subject) => subject['id'] as String).toList();
 
-    String? selectedKelasId = guru?['kelas_id'];
-    bool isWaliKelas =
-        guru?['is_wali_kelas'] == 1 || guru?['is_wali_kelas'] == true;
+      for (final subjectId in selectedSubjectIds) {
+        if (!currentIds.contains(subjectId)) {
+          await _teacherService.addSubjectToTeacher(teacherId, subjectId);
+        }
+      }
 
-    // Untuk multiple mata pelajaran
-    List<String> selectedMataPelajaranIds = [];
+      for (final currentId in currentIds) {
+        if (!selectedSubjectIds.contains(currentId)) {
+          await _teacherService.removeSubjectFromTeacher(teacherId, currentId);
+        }
+      }
+    } catch (error) {
+      debugPrint('Error handling teacher subjects: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            context.read<LanguageProvider>().getTranslatedText({
+              'en': 'Failed to update teacher subjects: $error',
+              'id': 'Gagal mengupdate mata pelajaran guru: $error',
+            }),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _showAddEditDialog({Map<String, dynamic>? teacher}) {
+    final nameController = TextEditingController(text: teacher?['name']);
+    final emailController = TextEditingController(text: teacher?['email']);
+    final nipController = TextEditingController(text: teacher?['nip'] ?? '');
+
+    String? selectedClassId = teacher?['class_id'];
+    bool isHomeroomTeacher = teacher?['is_homeroom_teacher'] == 1 || teacher?['is_homeroom_teacher'] == true;
+
+    List<String> selectedSubjectIds = [];
 
     Future<void> showDialogWithSubjects(List<String> subjectIds) async {
-      selectedMataPelajaranIds = subjectIds;
-      selectedMataPelajaranIds = selectedMataPelajaranIds.toSet().toList();
+      selectedSubjectIds = subjectIds;
+      selectedSubjectIds = selectedSubjectIds.toSet().toList();
       await showDialog(
         context: context,
-        builder: (context) => StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text(guru == null ? 'Tambah Guru' : 'Edit Guru'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: namaController,
-                      decoration: InputDecoration(
-                        labelText: 'Nama Guru',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    TextField(
-                      controller: emailController,
-                      decoration: InputDecoration(
-                        labelText: 'Email',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    SizedBox(height: 16),
-                    TextField(
-                      controller: nipController,
-                      decoration: InputDecoration(
-                        labelText: 'NIP',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedKelasId,
-                      decoration: InputDecoration(
-                        labelText: 'Kelas (Opsional)',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        DropdownMenuItem(value: null, child: Text('Tidak ada')),
-                        ..._kelas.map(
-                          (kelas) => DropdownMenuItem(
-                            value: kelas['id'],
-                            child: Text(kelas['nama']),
+        builder: (context) => Consumer<LanguageProvider>(
+          builder: (context, languageProvider, child) {
+            return StatefulBuilder(
+              builder: (context, setState) {
+                return AlertDialog(
+                  title: Text(
+                    teacher == null
+                        ? languageProvider.getTranslatedText({
+                            'en': 'Add Teacher',
+                            'id': 'Tambah Guru',
+                          })
+                        : languageProvider.getTranslatedText({
+                            'en': 'Edit Teacher',
+                            'id': 'Edit Guru',
+                          }),
+                  ),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: nameController,
+                          decoration: InputDecoration(
+                            labelText: languageProvider.getTranslatedText({
+                              'en': 'Teacher Name',
+                              'id': 'Nama Guru',
+                            }),
+                            border: OutlineInputBorder(),
                           ),
                         ),
-                      ],
-                      onChanged: (value) {
-                        setState(() => selectedKelasId = value);
-                      },
-                    ),
-                    SizedBox(height: 16),
-                    // Multiple mata pelajaran selection
-                    Text('Mata Pelajaran:'),
-                    ..._mataPelajaran.map(
-                      (mp) => CheckboxListTile(
-                        title: Text(mp['nama']),
-                        value: selectedMataPelajaranIds.contains(mp['id']),
-                        onChanged: (value) {
-                          setState(() {
-                            if (value == true) {
-                              selectedMataPelajaranIds.add(mp['id']);
-                            } else {
-                              selectedMataPelajaranIds.remove(mp['id']);
-                            }
-                          });
-                        },
-                        controlAffinity: ListTileControlAffinity.leading,
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    CheckboxListTile(
-                      title: Text('Wali Kelas'),
-                      value: isWaliKelas,
-                      onChanged: (value) {
-                        setState(() => isWaliKelas = value ?? false);
-                      },
-                      controlAffinity: ListTileControlAffinity.leading,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('Batal'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (namaController.text.isEmpty ||
-                        emailController.text.isEmpty ||
-                        nipController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Nama, email, dan NIP harus diisi'),
+                        SizedBox(height: 16),
+                        TextField(
+                          controller: emailController,
+                          decoration: InputDecoration(
+                            labelText: languageProvider.getTranslatedText({
+                              'en': 'Email',
+                              'id': 'Email',
+                            }),
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.emailAddress,
                         ),
-                      );
-                      return;
-                    }
-
-                    try {
-                      final data = {
-                        'nama': namaController.text,
-                        'email': emailController.text,
-                        'kelas_id': selectedKelasId,
-                        'nip': nipController.text,
-                        'is_wali_kelas': isWaliKelas,
-                      };
-
-                      String guruId;
-                      if (guru == null) {
-                        final result = await _teacherService.addTeacher(data);
-                        guruId = result['id'];
-                        if (context.mounted) {
+                        SizedBox(height: 16),
+                        TextField(
+                          controller: nipController,
+                          decoration: InputDecoration(
+                            labelText: 'NIP',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedClassId,
+                          decoration: InputDecoration(
+                            labelText: languageProvider.getTranslatedText({
+                              'en': 'Class (Optional)',
+                              'id': 'Kelas (Opsional)',
+                            }),
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            DropdownMenuItem(
+                              value: null, 
+                              child: Text(
+                                languageProvider.getTranslatedText({
+                                  'en': 'None',
+                                  'id': 'Tidak ada',
+                                }),
+                              ),
+                            ),
+                            ..._classes.map(
+                              (classItem) => DropdownMenuItem(
+                                value: classItem['id'],
+                                child: Text(classItem['name']),
+                              ),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setState(() => selectedClassId = value);
+                          },
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Subjects:',
+                            'id': 'Mata Pelajaran:',
+                          }),
+                        ),
+                        ..._subjects.map(
+                          (subject) => CheckboxListTile(
+                            title: Text(subject['name']),
+                            value: selectedSubjectIds.contains(subject['id']),
+                            onChanged: (value) {
+                              setState(() {
+                                if (value == true) {
+                                  selectedSubjectIds.add(subject['id']);
+                                } else {
+                                  selectedSubjectIds.remove(subject['id']);
+                                }
+                              });
+                            },
+                            controlAffinity: ListTileControlAffinity.leading,
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        CheckboxListTile(
+                          title: Text(
+                            languageProvider.getTranslatedText({
+                              'en': 'Homeroom Teacher',
+                              'id': 'Wali Kelas',
+                            }),
+                          ),
+                          value: isHomeroomTeacher,
+                          onChanged: (value) {
+                            setState(() => isHomeroomTeacher = value ?? false);
+                          },
+                          controlAffinity: ListTileControlAffinity.leading,
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(AppLocalizations.cancel.tr),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (nameController.text.isEmpty ||
+                            emailController.text.isEmpty ||
+                            nipController.text.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'Guru berhasil ditambahkan. Password default: password123',
+                                languageProvider.getTranslatedText({
+                                  'en': 'Name, email, and NIP must be filled',
+                                  'id': 'Nama, email, dan NIP harus diisi',
+                                }),
                               ),
-                              duration: Duration(seconds: 5),
                             ),
                           );
+                          return;
                         }
-                      } else {
-                        guruId = guru['id'];
-                        await _teacherService.updateTeacher(guruId, data);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Guru berhasil diupdate')),
-                          );
-                        }
-                      }
 
-                      await _manageTeacherSubject(
-                        guruId,
-                        selectedMataPelajaranIds,
-                      );
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
-                      _loadData();
-                    } catch (error) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Gagal menyimpan data: $error'),
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  child: Text('Simpan'),
-                ),
-              ],
+                        try {
+                          final data = {
+                            'name': nameController.text,
+                            'email': emailController.text,
+                            'class_id': selectedClassId,
+                            'nip': nipController.text,
+                            'is_homeroom_teacher': isHomeroomTeacher,
+                          };
+
+                          String teacherId;
+                          if (teacher == null) {
+                            final result = await _teacherService.addTeacher(data);
+                            teacherId = result['id'];
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Teacher added successfully. Default password: password123',
+                                      'id': 'Guru berhasil ditambahkan. Password default: password123',
+                                    }),
+                                  ),
+                                  duration: Duration(seconds: 5),
+                                ),
+                              );
+                            }
+                          } else {
+                            teacherId = teacher['id'];
+                            await _teacherService.updateTeacher(teacherId, data);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Teacher updated successfully',
+                                      'id': 'Guru berhasil diupdate',
+                                    }),
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+
+                          await _manageTeacherSubject(
+                            teacherId,
+                            selectedSubjectIds,
+                          );
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                          }
+                          _loadData();
+                        } catch (error) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  languageProvider.getTranslatedText({
+                                    'en': 'Failed to save data: $error',
+                                    'id': 'Gagal menyimpan data: $error',
+                                  }),
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      child: Text(AppLocalizations.save.tr),
+                    ),
+                  ],
+                );
+              },
             );
           },
         ),
       );
     }
 
-    if (guru == null) {
-      // Tambah guru: tidak ada subject terpilih
+    if (teacher == null) {
       showDialogWithSubjects([]);
     } else {
-      // Edit guru: ambil data subject terbaru dari database
-      _teacherService.getSubjectByTeacher(guru['id']).then((list) {
-        final ids = list.map((mp) => mp['id'].toString()).toList();
+      _teacherService.getSubjectByTeacher(teacher['id']).then((list) {
+        final ids = list.map((subject) => subject['id'].toString()).toList();
         showDialogWithSubjects(ids);
       });
     }
   }
 
-   Future<void> _deleteTeacher(Map<String, dynamic> guru) async {
+  Future<void> _deleteTeacher(Map<String, dynamic> teacher) async {
     final confirmed = await showDialog(
       context: context,
-      builder: (context) => ConfirmationDialog(
-        title: 'Hapus Guru',
-        content: 'Apakah Anda yakin ingin menghapus guru ini?',
+      builder: (context) => Consumer<LanguageProvider>(
+        builder: (context, languageProvider, child) {
+          return ConfirmationDialog(
+            title: languageProvider.getTranslatedText({
+              'en': 'Delete Teacher',
+              'id': 'Hapus Guru',
+            }),
+            content: languageProvider.getTranslatedText({
+              'en': 'Are you sure you want to delete this teacher?',
+              'id': 'Apakah Anda yakin ingin menghapus guru ini?',
+            }),
+          );
+        },
       ),
     );
 
     if (confirmed == true) {
       try {
-        await _teacherService.deleteTeacher(guru['id']);
+        await _teacherService.deleteTeacher(teacher['id']);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Guru berhasil dihapus')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Teacher successfully deleted',
+                  'id': 'Guru berhasil dihapus',
+                }),
+              ),
+            ),
+          );
         }
         _loadData();
       } catch (error) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Gagal menghapus guru: $error')),
+            SnackBar(
+              content: Text(
+                context.read<LanguageProvider>().getTranslatedText({
+                  'en': 'Failed to delete teacher: $error',
+                  'id': 'Gagal menghapus guru: $error',
+                }),
+              ),
+            ),
           );
         }
       }
     }
   }
 
-  void _navigateToDetail(Map<String, dynamic> guru) {
+  void _navigateToDetail(Map<String, dynamic> teacher) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => TeacherDetailScreen(guru: guru)),
+      MaterialPageRoute(builder: (context) => TeacherDetailScreen(guru: teacher)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return LoadingScreen(message: 'Memuat data guru...');
-    }
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        if (_isLoading) {
+          return LoadingScreen(
+            message: languageProvider.getTranslatedText({
+              'en': 'Loading teacher data...',
+              'id': 'Memuat data guru...',
+            }),
+          );
+        }
 
-    if (_errorMessage != null) {
-      return ErrorScreen(
-        errorMessage: _errorMessage!,
-        onRetry: _loadData,
-      );
-    }
+        if (_errorMessage != null) {
+          return ErrorScreen(
+            errorMessage: _errorMessage!,
+            onRetry: _loadData,
+          );
+        }
 
-    final filteredGuru = _guru.where((guru) {
-      final searchTerm = _searchController.text.toLowerCase();
-      return searchTerm.isEmpty ||
-          guru['nama'].toLowerCase().contains(searchTerm) ||
-          (guru['nip']?.toLowerCase().contains(searchTerm) ?? false);
-    }).toList();
+        final filteredTeachers = _teachers.where((teacher) {
+          final searchTerm = _searchController.text.toLowerCase();
+          return searchTerm.isEmpty ||
+              teacher['name'].toLowerCase().contains(searchTerm) ||
+              (teacher['nip']?.toLowerCase().contains(searchTerm) ?? false);
+        }).toList();
 
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Text(
-          'Kelola Guru',
-          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
-        ),
-        backgroundColor: ColorUtils.primaryColor,
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: Colors.white),
-            onPressed: _loadData,
-            tooltip: 'Refresh',
+        return Scaffold(
+          backgroundColor: Colors.grey.shade50,
+          appBar: AppBar(
+            title: Text(
+              AppLocalizations.manageTeachers.tr,
+              style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+            ),
+            backgroundColor: ColorUtils.primaryColor,
+            elevation: 0,
+            centerTitle: true,
+            actions: [
+              IconButton(
+                icon: Icon(Icons.refresh, color: Colors.white),
+                onPressed: _loadData,
+                tooltip: AppLocalizations.refresh.tr,
+              ),
+            ],
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          CustomSearchBar(
-            controller: _searchController,
-            hintText: 'Cari guru...',
-            onChanged: (value) => setState(() {}),
+          body: Column(
+            children: [
+              CustomSearchBar(
+                controller: _searchController,
+                hintText: languageProvider.getTranslatedText({
+                  'en': 'Search teachers...',
+                  'id': 'Cari guru...',
+                }),
+                onChanged: (value) => setState(() {}),
+              ),
+              Expanded(
+                child: filteredTeachers.isEmpty
+                    ? EmptyState(
+                        title: languageProvider.getTranslatedText({
+                          'en': 'No teachers',
+                          'id': 'Tidak ada guru',
+                        }),
+                        subtitle: _searchController.text.isEmpty
+                            ? languageProvider.getTranslatedText({
+                                'en': 'Tap + to add a teacher',
+                                'id': 'Tap + untuk menambah guru',
+                              })
+                            : languageProvider.getTranslatedText({
+                                'en': 'No search results found',
+                                'id': 'Tidak ditemukan hasil pencarian',
+                              }),
+                        icon: Icons.person_outline,
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.all(16),
+                        itemCount: filteredTeachers.length,
+                        itemBuilder: (context, index) {
+                          final teacher = filteredTeachers[index];
+                          
+                          return TeacherListItem(
+                            guru: teacher,
+                            index: index,
+                            onTap: () => _navigateToDetail(teacher),
+                            onEdit: () => _showAddEditDialog(teacher: teacher),
+                            onDelete: () => _deleteTeacher(teacher),
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
-          Expanded(
-            child: filteredGuru.isEmpty
-                ? EmptyState(
-                    title: 'Tidak ada guru',
-                    subtitle: _searchController.text.isEmpty
-                        ? 'Tap + untuk menambah guru'
-                        : 'Tidak ditemukan hasil pencarian',
-                    icon: Icons.person_outline,
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.all(16),
-                    itemCount: filteredGuru.length,
-                    itemBuilder: (context, index) {
-                      final guru = filteredGuru[index];
-                      
-                      return TeacherListItem(
-                        guru: guru,
-                        index: index,
-                        onTap: () => _navigateToDetail(guru),
-                        onEdit: () => _showAddEditDialog(guru: guru),
-                        onDelete: () => _deleteTeacher(guru),
-                      );
-                    },
-                  ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () => _showAddEditDialog(),
+            backgroundColor: ColorUtils.primaryColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Icon(Icons.add, color: Colors.white),
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddEditDialog(),
-        backgroundColor: ColorUtils.primaryColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Icon(Icons.add, color: Colors.white),
-      ),
+        );
+      },
     );
   }
 }
