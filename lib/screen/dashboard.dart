@@ -407,15 +407,39 @@ class _DashboardState extends State<Dashboard> {
         ),
         'roles': ['admin', 'guru'],
       },
+      // Di dashboard.dart - perbaiki onTap untuk Input Nilai
       {
         'title': AppLocalizations.inputGrades.tr,
         'icon': Icons.grade,
-        'onTap': () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => GradePage(guru: {'role': widget.role}),
-          ),
-        ),
+        'onTap': () async {
+          final prefs = await SharedPreferences.getInstance();
+          final userData = json.decode(prefs.getString('user') ?? '{}');
+
+          print('👤 User data for grade input: $userData');
+
+          final teacherData = {
+            'id': userData['id'] ?? '',
+            'nama': userData['nama'] ?? 'Teacher',
+            'role': widget.role,
+          };
+
+          if (teacherData['id']!.isEmpty) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: Teacher ID not found')),
+              );
+            }
+            return;
+          }
+
+          if (!context.mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => GradePage(guru: teacherData),
+            ),
+          );
+        },
         'roles': ['admin', 'guru'],
       },
       {

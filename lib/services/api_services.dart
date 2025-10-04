@@ -4,10 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // static const String baseUrl = 'http://10.0.2.2:3000/api'; // Android emulator
-  // static const String baseUrl =
-  //     'http://localhost:3001/api'; // iOS simulator atau web
-  
-  static const String baseUrl = 'https://backendmanajemensekolah.vercel.app/api';
+  static const String baseUrl =
+      'http://localhost:3000/api'; // iOS simulator atau web
+
+  // static const String baseUrl = 'https://backendmanajemensekolah.vercel.app/api';
   // static const String baseUrl = 'https://libra.web.id/apimanajemen';
 
   Future<dynamic> get(String endpoint) async {
@@ -36,6 +36,22 @@ class ApiService {
       body: json.encode(data),
     );
     return _handleResponse(response);
+  }
+
+  // Dalam ApiService class
+  Future<List<dynamic>> getNilaiByMataPelajaran(String mataPelajaranId) async {
+    try {
+      final semuaNilai = await get('/nilai');
+      if (semuaNilai is List) {
+        return semuaNilai.where((nilai) {
+          return nilai['mata_pelajaran_id'] == mataPelajaranId;
+        }).toList();
+      }
+      return [];
+    } catch (e) {
+      print('Error filtering nilai: $e');
+      return [];
+    }
   }
 
   // Instance method untuk DELETE request
@@ -86,7 +102,6 @@ class ApiService {
       throw Exception(json.decode(response.body)['error'] ?? 'Login failed');
     }
   }
-
 
   // Absensi
   static Future<List<dynamic>> getAbsensi({
@@ -177,8 +192,6 @@ class ApiService {
 
     return _handleResponse(response);
   }
-
-  
 
   // Check server health
   static Future<Map<String, dynamic>> checkHealth() async {
