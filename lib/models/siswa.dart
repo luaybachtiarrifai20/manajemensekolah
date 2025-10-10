@@ -23,7 +23,7 @@ class Siswa {
     return Siswa(
       id: json['id'].toString(),
       nama: json['nama'] ?? '',
-      kelas: json['kelas'] ?? '',
+      kelas: json['kelas_nama'] ?? '',
       nis: json['nis'] ?? '',
       alamat: json['alamat'] ?? '',
       namaWali: json['namaWali'] ?? '',

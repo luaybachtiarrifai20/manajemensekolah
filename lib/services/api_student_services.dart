@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiStudentService {
   static const String baseUrl = ApiService.baseUrl;
-  
+
   static Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
@@ -28,6 +28,21 @@ class ApiStudentService {
       );
     }
   }
+
+  // Di ApiStudentService
+  static Future<Map<String, dynamic>?> getParentUser(String studentId) async {
+    try {
+      final response = await ApiService().get('users?siswa_id=$studentId');
+      if (response != null && response is List && response.isNotEmpty) {
+        return response.first; // Ambil user pertama yang terkait dengan siswa
+      }
+      return null;
+    } catch (e) {
+      print('Error getting parent user: $e');
+      return null;
+    }
+  }
+
   // Kelola Siswa
   static Future<List<dynamic>> getStudent() async {
     final response = await http.get(
@@ -49,7 +64,10 @@ class ApiStudentService {
     return _handleResponse(response);
   }
 
-  static Future<void> updateStudent(String id, Map<String, dynamic> data) async {
+  static Future<void> updateStudent(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
     final response = await http.put(
       Uri.parse('$baseUrl/siswa/$id'),
       headers: await _getHeaders(),
@@ -64,5 +82,18 @@ class ApiStudentService {
       headers: await _getHeaders(),
     );
     _handleResponse(response);
+  }
+
+  // Tambahkan method ini di ApiStudentService
+  static Future<List<dynamic>> getStudentByClass(String kelasId) async {
+    try {
+      final semuaSiswa = await getStudent();
+      return semuaSiswa.where((siswa) {
+        return siswa['kelas_id'] == kelasId;
+      }).toList();
+    } catch (e) {
+      print('Error filtering siswa by kelas: $e');
+      return [];
+    }
   }
 }

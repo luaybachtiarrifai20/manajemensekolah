@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:manajemensekolah/screen/admin/admin_class_activity.dart';
+import 'package:manajemensekolah/screen/admin/admin_teachers_screen.dart';
 import 'package:manajemensekolah/screen/admin/class_management.dart';
 import 'package:manajemensekolah/screen/admin/keuangan.dart';
 import 'package:manajemensekolah/screen/admin/laporan.dart';
@@ -10,9 +12,13 @@ import 'package:manajemensekolah/screen/admin/subject_management.dart';
 import 'package:manajemensekolah/screen/admin/teacher_admin.dart';
 import 'package:manajemensekolah/screen/admin/teaching_schedule_management.dart';
 import 'package:manajemensekolah/screen/guru/input_grade_teacher.dart';
+import 'package:manajemensekolah/screen/guru/class_activity.dart';
 import 'package:manajemensekolah/screen/guru/materi_screen.dart';
 import 'package:manajemensekolah/screen/guru/presence_teacher.dart';
 import 'package:manajemensekolah/screen/guru/teaching_schedule.dart';
+import 'package:manajemensekolah/screen/guru/rpp_screen.dart'; // Tambahkan import RPP guru
+import 'package:manajemensekolah/screen/walimurid/presence_parent.dart';
+import 'package:manajemensekolah/services/api_student_services.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -399,31 +405,20 @@ class _DashboardState extends State<Dashboard> {
       {
         'title': AppLocalizations.studentAttendance.tr,
         'icon': Icons.how_to_reg,
-        'onTap': () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PresencePage(guru: {'role': widget.role}),
-          ),
-        ),
-        'roles': ['admin', 'guru'],
-      },
-      // Di dashboard.dart - perbaiki onTap untuk Input Nilai
-      {
-        'title': AppLocalizations.inputGrades.tr,
-        'icon': Icons.grade,
         'onTap': () async {
           final prefs = await SharedPreferences.getInstance();
           final userData = json.decode(prefs.getString('user') ?? '{}');
 
-          print('👤 User data for grade input: $userData');
+          print('👤 User data for attendance: $userData');
 
-          final teacherData = {
+          final guruData = {
             'id': userData['id'] ?? '',
             'nama': userData['nama'] ?? 'Teacher',
+            'email': userData['email'] ?? '',
             'role': widget.role,
           };
 
-          if (teacherData['id']!.isEmpty) {
+          if (guruData['id']!.isEmpty) {
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Error: Teacher ID not found')),
@@ -436,8 +431,42 @@ class _DashboardState extends State<Dashboard> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => GradePage(guru: teacherData),
+              builder: (context) => PresencePage(guru: guruData),
             ),
+          );
+        },
+        'roles': ['admin', 'guru'],
+      },
+      // Input Nilai
+      {
+        'title': AppLocalizations.inputGrades.tr,
+        'icon': Icons.grade,
+        'onTap': () async {
+          final prefs = await SharedPreferences.getInstance();
+          final userData = json.decode(prefs.getString('user') ?? '{}');
+
+          print('👤 User data for grade input: $userData');
+
+          final guruData = {
+            'id': userData['id'] ?? '',
+            'nama': userData['nama'] ?? 'Teacher',
+            'email': userData['email'] ?? '',
+            'role': widget.role,
+          };
+
+          if (guruData['id']!.isEmpty) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: Teacher ID not found')),
+              );
+            }
+            return;
+          }
+
+          if (!context.mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => GradePage(guru: guruData)),
           );
         },
         'roles': ['admin', 'guru'],
@@ -456,9 +485,18 @@ class _DashboardState extends State<Dashboard> {
         'icon': Icons.event,
         'onTap': () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => KegiatanKelasScreen()),
+          MaterialPageRoute(builder: (context) => ClassActifityScreen()),
         ),
-        'roles': ['admin', 'guru'],
+        'roles': ['guru'],
+      },
+      {
+        'title': 'Kegiatan Kelas',
+        'icon': Icons.event_available,
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => AdminClassActivityScreen()),
+        ),
+        'roles': ['admin'],
       },
       {
         'title': AppLocalizations.learningMaterials.tr,
@@ -489,7 +527,7 @@ class _DashboardState extends State<Dashboard> {
             ),
           );
         },
-        'roles': ['admin', 'guru'],
+        'roles': ['guru'],
       },
       {
         'title': AppLocalizations.manageTeachingSchedule.tr,
@@ -501,6 +539,123 @@ class _DashboardState extends State<Dashboard> {
           ),
         ),
         'roles': ['admin'],
+      },
+      // TAMBAHKAN KARTU RPP UNTUK GURU
+      {
+        'title': AppLocalizations
+            .myRpp
+            .tr, // Bisa ditambahkan ke language_utils nanti
+        'icon': Icons.description,
+        'onTap': () async {
+          final prefs = await SharedPreferences.getInstance();
+          final userData = json.decode(prefs.getString('user') ?? '{}');
+
+          print('👤 User data for RPP: $userData');
+
+          final guruData = {
+            'id': userData['id'] ?? '',
+            'nama': userData['nama'] ?? 'Teacher',
+            'email': userData['email'] ?? '',
+            'role': widget.role,
+          };
+
+          if (guruData['id']!.isEmpty) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: Teacher ID not found')),
+              );
+            }
+            return;
+          }
+
+          if (!context.mounted) return;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RppScreen(
+                guruId: guruData['id']!,
+                guruName: guruData['nama']!,
+              ),
+            ),
+          );
+        },
+        'roles': ['guru'],
+      },
+      // TAMBAHKAN KARTU KELOLA RPP UNTUK ADMIN
+      {
+        'title': AppLocalizations
+            .manageRpp
+            .tr, // Bisa ditambahkan ke language_utils nanti
+        'icon': Icons.assignment,
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => AdminTeachersScreen()),
+        ),
+        'roles': ['admin'],
+      },
+      // Dalam _getDashboardCards, perbaiki bagian 'Absensi Anak':
+      {
+        'title': 'Absensi Anak',
+        'icon': Icons.calendar_today,
+        'onTap': () async {
+          final prefs = await SharedPreferences.getInstance();
+          final userData = json.decode(prefs.getString('user') ?? '{}');
+
+          print('👤 Parent data: $userData');
+
+          // Dapatkan data siswa/anak untuk parent ini
+          final siswaData = await _getSiswaDataForParent(userData['id'] ?? '');
+
+          if (siswaData.isEmpty) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Tidak ada data siswa/anak ditemukan untuk akun ini',
+                  ),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+
+              // Tampilkan dialog informasi
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text('Informasi'),
+                  content: Text(
+                    'Tidak ada data siswa yang terhubung dengan akun wali murid ini. Silakan hubungi administrator.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('OK'),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return;
+          }
+
+          if (!context.mounted) return;
+
+          // Jika hanya ada 1 anak, langsung buka halaman absensi
+          if (siswaData.length == 1) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PresenceParentPage(
+                  parent: userData,
+                  siswaId: siswaData[0]['id'],
+                ),
+              ),
+            );
+          } else {
+            // Jika multiple anak, tampilkan dialog pilihan
+            _showStudentSelectionDialog(context, userData, siswaData);
+          }
+        },
+        'roles': ['wali'],
       },
     ];
 
@@ -528,7 +683,7 @@ class _DashboardState extends State<Dashboard> {
             children: [
               Container(
                 decoration: BoxDecoration(
-                  color: _getCardColor(widget.role).withValues(alpha: 0.12),
+                  color: _getCardColor(widget.role).withAlpha(30),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 padding: EdgeInsets.all(16),
@@ -565,4 +720,107 @@ class _DashboardState extends State<Dashboard> {
         return Colors.grey;
     }
   }
+}
+
+// Ganti fungsi _getSiswaDataForParent dengan ini:
+Future<List<dynamic>> _getSiswaDataForParent(String parentId) async {
+  try {
+    // Dapatkan semua siswa
+    final allStudents = await ApiStudentService.getStudent();
+
+    // Dapatkan data user wali untuk mendapatkan siswa_id
+    final prefs = await SharedPreferences.getInstance();
+    final userData = json.decode(prefs.getString('user') ?? '{}');
+
+    // Jika user wali memiliki siswa_id langsung (dari relasi one-to-one)
+    if (userData['siswa_id'] != null && userData['siswa_id'].isNotEmpty) {
+      final siswa = allStudents.firstWhere(
+        (student) => student['id'] == userData['siswa_id'],
+        orElse: () => null,
+      );
+      return siswa != null ? [siswa] : [];
+    }
+
+    // Alternatif: Filter siswa berdasarkan email wali (jika ada field email_wali di siswa)
+    final siswaWithThisParent = allStudents.where((student) {
+      return student['email_wali'] == userData['email'] ||
+          student['nama_wali'] == userData['nama'];
+    }).toList();
+
+    if (siswaWithThisParent.isNotEmpty) {
+      return siswaWithThisParent;
+    }
+
+    // Fallback: return semua siswa (untuk testing)
+    print('⚠️  Using fallback - showing all students for parent');
+    return allStudents;
+  } catch (e) {
+    print('Error getting student data for parent: $e');
+    return [];
+  }
+}
+
+// Tambahkan fungsi untuk mendapatkan siswa berdasarkan parent ID dari API
+Future<List<dynamic>> _getSiswaByParentId(String parentId) async {
+  try {
+    // Anda perlu membuat endpoint API seperti: /api/siswa/by-parent/:parentId
+    // Untuk sementara, kita gunakan pendekatan filter di frontend
+    final allStudents = await ApiStudentService.getStudent();
+
+    // Asumsi: ada field parent_id atau wali_id di tabel siswa
+    return allStudents.where((student) {
+      return student['parent_id'] == parentId ||
+          student['wali_id'] == parentId ||
+          student['wali_murid_id'] == parentId;
+    }).toList();
+  } catch (e) {
+    print('Error getting siswa by parent ID: $e');
+    return [];
+  }
+}
+
+void _showStudentSelectionDialog(
+  BuildContext context,
+  Map<String, dynamic> parent,
+  List<dynamic> siswaData,
+) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Pilih Anak'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: siswaData.length,
+          itemBuilder: (context, index) {
+            final siswa = siswaData[index];
+            return ListTile(
+              leading: CircleAvatar(child: Text(siswa['nama'][0])),
+              title: Text(siswa['nama']),
+              subtitle: Text('Kelas: ${siswa['kelas_nama'] ?? '-'}'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PresenceParentPage(
+                      parent: parent,
+                      siswaId: siswa['id'],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Batal'),
+        ),
+      ],
+    ),
+  );
 }

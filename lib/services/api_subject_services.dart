@@ -214,4 +214,24 @@ class ApiSubjectService {
 
     return _handleResponse(response);
   }
+
+  static Future<dynamic> saveRPP(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/rpp'),
+      headers: await _getHeaders(),
+      body: json.encode(data),
+    );
+
+    return _handleResponse(response);
+  }
+
+  static Future<List<dynamic>> getRPPByTeacher(String guruId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/rpp?guru_id=$guruId'),
+      headers: await _getHeaders(),
+    );
+
+    final result = _handleResponse(response);
+    return result is List ? result : [];
+  }
 }

@@ -361,18 +361,31 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
           appBar: AppBar(
             title: Text(
               AppLocalizations.manageClasses.tr,
-              style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
             ),
-            backgroundColor: ColorUtils.primaryColor,
+            backgroundColor: Colors.white,
             elevation: 0,
             centerTitle: true,
+            iconTheme: IconThemeData(color: Colors.black),
             actions: [
               IconButton(
-                icon: Icon(Icons.refresh, color: Colors.white),
+                icon: Icon(Icons.refresh, color: Colors.black),
                 onPressed: _loadData,
                 tooltip: AppLocalizations.refresh.tr,
               ),
             ],
+            bottom: PreferredSize(
+              preferredSize: Size.fromHeight(1),
+              child: Container(
+                height: 1,
+                color: Colors.grey.shade300,
+              ),
+            ),
           ),
           body: Column(
             children: [

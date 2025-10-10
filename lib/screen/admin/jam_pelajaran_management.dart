@@ -5,15 +5,17 @@ class JamPelajaranManagementScreen extends StatefulWidget {
   const JamPelajaranManagementScreen({super.key});
 
   @override
-  JamPelajaranManagementScreenState createState() => JamPelajaranManagementScreenState();
+  JamPelajaranManagementScreenState createState() =>
+      JamPelajaranManagementScreenState();
 }
 
-class JamPelajaranManagementScreenState extends State<JamPelajaranManagementScreen> {
+class JamPelajaranManagementScreenState
+    extends State<JamPelajaranManagementScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _jamMulaiController = TextEditingController();
   final TextEditingController _jamSelesaiController = TextEditingController();
   final TextEditingController _jamKeController = TextEditingController();
-  
+
   List<dynamic> _jamPelajaranList = [];
   bool _isLoading = true;
 
@@ -46,15 +48,15 @@ class JamPelajaranManagementScreenState extends State<JamPelajaranManagementScre
         };
 
         await ApiScheduleService.addJamPelajaran(data);
-        
+
         // Reset form
         _jamKeController.clear();
         _jamMulaiController.clear();
         _jamSelesaiController.clear();
-        
+
         // Reload data
         _loadJamPelajaran();
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Jam pelajaran berhasil ditambahkan'),
@@ -75,9 +77,25 @@ class JamPelajaranManagementScreenState extends State<JamPelajaranManagementScre
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: Text('Management Jam Pelajaran'),
-        backgroundColor: Color(0xFF4F46E5),
+        title: Text(
+          'Management Jam Pelajaran',
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: IconThemeData(color: Colors.black),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Container(height: 1, color: Colors.grey.shade300),
+        ),
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
@@ -135,7 +153,9 @@ class JamPelajaranManagementScreenState extends State<JamPelajaranManagementScre
                                       if (value == null || value.isEmpty) {
                                         return 'Jam mulai harus diisi';
                                       }
-                                      if (!RegExp(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$').hasMatch(value)) {
+                                      if (!RegExp(
+                                        r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
+                                      ).hasMatch(value)) {
                                         return 'Format jam tidak valid';
                                       }
                                       return null;
@@ -156,7 +176,9 @@ class JamPelajaranManagementScreenState extends State<JamPelajaranManagementScre
                                       if (value == null || value.isEmpty) {
                                         return 'Jam selesai harus diisi';
                                       }
-                                      if (!RegExp(r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$').hasMatch(value)) {
+                                      if (!RegExp(
+                                        r'^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$',
+                                      ).hasMatch(value)) {
                                         return 'Format jam tidak valid';
                                       }
                                       return null;
@@ -180,7 +202,7 @@ class JamPelajaranManagementScreenState extends State<JamPelajaranManagementScre
                     ),
                   ),
                   SizedBox(height: 16),
-                  
+
                   // List Jam Pelajaran
                   Expanded(
                     child: Card(
@@ -211,11 +233,17 @@ class JamPelajaranManagementScreenState extends State<JamPelajaranManagementScre
                                             backgroundColor: Color(0xFF4F46E5),
                                             child: Text(
                                               jam['jam_ke'].toString(),
-                                              style: TextStyle(color: Colors.white),
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                              ),
                                             ),
                                           ),
-                                          title: Text('Jam Ke-${jam['jam_ke']}'),
-                                          subtitle: Text('${jam['jam_mulai']} - ${jam['jam_selesai']}'),
+                                          title: Text(
+                                            'Jam Ke-${jam['jam_ke']}',
+                                          ),
+                                          subtitle: Text(
+                                            '${jam['jam_mulai']} - ${jam['jam_selesai']}',
+                                          ),
                                           trailing: Icon(Icons.schedule),
                                         );
                                       },

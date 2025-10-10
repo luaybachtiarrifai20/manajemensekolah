@@ -1,9 +1,9 @@
+// TeacherListItem yang sudah dimodifikasi
 import 'package:flutter/material.dart';
-
-import '../utils/color_utils.dart';
+import 'package:manajemensekolah/utils/color_utils.dart';
 
 class TeacherListItem extends StatelessWidget {
-  final dynamic guru;
+  final Map<String, dynamic> guru;
   final int index;
   final VoidCallback onTap;
   final VoidCallback onEdit;
@@ -20,118 +20,171 @@ class TeacherListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isWaliKelas =
-        guru['is_wali_kelas'] == 1 || guru['is_wali_kelas'] == true;
-    final color = ColorUtils.getColorForIndex(index);
-
-    return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      child: Material(
-        elevation: 2,
-        borderRadius: BorderRadius.circular(16),
-        child: ListTile(
-          leading: Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  color.withValues(alpha: 0.8),
-                  color.withValues(alpha: 0.6),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(25),
-            ),
-            child: Center(
-              child: Text(
-                guru['nama'][0],
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-            ),
+    final isHomeroomTeacher = guru['is_wali_kelas'] == 1 || guru['is_wali_kelas'] == true;
+    
+    return Card(
+      elevation: 2,
+      margin: EdgeInsets.only(bottom: 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: Colors.grey.shade300,
+            width: 1,
           ),
-          title: Text(
-            guru['nama'],
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          subtitle: Column(
+        ),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 5),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'NIP: ${guru['nip'] ?? 'Tidak ada'}',
-                style: TextStyle(fontSize: 12),
-              ),
-              if (guru['mata_pelajaran_names'] != null) ...[
-                SizedBox(height: 4),
-                Wrap(
-                  spacing: 4,
-                  children: (guru['mata_pelajaran_names'] as String)
-                      .split(',')
-                      .where((name) => name.isNotEmpty)
-                      .map(
-                        (name) => Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
+              // Header dengan nama dan status wali kelas
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          guru['nama']?.toString() ?? 'Unknown Teacher',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade800,
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.blue.shade100),
-                          ),
-                          child: Text(
-                            name,
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.blue.shade700,
-                            ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          isHomeroomTeacher ? 'Homeroom Teacher' : 'Regular Teacher',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isHomeroomTeacher ? ColorUtils.primaryColor : Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                      )
-                      .toList(),
-                ),
-              ],
-              if (isWaliKelas) ...[
-                SizedBox(height: 4),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.shade100),
-                  ),
-                  child: Text(
-                    'Wali Kelas',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.orange.shade800,
-                      fontWeight: FontWeight.bold,
+                      ],
                     ),
                   ),
+                  // Menu popup
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert, color: Colors.grey.shade600),
+                    onSelected: (value) {
+                      if (value == 'edit') {
+                        onEdit();
+                      } else if (value == 'delete') {
+                        onDelete();
+                      }
+                    },
+                    itemBuilder: (BuildContext context) => [
+                      PopupMenuItem<String>(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit, size: 20, color: Colors.blue.shade600),
+                            SizedBox(width: 8),
+                            Text('Edit'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete, size: 20, color: Colors.red.shade600),
+                            SizedBox(width: 8),
+                            Text('Delete'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              
+              SizedBox(height: 16),
+              
+              // Informasi email
+              Row(
+                children: [
+                  Icon(Icons.email_outlined, size: 18, color: Colors.grey.shade600),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      guru['email']?.toString() ?? 'No email',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              
+              SizedBox(height: 8),
+              
+              // Informasi NIP
+              Row(
+                children: [
+                  Icon(Icons.badge_outlined, size: 18, color: Colors.grey.shade600),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      guru['nip']?.toString() ?? 'No NIP',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              
+              SizedBox(height: 12),
+              
+              // Divider
+              Divider(
+                height: 1,
+                color: Colors.grey.shade300,
+              ),
+              
+              SizedBox(height: 2),
+              
+              // Footer dengan tombol detail
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: onTap,
+                  style: TextButton.styleFrom(
+                    foregroundColor: ColorUtils.primaryColor,
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View Details',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_ios, size: 14),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ],
           ),
-          trailing: PopupMenuButton(
-            itemBuilder: (context) => [
-              PopupMenuItem(value: 'edit', child: Text('Edit')),
-              PopupMenuItem(value: 'delete', child: Text('Hapus')),
-            ],
-            onSelected: (value) {
-              if (value == 'edit') {
-                onEdit();
-              } else if (value == 'delete') {
-                onDelete();
-              }
-            },
-          ),
-          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          onTap: onTap,
         ),
       ),
     );

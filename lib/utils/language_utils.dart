@@ -155,10 +155,29 @@ class AppLocalizations {
     'id': 'Kegiatan Kelas',
   };
 
-  static Map<String, String> get learningMaterials => {
+  static Map<String, String> get rppLearningMaterials => {
     'en': 'Learning Materials',
     'id': 'Materi Pembelajaran',
   };
+
+  // TAMBAHKAN MENU RPP
+  static Map<String, String> get myRpp => {
+    'en': 'My Lesson Plans',
+    'id': 'RPP Saya',
+  };
+
+  static Map<String, String> get manageRpp => {
+    'en': 'Manage Lesson Plans',
+    'id': 'Kelola RPP',
+  };
+
+  // Tambahkan di class AppLocalizations
+  static Map<String, String> get tryAgain => {
+    'en': 'Try Again',
+    'id': 'Coba Lagi',
+  };
+
+  static Map<String, String> get close => {'en': 'Close', 'id': 'Tutup'};
 
   // Role Titles
   static Map<String, String> get adminRole => {'en': 'Admin', 'id': 'Admin'};
@@ -196,8 +215,6 @@ class AppLocalizations {
     'en': 'Login Failed',
     'id': 'Login Gagal',
   };
-
-  // Add these to AppLocalizations class in language_utils.dart
 
   // Confirmation dialogs
   static Map<String, String> get confirmDelete => {
@@ -241,4 +258,318 @@ class AppLocalizations {
   };
 
   static Map<String, String> get day => {'en': 'Day', 'id': 'Hari'};
+
+  // ========== TAMBAHAN UNTUK FITUR RPP ==========
+
+  // RPP Screen Titles
+  static Map<String, String> get rpp => {
+    'en': 'Lesson Plan',
+    'id': 'Rencana Pelaksanaan Pembelajaran',
+  };
+
+  static Map<String, String> get rppList => {
+    'en': 'Lesson Plan List',
+    'id': 'Daftar RPP',
+  };
+
+  static Map<String, String> get createRpp => {
+    'en': 'Create Lesson Plan',
+    'id': 'Buat RPP',
+  };
+
+  static Map<String, String> get editRpp => {
+    'en': 'Edit Lesson Plan',
+    'id': 'Edit RPP',
+  };
+
+  // RPP Status
+  static Map<String, String> get status => {'en': 'Status', 'id': 'Status'};
+
+  static Map<String, String> get pending => {'en': 'Pending', 'id': 'Menunggu'};
+
+  static Map<String, String> get approved => {
+    'en': 'Approved',
+    'id': 'Disetujui',
+  };
+
+  static Map<String, String> get rejected => {
+    'en': 'Rejected',
+    'id': 'Ditolak',
+  };
+
+  // RPP Form Fields
+  static Map<String, String> get title => {'en': 'Title', 'id': 'Judul'};
+
+  static Map<String, String> get semester => {
+    'en': 'Semester',
+    'id': 'Semester',
+  };
+
+  static Map<String, String> get academicYear => {
+    'en': 'Academic Year',
+    'id': 'Tahun Ajaran',
+  };
+
+  static Map<String, String> get coreCompetence => {
+    'en': 'Core Competence',
+    'id': 'Kompetensi Inti',
+  };
+
+  static Map<String, String> get basicCompetence => {
+    'en': 'Basic Competence',
+    'id': 'Kompetensi Dasar',
+  };
+
+  static Map<String, String> get indicators => {
+    'en': 'Indicators',
+    'id': 'Indikator',
+  };
+
+  static Map<String, String> get learningObjectives => {
+    'en': 'Learning Objectives',
+    'id': 'Tujuan Pembelajaran',
+  };
+
+  static Map<String, String> get learningMaterials => {
+    'en': 'Learning Materials',
+    'id': 'Materi Pembelajaran',
+  };
+
+  static Map<String, String> get learningMethods => {
+    'en': 'Learning Methods',
+    'id': 'Metode Pembelajaran',
+  };
+
+  static Map<String, String> get mediaTools => {
+    'en': 'Media & Tools',
+    'id': 'Media dan Alat',
+  };
+
+  static Map<String, String> get learningResources => {
+    'en': 'Learning Resources',
+    'id': 'Sumber Belajar',
+  };
+
+  static Map<String, String> get learningActivities => {
+    'en': 'Learning Activities',
+    'id': 'Kegiatan Pembelajaran',
+  };
+
+  static Map<String, String> get assessment => {
+    'en': 'Assessment',
+    'id': 'Penilaian',
+  };
+
+  static Map<String, String> get attachment => {
+    'en': 'Attachment',
+    'id': 'Lampiran',
+  };
+
+  // RPP Actions
+  static Map<String, String> get createNewRpp => {
+    'en': 'Create New Lesson Plan',
+    'id': 'Buat RPP Baru',
+  };
+
+  static Map<String, String> get viewRpp => {
+    'en': 'View Lesson Plan',
+    'id': 'Lihat RPP',
+  };
+
+  static Map<String, String> get downloadRpp => {
+    'en': 'Download Lesson Plan',
+    'id': 'Unduh RPP',
+  };
+
+  static Map<String, String> get uploadFile => {
+    'en': 'Upload File',
+    'id': 'Unggah File',
+  };
+
+  static Map<String, String> get chooseFile => {
+    'en': 'Choose File',
+    'id': 'Pilih File',
+  };
+
+  static Map<String, String> get fileSelected => {
+    'en': 'File Selected',
+    'id': 'File Terpilih',
+  };
+
+  // RPP Messages
+  static Map<String, String> get noRppAvailable => {
+    'en': 'No lesson plans available',
+    'id': 'Belum ada RPP',
+  };
+
+  static Map<String, String> get rppCreatedSuccess => {
+    'en': 'Lesson plan created successfully',
+    'id': 'RPP berhasil dibuat',
+  };
+
+  static Map<String, String> get rppUpdatedSuccess => {
+    'en': 'Lesson plan updated successfully',
+    'id': 'RPP berhasil diperbarui',
+  };
+
+  static Map<String, String> get rppDeletedSuccess => {
+    'en': 'Lesson plan deleted successfully',
+    'id': 'RPP berhasil dihapus',
+  };
+
+  static Map<String, String> get rppStatusUpdated => {
+    'en': 'Lesson plan status updated',
+    'id': 'Status RPP berhasil diupdate',
+  };
+
+  // File Upload
+  static Map<String, String> get fileUploadSuccess => {
+    'en': 'File uploaded successfully',
+    'id': 'File berhasil diunggah',
+  };
+
+  static Map<String, String> get fileUploadError => {
+    'en': 'File upload failed',
+    'id': 'Gagal mengunggah file',
+  };
+
+  static Map<String, String> get invalidFileType => {
+    'en': 'Invalid file type. Please upload Word or PDF files only.',
+    'id': 'Tipe file tidak valid. Harap unggah file Word atau PDF saja.',
+  };
+
+  static Map<String, String> get fileTooLarge => {
+    'en': 'File too large. Maximum size is 10MB.',
+    'id': 'File terlalu besar. Ukuran maksimal 10MB.',
+  };
+
+  // Admin RPP Management
+  static Map<String, String> get allRpp => {
+    'en': 'All Lesson Plans',
+    'id': 'Semua RPP',
+  };
+
+  static Map<String, String> get filterByStatus => {
+    'en': 'Filter by Status',
+    'id': 'Filter Berdasarkan Status',
+  };
+
+  static Map<String, String> get teacherName => {
+    'en': 'Teacher Name',
+    'id': 'Nama Guru',
+  };
+
+  static Map<String, String> get subjectName => {
+    'en': 'Subject Name',
+    'id': 'Nama Mata Pelajaran',
+  };
+
+  static Map<String, String> get className => {
+    'en': 'Class Name',
+    'id': 'Nama Kelas',
+  };
+
+  static Map<String, String> get creationDate => {
+    'en': 'Creation Date',
+    'id': 'Tanggal Dibuat',
+  };
+
+  static Map<String, String> get updateStatus => {
+    'en': 'Update Status',
+    'id': 'Update Status',
+  };
+
+  static Map<String, String> get adminNotes => {
+    'en': 'Admin Notes',
+    'id': 'Catatan Admin',
+  };
+
+  static Map<String, String> get notesOptional => {
+    'en': 'Notes (Optional)',
+    'id': 'Catatan (Opsional)',
+  };
+
+  static Map<String, String> get approveRpp => {
+    'en': 'Approve Lesson Plan',
+    'id': 'Setujui RPP',
+  };
+
+  static Map<String, String> get rejectRpp => {
+    'en': 'Reject Lesson Plan',
+    'id': 'Tolak RPP',
+  };
+
+  // RPP Details
+  static Map<String, String> get rppDetails => {
+    'en': 'Lesson Plan Details',
+    'id': 'Detail RPP',
+  };
+
+  static Map<String, String> get basicInfo => {
+    'en': 'Basic Information',
+    'id': 'Informasi Dasar',
+  };
+
+  static Map<String, String> get learningComponents => {
+    'en': 'Learning Components',
+    'id': 'Komponen Pembelajaran',
+  };
+
+  static Map<String, String> get assessmentMethods => {
+    'en': 'Assessment Methods',
+    'id': 'Metode Penilaian',
+  };
+
+  // Empty States
+  static Map<String, String> get noRppCreated => {
+    'en': 'No lesson plans created yet',
+    'id': 'Belum ada RPP yang dibuat',
+  };
+
+  static Map<String, String> get clickPlusToCreate => {
+    'en': 'Press the + button to create a lesson plan',
+    'id': 'Tekan tombol + untuk membuat RPP',
+  };
+
+  static Map<String, String> get noRppForFilter => {
+    'en': 'No lesson plans found for the selected filter',
+    'id': 'Tidak ada RPP untuk filter yang dipilih',
+  };
+
+  // Validation Messages
+  static Map<String, String> get titleRequired => {
+    'en': 'Title is required',
+    'id': 'Judul harus diisi',
+  };
+
+  static Map<String, String> get subjectRequired => {
+    'en': 'Subject is required',
+    'id': 'Mata pelajaran harus dipilih',
+  };
+
+  static Map<String, String> get semesterRequired => {
+    'en': 'Semester is required',
+    'id': 'Semester harus dipilih',
+  };
+
+  static Map<String, String> get academicYearRequired => {
+    'en': 'Academic year is required',
+    'id': 'Tahun ajaran harus diisi',
+  };
+
+  // File Types
+  static Map<String, String> get wordDocument => {
+    'en': 'Word Document',
+    'id': 'Dokumen Word',
+  };
+
+  static Map<String, String> get pdfDocument => {
+    'en': 'PDF Document',
+    'id': 'Dokumen PDF',
+  };
+
+  static Map<String, String> get supportedFormats => {
+    'en': 'Supported formats: .doc, .docx, .pdf',
+    'id': 'Format yang didukung: .doc, .docx, .pdf',
+  };
 }

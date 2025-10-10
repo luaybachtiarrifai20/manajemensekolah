@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -85,6 +87,21 @@ class ApiService {
     }
   }
 
+  Future<List<dynamic>> getData(String endpoint) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/$endpoint'),
+      headers: {
+        'Content-Type': 'application/json',
+        // Add authorization header if needed
+      },
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as List<dynamic>;
+    } else {
+      throw Exception('Failed to load data');
+    }
+  }
+
   // Login
   static Future<Map<String, dynamic>> login(
     String email,
@@ -101,36 +118,6 @@ class ApiService {
     } else {
       throw Exception(json.decode(response.body)['error'] ?? 'Login failed');
     }
-  }
-
-  // Absensi
-  static Future<List<dynamic>> getAbsensi({
-    String? guruId,
-    String? tanggal,
-    String? mataPelajaranId,
-  }) async {
-    String url = '$baseUrl/absensi?';
-    if (guruId != null) url += 'guru_id=$guruId&';
-    if (tanggal != null) url += 'tanggal=$tanggal&';
-    if (mataPelajaranId != null) url += 'mata_pelajaran_id=$mataPelajaranId&';
-
-    final response = await http.get(
-      Uri.parse(url),
-      headers: await _getHeaders(),
-    );
-
-    final result = _handleResponse(response);
-    return result is List ? result : [];
-  }
-
-  static Future<dynamic> tambahAbsensi(Map<String, dynamic> data) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/absensi'),
-      headers: await _getHeaders(),
-      body: json.encode(data),
-    );
-
-    return _handleResponse(response);
   }
 
   // Nilai
@@ -165,14 +152,11 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  // RPP
-  static Future<List<dynamic>> getRPP({
-    String? guruId,
-    String? mataPelajaranId,
-  }) async {
+  // RPP methods
+  static Future<List<dynamic>> getRPP({String? guruId, String? status}) async {
     String url = '$baseUrl/rpp?';
     if (guruId != null) url += 'guru_id=$guruId&';
-    if (mataPelajaranId != null) url += 'mata_pelajaran_id=$mataPelajaranId&';
+    if (status != null) url += 'status=$status&';
 
     final response = await http.get(
       Uri.parse(url),
@@ -191,6 +175,134 @@ class ApiService {
     );
 
     return _handleResponse(response);
+  }
+
+  static Future<dynamic> updateStatusRPP(
+    String rppId,
+    String status, {
+    String? catatan,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/rpp/$rppId/status'),
+      headers: await _getHeaders(),
+      body: json.encode({'status': status, 'catatan': catatan}),
+    );
+
+    return _handleResponse(response);
+  }
+
+  static Future<dynamic> deleteRPP(String rppId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/rpp/$rppId'),
+      headers: await _getHeaders(),
+    );
+
+    return _handleResponse(response);
+  }
+
+  // File upload method
+  static Future<dynamic> uploadFileRPP(File file) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/upload/rpp'),
+      );
+
+      // Add headers
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      request.headers['Authorization'] = 'Bearer $token';
+
+      // Add file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          file.path,
+          filename: file.path.split('/').last,
+        ),
+      );
+
+      // Send request
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return json.decode(responseBody);
+      } else {
+        throw Exception('Upload failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Upload error: $e');
+    }
+  }
+
+  // Absensi
+  static Future<List<dynamic>> getAbsensi({
+    String? guruId,
+    String? tanggal,
+    String? mataPelajaranId,
+    String? siswaId,
+  }) async {
+    String url = '$baseUrl/absensi?';
+    if (guruId != null) url += 'guru_id=$guruId&';
+    if (tanggal != null) url += 'tanggal=$tanggal&';
+    if (mataPelajaranId != null) url += 'mata_pelajaran_id=$mataPelajaranId&';
+    if (siswaId != null) url += 'siswa_id=$siswaId&';
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+    );
+
+    final result = _handleResponse(response);
+    return result is List ? result : [];
+  }
+
+  static Future<List<dynamic>> getAbsensiSummary({String? guruId}) async {
+    String url = '$baseUrl/absensi-summary?';
+    if (guruId != null) url += 'guru_id=$guruId&';
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+    );
+
+    final result = _handleResponse(response);
+    return result is List ? result : [];
+  }
+
+  static Future<dynamic> tambahAbsensi(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/absensi'),
+      headers: await _getHeaders(),
+      body: json.encode(data),
+    );
+
+    return _handleResponse(response);
+  }
+
+  // Get kelas by mata pelajaran
+  Future<List<dynamic>> getKelasByMataPelajaran(String mataPelajaranId) async {
+    try {
+      final result = await get(
+        '/kelas-by-mata-pelajaran?mata_pelajaran_id=$mataPelajaranId',
+      );
+      return result is List ? result : [];
+    } catch (e) {
+      print('Error getting kelas by mata pelajaran: $e');
+      return [];
+    }
+  }
+
+  // Get mata pelajaran with kelas data
+  Future<List<dynamic>> getMataPelajaranWithKelas() async {
+    try {
+      final result = await get('/mata-pelajaran-with-kelas');
+      return result is List ? result : [];
+    } catch (e) {
+      print('Error getting mata pelajaran with kelas: $e');
+      return [];
+    }
   }
 
   // Check server health
