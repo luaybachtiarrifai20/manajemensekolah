@@ -6,10 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // static const String baseUrl = 'http://10.0.2.2:3000/api'; // Android emulator
-  static const String baseUrl =
-      'http://localhost:3000/api'; // iOS simulator atau web
+  // static const String baseUrl = 'http://localhost:3000/api'; // iOS simulator atau web
 
-  // static const String baseUrl = 'https://backendmanajemensekolah.vercel.app/api';
+  static const String baseUrl = 'https://backendmanajemensekolah2.vercel.app/api';
   // static const String baseUrl = 'https://libra.web.id/apimanajemen';
 
   Future<dynamic> get(String endpoint) async {
@@ -200,7 +199,7 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  // File upload method
+  // Di api_services.dart - Perbaiki fungsi uploadFileRPP
   static Future<dynamic> uploadFileRPP(File file) async {
     try {
       var request = http.MultipartRequest(
@@ -213,25 +212,31 @@ class ApiService {
       final token = prefs.getString('token');
       request.headers['Authorization'] = 'Bearer $token';
 
-      // Add file
+      // Add file dengan cara yang benar
       request.files.add(
         await http.MultipartFile.fromPath(
-          'file',
+          'file', // Nama field harus sesuai dengan backend
           file.path,
           filename: file.path.split('/').last,
         ),
       );
 
-      // Send request
+      // Send request dan dapatkan response
       final response = await request.send();
       final responseBody = await response.stream.bytesToString();
+
+      print('Upload Response Status: ${response.statusCode}');
+      print('Upload Response Body: $responseBody');
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return json.decode(responseBody);
       } else {
-        throw Exception('Upload failed with status: ${response.statusCode}');
+        throw Exception(
+          'Upload failed with status: ${response.statusCode}. Response: $responseBody',
+        );
       }
     } catch (e) {
+      print('Upload error details: $e');
       throw Exception('Upload error: $e');
     }
   }

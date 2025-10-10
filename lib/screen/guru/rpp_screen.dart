@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/services/api_services.dart';
@@ -262,6 +265,7 @@ class _RppFormDialogState extends State<RppFormDialog> {
   String? _selectedKelasId;
   String? _selectedSemester = 'Ganjil';
   String? _selectedFileName;
+  File? _selectedFile;
   bool _isUploading = false;
 
   List<dynamic> _mataPelajaranList = [];
@@ -320,40 +324,58 @@ class _RppFormDialogState extends State<RppFormDialog> {
     }
   }
 
-  void _showFilePickerDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.chooseFile.tr),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(Icons.description),
-              title: Text('Word Document (.doc, .docx)'),
-              onTap: () {
-                Navigator.pop(context);
-                _setSelectedFile('document.docx');
-              },
+  void _showFilePickerDialog() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'doc', 'docx'],
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        PlatformFile file = result.files.first;
+
+        // Pastikan file benar-benar ada
+        File selectedFile = File(file.path!);
+        bool fileExists = await selectedFile.exists();
+
+        print('File picked: ${file.name}');
+        print('File path: ${file.path}');
+        print('File exists: $fileExists');
+        print('File size: ${file.size} bytes');
+
+        if (fileExists) {
+          setState(() {
+            _selectedFileName = file.name;
+            _selectedFile = selectedFile;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('File dipilih: ${file.name} (${file.size} bytes)'),
+              duration: Duration(seconds: 3),
             ),
-            ListTile(
-              leading: Icon(Icons.picture_as_pdf),
-              title: Text('PDF Document (.pdf)'),
-              onTap: () {
-                Navigator.pop(context);
-                _setSelectedFile('document.pdf');
-              },
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('File tidak ditemukan di path tersebut'),
+              backgroundColor: Colors.red,
             ),
-          ],
+          );
+        }
+      } else {
+        print('Pemilihan file dibatalkan atau path null');
+      }
+    } catch (e) {
+      print('Error memilih file: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error memilih file: $e'),
+          backgroundColor: Colors.red,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.cancel.tr),
-          ),
-        ],
-      ),
-    );
+      );
+    }
   }
 
   void _setSelectedFile(String fileName) {
@@ -372,11 +394,36 @@ class _RppFormDialogState extends State<RppFormDialog> {
     try {
       String? filePath;
 
-      if (_selectedFileName != null) {
-        filePath =
-            '/uploads/rpp/${DateTime.now().millisecondsSinceEpoch}-$_selectedFileName';
+      // Debug: Cek apakah file ada
+      print('File selected: $_selectedFile');
+      print('File name: $_selectedFileName');
+
+      if (_selectedFile != null) {
+        try {
+          print('Starting file upload...');
+          final uploadResult = await ApiService.uploadFileRPP(_selectedFile!);
+          print('Upload result: $uploadResult');
+
+          filePath = uploadResult['file_path'];
+          print('File uploaded successfully: $filePath');
+        } catch (uploadError) {
+          print('Error during file upload: $uploadError');
+          // Tetap lanjut tanpa file jika upload gagal
+          filePath = null;
+        }
+      } else {
+        print('No file selected for upload');
       }
 
+      // Debug data yang akan dikirim
+      print('Submitting RPP data:');
+      print('- Guru ID: ${widget.guruId}');
+      print('- Mata Pelajaran ID: $_selectedMataPelajaranId');
+      print('- Kelas ID: $_selectedKelasId');
+      print('- Judul: ${_judulController.text}');
+      print('- File Path: $filePath');
+
+      // Submit data RPP
       await ApiService.tambahRPP({
         'guru_id': widget.guruId,
         'mata_pelajaran_id': _selectedMataPelajaranId,
@@ -386,6 +433,9 @@ class _RppFormDialogState extends State<RppFormDialog> {
         'tahun_ajaran': _tahunAjaranController.text,
         'file_path': filePath,
       });
+
+      print('RPP created successfully');
+
       if (!mounted) return;
       Navigator.pop(context);
       widget.onSaved();
@@ -394,6 +444,7 @@ class _RppFormDialogState extends State<RppFormDialog> {
         SnackBar(content: Text(AppLocalizations.rppCreatedSuccess.tr)),
       );
     } catch (e) {
+      print('Error creating RPP: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${AppLocalizations.error.tr}: $e')),
       );
@@ -511,13 +562,27 @@ class _RppFormDialogState extends State<RppFormDialog> {
                 label: Text(
                   _selectedFileName ?? AppLocalizations.chooseFile.tr,
                 ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[100],
+                  foregroundColor: Colors.blue,
+                  side: BorderSide(color: Colors.blue),
+                ),
               ),
               if (_selectedFileName != null)
                 Padding(
                   padding: EdgeInsets.only(top: 8),
-                  child: Text(
-                    '${AppLocalizations.fileSelected.tr}: $_selectedFileName',
-                    style: TextStyle(color: Colors.green, fontSize: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'File: $_selectedFileName',
+                          style: TextStyle(color: Colors.green, fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               SizedBox(height: 8),

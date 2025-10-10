@@ -85,8 +85,8 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
     setState(() {
       _isEditMode = true;
       _editingClassId = classData['id'];
-      _nameController.text = classData['name'];
-      _selectedTeacherId = classData['homeroom_teacher_id'];
+      _nameController.text = classData['nama'];
+      _selectedTeacherId = classData['wali_kelas_id'];
     });
     _showClassDialog();
   }
@@ -163,8 +163,8 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
     try {
       if (_isEditMode) {
         await apiServiceClass.updateClass(_editingClassId!, {
-          'name': name,
-          'homeroom_teacher_id': homeroomTeacherId,
+          'nama': name,
+          'wali_kelas_id': homeroomTeacherId,
         });
 
         setState(() {
@@ -173,11 +173,11 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
           );
           _classList[index] = {
             ..._classList[index],
-            'name': name,
-            'homeroom_teacher_id': homeroomTeacherId,
-            'homeroom_teacher_name': _teacherList.firstWhere(
+            'nama': name,
+            'wali_kelas_id': homeroomTeacherId,
+            'wali_kelas_nama': _teacherList.firstWhere(
               (g) => g['id'] == homeroomTeacherId,
-            )['name'],
+            )['nama'],
           };
         });
         if (mounted) {
@@ -194,17 +194,17 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
         }
       } else {
         await apiServiceClass.addClass({
-          'name': name,
-          'homeroom_teacher_id': homeroomTeacherId,
+          'nama': name,
+          'wali_kelas_id': homeroomTeacherId,
         });
 
         final newClass = {
           'id': DateTime.now().millisecondsSinceEpoch.toString(),
-          'name': name,
-          'homeroom_teacher_id': homeroomTeacherId,
-          'homeroom_teacher_name': _teacherList.firstWhere(
+          'nama': name,
+          'wali_kelas_id': homeroomTeacherId,
+          'wali_kelas_nama': _teacherList.firstWhere(
             (g) => g['id'] == homeroomTeacherId,
-          )['name'],
+          )['nama'],
           'student_count': 0,
         };
 
@@ -263,8 +263,8 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
       builder: (context) => AlertDialog(
         title: Text(
           context.read<LanguageProvider>().getTranslatedText({
-            'en': 'Class Details ${classData['name']}',
-            'id': 'Detail Kelas ${classData['name']}',
+            'en': 'Class Details ${classData['nama']}',
+            'id': 'Detail Kelas ${classData['nama']}',
           }),
         ),
         content: SingleChildScrollView(
@@ -276,14 +276,14 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
                   'en': 'Class Name',
                   'id': 'Nama Kelas',
                 }),
-                classData['name'],
+                classData['nama'] ?? '-',
               ),
               _buildDetailItem(
                 context.read<LanguageProvider>().getTranslatedText({
                   'en': 'Homeroom Teacher',
                   'id': 'Wali Kelas',
                 }),
-                classData['homeroom_teacher_name'] ?? 
+                classData['wali_kelas_nama'] ?? 
                 context.read<LanguageProvider>().getTranslatedText({
                   'en': 'Not assigned',
                   'id': 'Tidak ada',
@@ -294,7 +294,7 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
                   'en': 'Number of Students',
                   'id': 'Jumlah Siswa',
                 }),
-                (classData['student_count'] ?? 0).toString(),
+                (classData['jumlah_siswa'] ?? 0).toString(),
               ),
             ],
           ),

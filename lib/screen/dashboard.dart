@@ -17,6 +17,7 @@ import 'package:manajemensekolah/screen/guru/materi_screen.dart';
 import 'package:manajemensekolah/screen/guru/presence_teacher.dart';
 import 'package:manajemensekolah/screen/guru/teaching_schedule.dart';
 import 'package:manajemensekolah/screen/guru/rpp_screen.dart'; // Tambahkan import RPP guru
+import 'package:manajemensekolah/screen/walimurid/parent_class_activity.dart';
 import 'package:manajemensekolah/screen/walimurid/presence_parent.dart';
 import 'package:manajemensekolah/services/api_student_services.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
@@ -655,6 +656,16 @@ class _DashboardState extends State<Dashboard> {
             _showStudentSelectionDialog(context, userData, siswaData);
           }
         },
+        'roles': ['wali'],
+      },
+      // Dalam _getDashboardCards di dashboard.dart, tambahkan:
+      {
+        'title': 'Aktivitas Kelas Anak',
+        'icon': Icons.event_note,
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ParentClassActivityScreen()),
+        ),
         'roles': ['wali'],
       },
     ];

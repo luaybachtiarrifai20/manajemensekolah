@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:manajemensekolah/models/siswa.dart';
@@ -24,7 +25,8 @@ class AbsensiSummary {
     required this.tidakHadir,
   });
 
-  String get key => '${mataPelajaranId}-${DateFormat('yyyy-MM-dd').format(tanggal)}';
+  String get key =>
+      '$mataPelajaranId-${DateFormat('yyyy-MM-dd').format(tanggal)}';
 }
 
 class PresencePage extends StatefulWidget {
@@ -39,11 +41,11 @@ class PresencePage extends StatefulWidget {
 class PresencePageState extends State<PresencePage> {
   // Mode: 0 = View Results, 1 = Input Absensi
   int _currentMode = 0;
-  
+
   // Data untuk mode View Results
   List<AbsensiSummary> _absensiSummaryList = [];
   bool _isLoadingSummary = false;
-  
+
   // Data untuk mode Input Absensi
   DateTime _selectedDate = DateTime.now();
   String? _selectedMataPelajaran;
@@ -59,15 +61,15 @@ class PresencePageState extends State<PresencePage> {
   @override
   void initState() {
     super.initState();
+
     
-    // Debug data guru
-    print('=== PRESENCE PAGE DEBUG ===');
-    print('Received guru data: ${widget.guru}');
-    print('Guru ID: ${widget.guru['id']}');
-    print('Guru Name: ${widget.guru['nama']}');
-    print('Guru Role: ${widget.guru['role']}');
-    print('===========================');
-    
+    // print('=== PRESENCE PAGE DEBUG ===');
+    // print('Received guru data: ${widget.guru}');
+    // print('Guru ID: ${widget.guru['id']}');
+    // print('Guru Name: ${widget.guru['nama']}');
+    // print('Guru Role: ${widget.guru['role']}');
+    // print('===========================');
+
     _loadInitialData();
   }
 
@@ -85,23 +87,24 @@ class PresencePageState extends State<PresencePage> {
         _kelasList = kelas;
         _siswaList = siswa.map((s) => Siswa.fromJson(s)).toList();
         _filteredSiswaList = _siswaList;
-        
+
         // Set default status untuk semua siswa
         for (var siswa in _siswaList) {
           _absensiStatus[siswa.id] = 'hadir';
         }
-        
+
         _isLoadingInput = false;
       });
 
       // Load summary data untuk mode view
       _loadAbsensiSummary();
-
     } catch (e) {
-      print('Error loading initial data: $e');
-      setState(() {
-        _isLoadingInput = false;
-      });
+      if (kDebugMode) {
+        print('Error loading initial data: $e');
+        setState(() {
+          _isLoadingInput = false;
+        });
+      }
     }
   }
 
@@ -121,8 +124,10 @@ class PresencePageState extends State<PresencePage> {
 
       for (var absen in absensiData) {
         final key = '${absen['mata_pelajaran_id']}-${absen['tanggal']}';
-        final mataPelajaranNama = _getMataPelajaranName(absen['mata_pelajaran_id']);
-        
+        final mataPelajaranNama = _getMataPelajaranName(
+          absen['mata_pelajaran_id'],
+        );
+
         if (!summaryMap.containsKey(key)) {
           summaryMap[key] = AbsensiSummary(
             mataPelajaranId: absen['mata_pelajaran_id'],
@@ -150,14 +155,16 @@ class PresencePageState extends State<PresencePage> {
           ..sort((a, b) => b.tanggal.compareTo(a.tanggal));
         _isLoadingSummary = false;
       });
-
-      print('Loaded ${_absensiSummaryList.length} absensi summaries');
-
+      if (kDebugMode) {
+        print('Loaded ${_absensiSummaryList.length} absensi summaries');
+      }
     } catch (e) {
-      print('Error loading absensi summary: $e');
-      setState(() {
-        _isLoadingSummary = false;
-      });
+      if (kDebugMode) {
+        print('Error loading absensi summary: $e');
+        setState(() {
+          _isLoadingSummary = false;
+        });
+      }
     }
   }
 
@@ -184,19 +191,9 @@ class PresencePageState extends State<PresencePage> {
       ),
       child: Row(
         children: [
+          Expanded(child: _buildModeButton(0, 'Hasil Absensi', Icons.list_alt)),
           Expanded(
-            child: _buildModeButton(
-              0,
-              'Hasil Absensi',
-              Icons.list_alt,
-            ),
-          ),
-          Expanded(
-            child: _buildModeButton(
-              1,
-              'Tambah Absensi',
-              Icons.add_circle,
-            ),
+            child: _buildModeButton(1, 'Tambah Absensi', Icons.add_circle),
           ),
         ],
       ),
@@ -205,7 +202,7 @@ class PresencePageState extends State<PresencePage> {
 
   Widget _buildModeButton(int mode, String text, IconData icon) {
     final isSelected = _currentMode == mode;
-    
+
     return Material(
       color: isSelected ? Colors.blue : Colors.transparent,
       borderRadius: BorderRadius.circular(8),
@@ -224,7 +221,11 @@ class PresencePageState extends State<PresencePage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: isSelected ? Colors.white : Colors.grey, size: 20),
+              Icon(
+                icon,
+                color: isSelected ? Colors.white : Colors.grey,
+                size: 20,
+              ),
               const SizedBox(height: 4),
               Text(
                 text,
@@ -289,8 +290,8 @@ class PresencePageState extends State<PresencePage> {
   }
 
   Widget _buildSummaryCard(AbsensiSummary summary) {
-    final presentaseHadir = summary.totalSiswa > 0 
-        ? (summary.hadir / summary.totalSiswa * 100).round() 
+    final presentaseHadir = summary.totalSiswa > 0
+        ? (summary.hadir / summary.totalSiswa * 100).round()
         : 0;
 
     return Card(
@@ -323,16 +324,25 @@ class PresencePageState extends State<PresencePage> {
               children: [
                 _buildStatusIndicator('Hadir', summary.hadir, Colors.green),
                 const SizedBox(width: 12),
-                _buildStatusIndicator('Tidak Hadir', summary.tidakHadir, Colors.red),
+                _buildStatusIndicator(
+                  'Tidak Hadir',
+                  summary.tidakHadir,
+                  Colors.red,
+                ),
               ],
             ),
             const SizedBox(height: 4),
             LinearProgressIndicator(
-              value: summary.totalSiswa > 0 ? summary.hadir / summary.totalSiswa : 0,
+              value: summary.totalSiswa > 0
+                  ? summary.hadir / summary.totalSiswa
+                  : 0,
               backgroundColor: Colors.grey[200],
               valueColor: AlwaysStoppedAnimation<Color>(
-                presentaseHadir >= 80 ? Colors.green : 
-                presentaseHadir >= 60 ? Colors.orange : Colors.red,
+                presentaseHadir >= 80
+                    ? Colors.green
+                    : presentaseHadir >= 60
+                    ? Colors.orange
+                    : Colors.red,
               ),
             ),
             const SizedBox(height: 4),
@@ -346,7 +356,11 @@ class PresencePageState extends State<PresencePage> {
             ),
           ],
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: Colors.grey,
+        ),
         onTap: () {
           _navigateToDetailAbsensi(summary);
         },
@@ -361,15 +375,16 @@ class PresencePageState extends State<PresencePage> {
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 6),
         Text(
-          '$count $label', 
-          style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w500),
+          '$count $label',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[700],
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
@@ -425,7 +440,10 @@ class PresencePageState extends State<PresencePage> {
             children: [
               // Date Picker
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey[300]!),
                   borderRadius: BorderRadius.circular(8),
@@ -435,23 +453,32 @@ class PresencePageState extends State<PresencePage> {
                   children: [
                     const Text(
                       'Tanggal:',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     TextButton(
                       onPressed: () => _selectDate(context),
                       child: Text(
                         DateFormat('dd/MM/yyyy').format(_selectedDate),
-                        style: const TextStyle(fontSize: 16, color: Colors.blue),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.blue,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               // Class Filter
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey[300]!),
                   borderRadius: BorderRadius.circular(8),
@@ -467,19 +494,24 @@ class PresencePageState extends State<PresencePage> {
                       value: null,
                       child: Text('Semua Kelas'),
                     ),
-                    ..._kelasList.map((kelas) => DropdownMenuItem(
-                      value: kelas['id'],
-                      child: Text(kelas['nama']),
-                    )),
+                    ..._kelasList.map(
+                      (kelas) => DropdownMenuItem(
+                        value: kelas['id'],
+                        child: Text(kelas['nama']),
+                      ),
+                    ),
                   ],
                   onChanged: _filterStudentsByClass,
                 ),
               ),
               const SizedBox(height: 12),
-              
+
               // Subject Selector
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey[300]!),
                   borderRadius: BorderRadius.circular(8),
@@ -495,10 +527,12 @@ class PresencePageState extends State<PresencePage> {
                       value: null,
                       child: Text('Pilih Mata Pelajaran'),
                     ),
-                    ..._mataPelajaranList.map((mp) => DropdownMenuItem(
-                      value: mp['id'],
-                      child: Text(mp['nama']),
-                    )),
+                    ..._mataPelajaranList.map(
+                      (mp) => DropdownMenuItem(
+                        value: mp['id'],
+                        child: Text(mp['nama']),
+                      ),
+                    ),
                   ],
                   onChanged: (value) {
                     setState(() {
@@ -520,11 +554,17 @@ class PresencePageState extends State<PresencePage> {
               children: [
                 Text(
                   'Daftar Siswa (${_filteredSiswaList.length})',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 Text(
                   'Status',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -549,7 +589,8 @@ class PresencePageState extends State<PresencePage> {
               : ListView.builder(
                   padding: const EdgeInsets.only(top: 8),
                   itemCount: _filteredSiswaList.length,
-                  itemBuilder: (context, index) => _buildStudentItem(_filteredSiswaList[index]),
+                  itemBuilder: (context, index) =>
+                      _buildStudentItem(_filteredSiswaList[index]),
                 ),
         ),
 
@@ -561,7 +602,7 @@ class PresencePageState extends State<PresencePage> {
             height: 50,
             child: ElevatedButton.icon(
               onPressed: _isSubmitting ? null : _submitAbsensi,
-              icon: _isSubmitting 
+              icon: _isSubmitting
                   ? const SizedBox(
                       width: 20,
                       height: 20,
@@ -573,7 +614,10 @@ class PresencePageState extends State<PresencePage> {
                   : const Icon(Icons.save, size: 20),
               label: Text(
                 _isSubmitting ? 'Menyimpan...' : 'Simpan Absensi',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
@@ -596,7 +640,9 @@ class PresencePageState extends State<PresencePage> {
     final Color statusColor = _getStatusColor(status);
     final String statusText = _getStatusText(status);
     final Color avatarColor = _getAvatarColor(siswa.nama);
-    final String initial = siswa.nama.isNotEmpty ? siswa.nama[0].toUpperCase() : '?';
+    final String initial = siswa.nama.isNotEmpty
+        ? siswa.nama[0].toUpperCase()
+        : '?';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -634,7 +680,7 @@ class PresencePageState extends State<PresencePage> {
             ),
           ),
           const SizedBox(width: 12),
-          
+
           // Student Info
           Expanded(
             child: Column(
@@ -656,7 +702,7 @@ class PresencePageState extends State<PresencePage> {
               ],
             ),
           ),
-          
+
           // Status Dropdown
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -668,20 +714,14 @@ class PresencePageState extends State<PresencePage> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  statusText,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(width: 4),
                 DropdownButton<String>(
                   value: status,
                   items: const [
                     DropdownMenuItem(value: 'hadir', child: Text('Hadir')),
-                    DropdownMenuItem(value: 'terlambat', child: Text('Terlambat')),
+                    DropdownMenuItem(
+                      value: 'terlambat',
+                      child: Text('Terlambat'),
+                    ),
                     DropdownMenuItem(value: 'izin', child: Text('Izin')),
                     DropdownMenuItem(value: 'sakit', child: Text('Sakit')),
                     DropdownMenuItem(value: 'alpha', child: Text('Alpha')),
@@ -692,7 +732,11 @@ class PresencePageState extends State<PresencePage> {
                     });
                   },
                   underline: Container(),
-                  icon: Icon(Icons.arrow_drop_down, color: statusColor, size: 16),
+                  icon: Icon(
+                    Icons.arrow_drop_down,
+                    color: statusColor,
+                    size: 16,
+                  ),
                   dropdownColor: Colors.white,
                   style: TextStyle(
                     color: statusColor,
@@ -742,7 +786,9 @@ class PresencePageState extends State<PresencePage> {
     final guruId = widget.guru['id'];
     if (guruId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Data guru tidak valid. Silakan login ulang.')),
+        const SnackBar(
+          content: Text('Data guru tidak valid. Silakan login ulang.'),
+        ),
       );
       return;
     }
@@ -800,7 +846,6 @@ class PresencePageState extends State<PresencePage> {
 
           // Delay kecil untuk menghindari rate limiting
           await Future.delayed(const Duration(milliseconds: 50));
-
         } catch (e) {
           print('Error menyimpan absensi untuk ${siswa.nama}: $e');
           errorCount++;
@@ -814,15 +859,16 @@ class PresencePageState extends State<PresencePage> {
       if (errorCount == 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Absensi berhasil disimpan untuk $successCount siswa'),
+            content: Text(
+              'Absensi berhasil disimpan untuk $successCount siswa',
+            ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
           ),
         );
-        
+
         // Reset form setelah berhasil
         _resetForm();
-        
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -833,7 +879,6 @@ class PresencePageState extends State<PresencePage> {
         );
         _showErrorDetails(errorMessages);
       }
-
     } catch (e) {
       if (!mounted) return;
       print('General error: $e');
@@ -1041,7 +1086,6 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
       });
 
       print('Loaded ${_absensiData.length} absensi records for detail');
-
     } catch (e) {
       print('Error loading absensi detail: $e');
       setState(() {
@@ -1082,12 +1126,15 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
             child: Center(
               child: Text(
                 siswa.nama.isNotEmpty ? siswa.nama[0].toUpperCase() : '?',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
           const SizedBox(width: 12),
-          
+
           // Student Info
           Expanded(
             child: Column(
@@ -1104,7 +1151,7 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
               ],
             ),
           ),
-          
+
           // Status Dropdown
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1116,20 +1163,14 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  statusText,
-                  style: TextStyle(
-                    color: statusColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(width: 4),
                 DropdownButton<String>(
                   value: status,
                   items: const [
                     DropdownMenuItem(value: 'hadir', child: Text('Hadir')),
-                    DropdownMenuItem(value: 'terlambat', child: Text('Terlambat')),
+                    DropdownMenuItem(
+                      value: 'terlambat',
+                      child: Text('Terlambat'),
+                    ),
                     DropdownMenuItem(value: 'izin', child: Text('Izin')),
                     DropdownMenuItem(value: 'sakit', child: Text('Sakit')),
                     DropdownMenuItem(value: 'alpha', child: Text('Alpha')),
@@ -1140,7 +1181,11 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
                     });
                   },
                   underline: Container(),
-                  icon: Icon(Icons.arrow_drop_down, color: statusColor, size: 16),
+                  icon: Icon(
+                    Icons.arrow_drop_down,
+                    color: statusColor,
+                    size: 16,
+                  ),
                   dropdownColor: Colors.white,
                   style: TextStyle(
                     color: statusColor,
@@ -1166,7 +1211,7 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
 
       for (var siswa in _siswaList) {
         final status = _absensiStatus[siswa.id]!;
-        
+
         await ApiService.tambahAbsensi({
           'siswa_id': siswa.id,
           'guru_id': widget.guru['id'],
@@ -1191,10 +1236,7 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -1209,21 +1251,31 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
   // Helper functions
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'izin': return Colors.blue;
-      case 'sakit': return Colors.orange;
-      case 'alpha': return Colors.red;
-      case 'terlambat': return Colors.purple;
-      default: return Colors.green;
+      case 'izin':
+        return Colors.blue;
+      case 'sakit':
+        return Colors.orange;
+      case 'alpha':
+        return Colors.red;
+      case 'terlambat':
+        return Colors.purple;
+      default:
+        return Colors.green;
     }
   }
 
   String _getStatusText(String status) {
     switch (status) {
-      case 'izin': return 'Izin';
-      case 'sakit': return 'Sakit';
-      case 'alpha': return 'Alpha';
-      case 'terlambat': return 'Terlambat';
-      default: return 'Hadir';
+      case 'izin':
+        return 'Izin';
+      case 'sakit':
+        return 'Sakit';
+      case 'alpha':
+        return 'Alpha';
+      case 'terlambat':
+        return 'Terlambat';
+      default:
+        return 'Hadir';
     }
   }
 
@@ -1274,14 +1326,23 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(widget.tanggal),
-                        style: const TextStyle(color: Colors.grey, fontSize: 14),
+                        DateFormat(
+                          'EEEE, dd MMMM yyyy',
+                          'id_ID',
+                        ).format(widget.tanggal),
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 14,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
                       Text(
                         '${_siswaList.length} Siswa',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -1294,11 +1355,17 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
                     children: [
                       const Text(
                         'Daftar Siswa',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const Text(
                         'Status',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -1308,7 +1375,8 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
                   child: ListView.builder(
                     padding: const EdgeInsets.only(top: 8),
                     itemCount: _siswaList.length,
-                    itemBuilder: (context, index) => _buildStudentItem(_siswaList[index]),
+                    itemBuilder: (context, index) =>
+                        _buildStudentItem(_siswaList[index]),
                   ),
                 ),
                 // Update Button
@@ -1319,19 +1387,24 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
                     height: 50,
                     child: ElevatedButton.icon(
                       onPressed: _isSubmitting ? null : _updateAbsensi,
-                      icon: _isSubmitting 
+                      icon: _isSubmitting
                           ? const SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
                             )
                           : const Icon(Icons.update, size: 20),
                       label: Text(
                         _isSubmitting ? 'Mengupdate...' : 'Update Absensi',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
