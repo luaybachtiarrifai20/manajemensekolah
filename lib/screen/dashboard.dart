@@ -376,24 +376,24 @@ class _DashboardState extends State<Dashboard> {
         ),
         'roles': ['admin'],
       },
-      {
-        'title': AppLocalizations.reports.tr,
-        'icon': Icons.assessment,
-        'onTap': () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => LaporanScreen()),
-        ),
-        'roles': ['admin'],
-      },
-      {
-        'title': AppLocalizations.finance.tr,
-        'icon': Icons.attach_money,
-        'onTap': () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => KeuanganScreen()),
-        ),
-        'roles': ['admin'],
-      },
+      // {
+      //   'title': AppLocalizations.reports.tr,
+      //   'icon': Icons.assessment,
+      //   'onTap': () => Navigator.push(
+      //     context,
+      //     MaterialPageRoute(builder: (context) => LaporanScreen()),
+      //   ),
+      //   'roles': ['admin'],
+      // },
+      // {
+      //   'title': AppLocalizations.finance.tr,
+      //   'icon': Icons.attach_money,
+      //   'onTap': () => Navigator.push(
+      //     context,
+      //     MaterialPageRoute(builder: (context) => KeuanganScreen()),
+      //   ),
+      //   'roles': ['admin'],
+      // },
       {
         'title': AppLocalizations.announcements.tr,
         'icon': Icons.announcement,
@@ -436,7 +436,7 @@ class _DashboardState extends State<Dashboard> {
             ),
           );
         },
-        'roles': ['admin', 'guru'],
+        'roles': ['guru'],
       },
       // Input Nilai
       {
@@ -479,7 +479,7 @@ class _DashboardState extends State<Dashboard> {
           context,
           MaterialPageRoute(builder: (context) => TeachingScheduleScreen()),
         ),
-        'roles': ['admin', 'guru'],
+        'roles': ['guru'],
       },
       {
         'title': AppLocalizations.classActivities.tr,

@@ -126,26 +126,26 @@ class FilterSection extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
+          color: Colors.grey.shade50, // Changed to light grey background
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.2)),
+          border: Border.all(color: Colors.grey.shade300), // Changed to grey border
         ),
         child: Row(
           children: [
-            Icon(icon, color: Colors.white, size: 20),
+            Icon(icon, color: ColorUtils.primaryColor, size: 20), // Changed to primary color
             SizedBox(width: 8),
             Expanded(
               child: Text(
                 '$label: $value',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.black, // Changed to black
                   fontWeight: FontWeight.w500,
                   fontSize: 15,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Icon(Icons.arrow_drop_down, color: Colors.white),
+            Icon(Icons.arrow_drop_down, color: Colors.grey.shade600), // Changed to grey
           ],
         ),
       ),
@@ -160,22 +160,29 @@ class FilterSection extends StatelessWidget {
           width: double.infinity,
           padding: EdgeInsets.all(20),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [ColorUtils.primaryColor, Color(0xFF7C73FA)],
+            color: Colors.white, // Changed to white background
+            border: Border.all(
+              color: Colors.grey.shade300, // Added grey border
+              width: 1,
             ),
             borderRadius: BorderRadius.only(
               bottomLeft: Radius.circular(24),
               bottomRight: Radius.circular(24),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
           child: Column(
             children: [
               Text(
                 AppLocalizations.manageTeachingSchedule.tr,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.black, // Changed to black
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
@@ -184,7 +191,7 @@ class FilterSection extends StatelessWidget {
               Text(
                 '${_getSemesterName(selectedSemester, semesterList)} • $selectedAcademicYear',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.grey.shade700, // Changed to dark grey
                   fontSize: 16,
                 ),
               ),

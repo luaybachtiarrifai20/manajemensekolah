@@ -455,138 +455,453 @@ class StudentManagementScreenState extends State<StudentManagementScreen> {
     }
   }
 
+  // Method untuk menampilkan detail siswa
+  void _showStudentDetail(Map<String, dynamic> student) {
+    final languageProvider = context.read<LanguageProvider>();
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header dengan background color
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: ColorUtils.primaryColor,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundColor: Colors.white,
+                      child: Icon(
+                        Icons.person,
+                        size: 40,
+                        color: ColorUtils.primaryColor,
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      student['nama'] ?? 'No Name',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'NIS: ${student['nis'] ?? 'No NIS'}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Content
+              Padding(
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildDetailItem(
+                      icon: Icons.school,
+                      label: languageProvider.getTranslatedText({
+                        'en': 'Class',
+                        'id': 'Kelas',
+                      }),
+                      value: student['kelas_nama'] ?? 'No Class',
+                    ),
+                    _buildDetailItem(
+                      icon: Icons.transgender,
+                      label: languageProvider.getTranslatedText({
+                        'en': 'Gender',
+                        'id': 'Jenis Kelamin',
+                      }),
+                      value: _getGenderText(student['jenis_kelamin'], languageProvider),
+                    ),
+                    _buildDetailItem(
+                      icon: Icons.cake,
+                      label: languageProvider.getTranslatedText({
+                        'en': 'Birth Date',
+                        'id': 'Tanggal Lahir',
+                      }),
+                      value: _formatDate(student['tanggal_lahir']),
+                    ),
+                    _buildDetailItem(
+                      icon: Icons.location_on,
+                      label: languageProvider.getTranslatedText({
+                        'en': 'Address',
+                        'id': 'Alamat',
+                      }),
+                      value: student['alamat'] ?? 'No Address',
+                      isMultiline: true,
+                    ),
+                    
+                    SizedBox(height: 16),
+                    Text(
+                      languageProvider.getTranslatedText({
+                        'en': 'Parent Information',
+                        'id': 'Informasi Wali',
+                      }),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    
+                    _buildDetailItem(
+                      icon: Icons.person,
+                      label: languageProvider.getTranslatedText({
+                        'en': 'Parent Name',
+                        'id': 'Nama Wali',
+                      }),
+                      value: student['nama_wali'] ?? 'No Parent Name',
+                    ),
+                    _buildDetailItem(
+                      icon: Icons.phone,
+                      label: languageProvider.getTranslatedText({
+                        'en': 'Phone Number',
+                        'id': 'No. Telepon',
+                      }),
+                      value: student['no_telepon'] ?? 'No Phone',
+                    ),
+                    _buildDetailItem(
+                      icon: Icons.email,
+                      label: languageProvider.getTranslatedText({
+                        'en': 'Parent Email',
+                        'id': 'Email Wali',
+                      }),
+                      value: student['parent_email'] ?? student['email_wali'] ?? 'No Email',
+                    ),
+                    
+                    SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text(
+                              languageProvider.getTranslatedText({
+                                'en': 'Close',
+                                'id': 'Tutup',
+                              }),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _showStudentDialog(student: student);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ColorUtils.primaryColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text(
+                              languageProvider.getTranslatedText({
+                                'en': 'Edit',
+                                'id': 'Edit',
+                              }),
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailItem({
+    required IconData icon,
+    required String label,
+    required String value,
+    bool isMultiline = false,
+  }) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: ColorUtils.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              icon,
+              size: 16,
+              color: ColorUtils.primaryColor,
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade800,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: isMultiline ? 3 : 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getGenderText(String? gender, LanguageProvider languageProvider) {
+    switch (gender) {
+      case 'L':
+        return languageProvider.getTranslatedText({
+          'en': 'Male',
+          'id': 'Laki-laki',
+        });
+      case 'P':
+        return languageProvider.getTranslatedText({
+          'en': 'Female',
+          'id': 'Perempuan',
+        });
+      default:
+        return languageProvider.getTranslatedText({
+          'en': 'Unknown',
+          'id': 'Tidak Diketahui',
+        });
+    }
+  }
+
+  String _formatDate(String? date) {
+    if (date == null) return '-';
+    try {
+      final parsed = DateTime.parse(date);
+      return '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}/${parsed.year}';
+    } catch (e) {
+      return date;
+    }
+  }
+
   Widget _buildStudentCard(Map<String, dynamic> student, int index) {
     final languageProvider = context.read<LanguageProvider>();
 
-    return Card(
-      elevation: 2,
-      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header dengan nama dan status
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return GestureDetector(
+      onTap: () => _showStudentDetail(student),
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+        child: Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Container(
+            padding: EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        student['nama'] ?? 'No Name',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                // Header dengan nama dan NIS
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            student['nama'] ?? 'No Name',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'NIS: ${student['nis'] ?? 'No NIS'}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 4),
-                      Text(
-                        'ID: ${student['nis'] ?? 'No NIS'}',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'Active',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
                     ),
-                  ),
-                ),
-              ],
-            ),
-
-            // Garis pemisah antara nama dan class
-            SizedBox(height: 12),
-            Divider(height: 1, color: Colors.grey[300]),
-            SizedBox(height: 12),
-
-            // Informasi kelas
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.school, color: Colors.blue[600], size: 20),
-                ),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Class',
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.shade100),
+                      ),
+                      child: Text(
+                        'Active',
                         style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
+                          color: Colors.green.shade700,
+                          fontSize: 10,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      SizedBox(height: 2),
-                      Text(
-                        student['kelas_nama'] ?? 'No Class',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: 8),
+
+                // Informasi kelas
+                Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                    ],
-                  ),
+                      child: Icon(Icons.school, 
+                        color: Colors.blue.shade600, 
+                        size: 16
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Class',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          SizedBox(height: 1),
+                          Text(
+                            student['kelas_nama'] ?? 'No Class',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: 8),
+
+                // Action buttons - lebih kompak
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _buildActionButton(
+                      icon: Icons.edit,
+                      label: 'Edit',
+                      color: Colors.blue,
+                      onPressed: () => _showStudentDialog(student: student),
+                    ),
+                    SizedBox(width: 6),
+                    _buildActionButton(
+                      icon: Icons.delete,
+                      label: 'Delete',
+                      color: Colors.red,
+                      onPressed: () => _deleteStudent(student),
+                    ),
+                  ],
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
 
-            // Garis pemisah antara class dan action buttons
-            SizedBox(height: 12),
-            Divider(height: 1, color: Colors.grey[300]),
-            SizedBox(height: 12),
-
-            // Action buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: () => _showStudentDialog(student: student),
-                  icon: Icon(Icons.edit, size: 16),
-                  label: Text('Edit'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.blue,
-                    side: BorderSide(color: Colors.blue),
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  ),
-                ),
-                SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: () => _deleteStudent(student),
-                  icon: Icon(Icons.delete, size: 16),
-                  label: Text('Delete'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: BorderSide(color: Colors.red),
-                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  ),
-                ),
-              ],
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 12,
+              color: color,
+            ),
+            SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -689,12 +1004,12 @@ class StudentManagementScreenState extends State<StudentManagementScreen> {
                     children: [
                       Text(
                         '${filteredStudents.length} students found',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),
                     ],
                   ),
                 ),
-              SizedBox(height: 8),
+              SizedBox(height: 4),
               Expanded(
                 child: filteredStudents.isEmpty
                     ? EmptyState(
@@ -731,7 +1046,7 @@ class StudentManagementScreenState extends State<StudentManagementScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(Icons.add, color: Colors.white, size: 24),
+            child: Icon(Icons.add, color: Colors.white, size: 20),
           ),
         );
       },

@@ -1,8 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="manajemensekolah"
+        android:label="Ai Easy School"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/iconaieasetech">
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -1,9 +1,15 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:manajemensekolah/components/empty_state.dart';
+import 'package:manajemensekolah/components/filter_section.dart';
+import 'package:manajemensekolah/components/loading_screen.dart';
+import 'package:manajemensekolah/components/enhanced_search_bar.dart';
 import 'package:manajemensekolah/services/api_schedule_services.dart';
+import 'package:manajemensekolah/utils/color_utils.dart';
+import 'package:manajemensekolah/utils/language_utils.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
 
 class TeachingScheduleScreen extends StatefulWidget {
   const TeachingScheduleScreen({super.key});
@@ -14,15 +20,19 @@ class TeachingScheduleScreen extends StatefulWidget {
 
 class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
   List<dynamic> _jadwalList = [];
+  List<dynamic> _semesterList = [];
   bool _isLoading = true;
   String _guruId = '';
   String _guruNama = '';
   String _selectedHari = 'Semua Hari';
-  String _selectedSemester = 'Semua Semester';
-  final String _selectedTahunAjaran = '2024/2025';
-  String _debugInfo = '';
+  String _selectedSemester = '1';
+  String _selectedAcademicYear = '2024/2025';
+  final TextEditingController _searchController = TextEditingController();
 
-  // PERBAIKAN: Opsi termasuk "Semua Semester"
+  // Filter options untuk EnhancedSearchBar
+  final List<String> _filterOptions = ['All', 'Today', 'This Week'];
+  String _selectedFilter = 'All';
+
   final List<String> _hariOptions = [
     'Semua Hari',
     'Senin',
@@ -31,12 +41,6 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
     'Kamis',
     'Jumat',
     'Sabtu',
-  ];
-
-  final List<String> _semesterOptions = [
-    'Semua Semester',
-    'Ganjil',
-    'Genap',
   ];
 
   final Map<String, String> _hariIdMap = {
@@ -63,6 +67,12 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
     _loadUserData();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadUserData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -74,15 +84,27 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
       });
 
       if (_guruId.isEmpty) {
-        _debugInfo = 'ERROR: Guru ID tidak ditemukan';
         setState(() => _isLoading = false);
         return;
       }
 
+      await _loadSemesterData();
       _loadJadwal();
     } catch (e) {
-      _debugInfo = 'Error load user: $e';
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadSemesterData() async {
+    try {
+      final semesterData = await ApiScheduleService.getSemester();
+      setState(() {
+        _semesterList = semesterData;
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading semester data: $e');
+      }
     }
   }
 
@@ -93,37 +115,18 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
     }
 
     try {
-      if (kDebugMode) {
-        print('Loading jadwal dengan filter:');
-        print(' - Hari: $_selectedHari');
-        print(' - Semester: $_selectedSemester');
-        print(' - Tahun: $_selectedTahunAjaran');
-      }
-
       setState(() => _isLoading = true);
 
-      // PERBAIKAN: Gunakan endpoint filtered yang baru
       final jadwal = await ApiScheduleService.getFilteredSchedule(
         guruId: _guruId,
         hari: _selectedHari != 'Semua Hari' ? _selectedHari : null,
-        semester: _selectedSemester != 'Semua Semester' ? _selectedSemester : null,
-        tahunAjaran: _selectedTahunAjaran,
+        semester: _selectedSemester,
+        tahunAjaran: _selectedAcademicYear,
       );
-
-      if (kDebugMode) {
-        print('Jadwal ditemukan: ${jadwal.length} items');
-        if (jadwal.isNotEmpty) {
-          print('Sample jadwal:');
-          jadwal.take(2).forEach((j) {
-            print(' - ${j['mata_pelajaran_nama']} | ${j['kelas_nama']} | ${j['hari_nama']} | ${j['semester_nama']}');
-          });
-        }
-      }
 
       setState(() {
         _jadwalList = jadwal;
         _isLoading = false;
-        _debugInfo = '${jadwal.length} jadwal ditemukan\nFilter: $_selectedHari, $_selectedSemester';
       });
 
     } catch (e) {
@@ -132,30 +135,50 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
       }
       setState(() {
         _isLoading = false;
-        _debugInfo = 'Error: $e';
       });
       
       if (!mounted) return;
+      _showErrorSnackBar('Failed to load schedule data: $e');
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal memuat jadwal'),
-          backgroundColor: Colors.red,
+          content: Text(
+            context.read<LanguageProvider>().getTranslatedText({
+              'en': message,
+              'id': message.replaceAll('Failed to load schedule data:', 'Gagal memuat data jadwal:'),
+            }),
+          ),
+          backgroundColor: Colors.red.shade400,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
   }
 
-  // PERBAIKAN: Method untuk handle perubahan filter
   void _onHariChanged(String newHari) {
     setState(() {
       _selectedHari = newHari;
+      _isLoading = true;
     });
     _loadJadwal();
   }
 
-  void _onSemesterChanged(String newSemester) {
+  void _onSemesterChanged(String semesterId) {
     setState(() {
-      _selectedSemester = newSemester;
+      _selectedSemester = semesterId;
+      _isLoading = true;
+    });
+    _loadJadwal();
+  }
+
+  void _onAcademicYearChanged(String academicYear) {
+    setState(() {
+      _selectedAcademicYear = academicYear;
+      _isLoading = true;
     });
     _loadJadwal();
   }
@@ -164,236 +187,304 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
     return _hariColorMap[hari] ?? Color(0xFF6B7280);
   }
 
+  List<dynamic> _getFilteredSchedules() {
+    final searchTerm = _searchController.text.toLowerCase();
+    return _jadwalList.where((schedule) {
+      final subjectName = schedule['mata_pelajaran_nama']?.toString().toLowerCase() ?? '';
+      final className = schedule['kelas_nama']?.toString().toLowerCase() ?? '';
+      final dayName = schedule['hari_nama']?.toString().toLowerCase() ?? '';
+
+      final matchesSearch =
+          searchTerm.isEmpty ||
+          subjectName.contains(searchTerm) ||
+          className.contains(searchTerm) ||
+          dayName.contains(searchTerm);
+
+      // Filter berdasarkan hari (untuk filter "Today" dan "This Week")
+      final today = _getTodayName();
+      final matchesFilter =
+          _selectedFilter == 'All' ||
+          (_selectedFilter == 'Today' && dayName == today.toLowerCase()) ||
+          (_selectedFilter == 'This Week' && _isThisWeek(dayName));
+
+      return matchesSearch && matchesFilter;
+    }).toList();
+  }
+
+  String _getTodayName() {
+    final now = DateTime.now();
+    final days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    return days[now.weekday];
+  }
+
+  bool _isThisWeek(String dayName) {
+    // Implementasi sederhana - dalam aplikasi nyata, 
+    // Anda mungkin ingin logika yang lebih kompleks
+    final dayMap = {'senin': 1, 'selasa': 2, 'rabu': 3, 'kamis': 4, 'jumat': 5, 'sabtu': 6};
+    return dayMap.containsKey(dayName.toLowerCase());
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Text('Jadwal Mengajar'),
-        backgroundColor: Color(0xFF4F46E5),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _loadJadwal,
-            tooltip: 'Refresh',
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        if (_isLoading) {
+          return LoadingScreen(
+            message: languageProvider.getTranslatedText({
+              'en': 'Loading schedule data...',
+              'id': 'Memuat data jadwal...',
+            }),
+          );
+        }
+
+        final filteredSchedules = _getFilteredSchedules();
+
+        // Terjemahan filter options
+        final translatedFilterOptions = [
+          languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
+          languageProvider.getTranslatedText({
+            'en': 'Today',
+            'id': 'Hari Ini',
+          }),
+          languageProvider.getTranslatedText({
+            'en': 'This Week',
+            'id': 'Minggu Ini',
+          }),
+        ];
+
+        return Scaffold(
+          backgroundColor: Colors.grey.shade50,
+          appBar: AppBar(
+            title: Text(
+              languageProvider.getTranslatedText({
+                'en': 'Teaching Schedule',
+                'id': 'Jadwal Mengajar',
+              }),
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: true,
+            iconTheme: IconThemeData(color: Colors.black),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.refresh, color: Colors.black),
+                onPressed: _loadJadwal,
+                tooltip: languageProvider.getTranslatedText({
+                  'en': 'Refresh',
+                  'id': 'Muat Ulang',
+                }),
+              ),
+            ],
+            bottom: PreferredSize(
+              preferredSize: Size.fromHeight(1),
+              child: Container(height: 1, color: Colors.grey.shade300),
+            ),
           ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Header Section
-          _buildHeaderSection(),
-          
-          // Filter Section - PERBAIKAN: Pisahkan filter dari header
-          _buildFilterSection(),
-          
-          // Content Section
-          Expanded(
-            child: _isLoading
-                ? _buildLoadingState()
-                : _jadwalList.isEmpty
-                    ? _buildEmptyState()
-                    : _buildJadwalList(),
+          body: Column(
+            children: [
+              // Header Info Guru
+              _buildHeaderInfo(languageProvider),
+              
+              // Filter Section untuk Semester dan Tahun Ajaran
+              FilterSection(
+                selectedSemester: _selectedSemester,
+                selectedAcademicYear: _selectedAcademicYear,
+                semesterList: _semesterList,
+                onSemesterChanged: _onSemesterChanged,
+                onAcademicYearChanged: _onAcademicYearChanged,
+              ),
+              SizedBox(height: 8),
+
+              // Filter Hari
+              _buildHariFilter(languageProvider),
+              SizedBox(height: 8),
+
+              // Search Bar dengan Filter
+              EnhancedSearchBar(
+                controller: _searchController,
+                hintText: languageProvider.getTranslatedText({
+                  'en': 'Search schedules...',
+                  'id': 'Cari jadwal...',
+                }),
+                onChanged: (value) {
+                  setState(() {});
+                },
+                filterOptions: translatedFilterOptions,
+                selectedFilter: translatedFilterOptions[
+                  _selectedFilter == 'All' 
+                    ? 0 
+                    : _selectedFilter == 'Today' 
+                      ? 1 
+                      : 2
+                ],
+                onFilterChanged: (filter) {
+                  final index = translatedFilterOptions.indexOf(filter);
+                  setState(() {
+                    _selectedFilter = index == 0 
+                      ? 'All' 
+                      : index == 1 
+                        ? 'Today' 
+                        : 'This Week';
+                  });
+                },
+                showFilter: true,
+              ),
+
+              if (filteredSchedules.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${filteredSchedules.length} ${languageProvider.getTranslatedText({
+                          'en': 'schedules found',
+                          'id': 'jadwal ditemukan',
+                        })}',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              SizedBox(height: 8),
+
+              Expanded(
+                child: filteredSchedules.isEmpty
+                    ? EmptyState(
+                        title: languageProvider.getTranslatedText({
+                          'en': 'No teaching schedules',
+                          'id': 'Belum ada jadwal mengajar',
+                        }),
+                        subtitle: _searchController.text.isEmpty && _selectedFilter == 'All' && _selectedHari == 'Semua Hari'
+                            ? languageProvider.getTranslatedText({
+                                'en': 'No schedule available for current filters',
+                                'id': 'Tidak ada jadwal untuk filter saat ini',
+                              })
+                            : languageProvider.getTranslatedText({
+                                'en': 'No search results found',
+                                'id': 'Tidak ditemukan hasil pencarian',
+                              }),
+                        icon: Icons.schedule_outlined,
+                      )
+                    : _buildJadwalList(languageProvider),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildHeaderSection() {
+  Widget _buildHeaderInfo(LanguageProvider languageProvider) {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF4F46E5), Color(0xFF7C73FA)],
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade200, width: 1),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            _guruNama,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+          CircleAvatar(
+            backgroundColor: ColorUtils.primaryColor.withOpacity(0.1),
+            child: Icon(
+              Icons.person,
+              color: ColorUtils.primaryColor,
             ),
           ),
-          SizedBox(height: 4),
-          Text(
-            'Guru',
-            style: TextStyle(color: Colors.white.withOpacity(0.8)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // PERBAIKAN: Widget filter terpisah
-  Widget _buildFilterSection() {
-    return Container(
-      padding: EdgeInsets.all(16),
-      color: Colors.white,
-      child: Column(
-        children: [
-          // Info Filter Aktif
-          Container(
-            padding: EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.filter_alt, size: 16, color: Colors.blue),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Filter: $_selectedHari • $_selectedSemester • $_selectedTahunAjaran',
-                    style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
+                Text(
+                  _guruNama,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
                 ),
+                SizedBox(height: 2),
                 Text(
-                  '${_jadwalList.length} jadwal',
+                  languageProvider.getTranslatedText({
+                    'en': 'Teacher',
+                    'id': 'Guru',
+                  }),
                   style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blue.shade800,
-                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade600,
+                    fontSize: 14,
                   ),
                 ),
               ],
             ),
           ),
-          SizedBox(height: 12),
-          
-          // Filter Controls
-          Row(
-            children: [
-              Expanded(
-                child: _buildFilterDropdown(
-                  label: 'Hari',
-                  value: _selectedHari,
-                  options: _hariOptions,
-                  onChanged: _onHariChanged,
-                  icon: Icons.calendar_today,
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: _buildFilterDropdown(
-                  label: 'Semester',
-                  value: _selectedSemester,
-                  options: _semesterOptions,
-                  onChanged: _onSemesterChanged,
-                  icon: Icons.school,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildFilterDropdown({
-    required String label,
-    required String value,
-    required List<String> options,
-    required ValueChanged<String> onChanged,
-    required IconData icon,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-        SizedBox(height: 4),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade300),
+  Widget _buildHariFilter(LanguageProvider languageProvider) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            languageProvider.getTranslatedText({
+              'en': 'Day Filter',
+              'id': 'Filter Hari',
+            }),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade700,
+            ),
           ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: value,
-              isExpanded: true,
-              icon: Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
-              items: options.map((String option) {
-                return DropdownMenuItem<String>(
-                  value: option,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Row(
-                      children: [
-                        Icon(icon, size: 16, color: Colors.grey.shade600),
-                        SizedBox(width: 8),
-                        Expanded(child: Text(option)),
-                      ],
+          SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _hariOptions.map((hari) {
+                final isSelected = _selectedHari == hari;
+                return Container(
+                  margin: EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(hari),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      _onHariChanged(selected ? hari : 'Semua Hari');
+                    },
+                    backgroundColor: Colors.white,
+                    selectedColor: ColorUtils.primaryColor.withOpacity(0.1),
+                    checkmarkColor: ColorUtils.primaryColor,
+                    labelStyle: TextStyle(
+                      color: isSelected ? ColorUtils.primaryColor : Colors.grey.shade700,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                    shape: StadiumBorder(
+                      side: BorderSide(
+                        color: isSelected ? ColorUtils.primaryColor : Colors.grey.shade300,
+                      ),
                     ),
                   ),
                 );
               }).toList(),
-              onChanged: (String? newValue) {
-                if (newValue != null) {
-                  onChanged(newValue);
-                }
-              },
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Memuat jadwal...'),
-          if (_debugInfo.isNotEmpty) ...[
-            SizedBox(height: 8),
-            Text(
-              _debugInfo,
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.schedule, size: 64, color: Colors.grey.shade300),
-          SizedBox(height: 16),
-          Text(
-            'Tidak ada jadwal mengajar',
-            style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Untuk $_selectedHari, $_selectedSemester',
-            style: TextStyle(color: Colors.grey.shade500),
-          ),
-          SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _loadJadwal,
-            child: Text('Coba Lagi'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildJadwalList() {
+  Widget _buildJadwalList(LanguageProvider languageProvider) {
     return ListView.builder(
       padding: EdgeInsets.all(16),
       itemCount: _jadwalList.length,

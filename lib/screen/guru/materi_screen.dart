@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:manajemensekolah/screen/guru/rpp_generate_screen.dart';
 import 'package:manajemensekolah/services/api_subject_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
+import 'package:manajemensekolah/components/enhanced_search_bar.dart';
+import 'package:manajemensekolah/components/empty_state.dart';
+import 'package:manajemensekolah/components/loading_screen.dart';
+import 'package:manajemensekolah/utils/language_utils.dart';
+import 'package:provider/provider.dart';
 
 class MateriPage extends StatefulWidget {
   final Map<String, dynamic> guru;
@@ -24,6 +29,11 @@ class MateriPageState extends State<MateriPage> {
   List<dynamic> _babMateriList = [];
   List<dynamic> _subBabMateriList = [];
   List<dynamic> _kontenMateriList = [];
+
+  // Search dan Filter
+  final TextEditingController _searchController = TextEditingController();
+  final List<String> _filterOptions = ['All', 'Today', 'This Week'];
+  String _selectedFilter = 'All';
 
   // State untuk expanded/collapsed
   final Map<String, bool> _expandedBab = {};
@@ -102,6 +112,12 @@ class MateriPageState extends State<MateriPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -281,82 +297,186 @@ class MateriPageState extends State<MateriPage> {
     return colors[index % colors.length];
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: const Text('Materi Pembelajaran'),
-        backgroundColor: Color(0xFF4F46E5),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.auto_awesome),
-            onPressed: _navigateToGenerateRPP,
-            tooltip: 'Generate RPP',
-          ),
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _loadData,
-            tooltip: 'Refresh',
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Header Section
-          _buildHeaderSection(),
+  List<dynamic> _getFilteredBabMateri() {
+    final searchTerm = _searchController.text.toLowerCase();
+    
+    if (searchTerm.isEmpty) {
+      return _babMateriList;
+    }
 
-          // Filter Section
-          _buildFilterSection(),
+    return _babMateriList.where((bab) {
+      final matchesBab = (bab['judul_bab']?.toString().toLowerCase().contains(searchTerm) ?? false);
+      
+      // Cari juga di sub bab yang terkait
+      final subBabMatches = _subBabMateriList
+          .where((subBab) => subBab['bab_id'] == bab['id'])
+          .any((subBab) => subBab['judul_sub_bab']?.toString().toLowerCase().contains(searchTerm) ?? false);
 
-          // Content Section
-          Expanded(
-            child: _isLoading
-                ? _buildLoadingState()
-                : _selectedMataPelajaran == null
-                ? _buildEmptyState('Pilih mata pelajaran untuk melihat materi')
-                : _babMateriList.isEmpty
-                ? _buildEmptyState('Tidak ada materi untuk mata pelajaran ini')
-                : _buildMateriList(),
-          ),
-        ],
-      ),
-    );
+      return matchesBab || subBabMatches;
+    }).toList();
   }
 
-  Widget _buildHeaderSection() {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF4F46E5), Color(0xFF7C73FA)],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.guru['nama']?.toString() ?? 'Guru',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return Scaffold(
+          backgroundColor: Colors.grey.shade50,
+          appBar: AppBar(
+            title: Text(
+              languageProvider.getTranslatedText({
+                'en': 'Learning Materials',
+                'id': 'Materi Pembelajaran',
+              }),
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: true,
+            iconTheme: IconThemeData(color: Colors.black),
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.auto_awesome, color: Colors.black),
+                onPressed: _navigateToGenerateRPP,
+                tooltip: languageProvider.getTranslatedText({
+                  'en': 'Generate RPP',
+                  'id': 'Generate RPP',
+                }),
+              ),
+              IconButton(
+                icon: Icon(Icons.refresh, color: Colors.black),
+                onPressed: _loadData,
+                tooltip: languageProvider.getTranslatedText({
+                  'en': 'Refresh',
+                  'id': 'Muat Ulang',
+                }),
+              ),
+            ],
+            bottom: PreferredSize(
+              preferredSize: Size.fromHeight(1),
+              child: Container(height: 1, color: Colors.grey.shade300),
             ),
           ),
-          SizedBox(height: 4),
-          Text(
-            'Materi Pembelajaran',
-            style: TextStyle(color: Colors.white.withOpacity(0.8)),
+          body: Column(
+            children: [
+              // Filter Section
+              _buildFilterSection(languageProvider),
+
+              // Search Bar
+              Consumer<LanguageProvider>(
+                builder: (context, languageProvider, child) {
+                  final translatedFilterOptions = [
+                    languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
+                    languageProvider.getTranslatedText({'en': 'Today', 'id': 'Hari Ini'}),
+                    languageProvider.getTranslatedText({
+                      'en': 'This Week',
+                      'id': 'Minggu Ini',
+                    }),
+                  ];
+
+                  return EnhancedSearchBar(
+                    controller: _searchController,
+                    hintText: languageProvider.getTranslatedText({
+                      'en': 'Search materials...',
+                      'id': 'Cari materi...',
+                    }),
+                    onChanged: (value) {
+                      setState(() {});
+                    },
+                    filterOptions: translatedFilterOptions,
+                    selectedFilter:
+                        translatedFilterOptions[_selectedFilter == 'All'
+                            ? 0
+                            : _selectedFilter == 'Today'
+                            ? 1
+                            : 2],
+                    onFilterChanged: (filter) {
+                      final index = translatedFilterOptions.indexOf(filter);
+                      setState(() {
+                        _selectedFilter = index == 0
+                            ? 'All'
+                            : index == 1
+                            ? 'Today'
+                            : 'This Week';
+                      });
+                    },
+                    showFilter: true,
+                  );
+                },
+              ),
+
+              // Search Results Info
+              if (_searchController.text.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${_getFilteredBabMateri().length} ${languageProvider.getTranslatedText({'en': 'materials found', 'id': 'materi ditemukan'})}',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              SizedBox(height: 8),
+
+              // Content Section
+              Expanded(
+                child: _isLoading
+                    ? LoadingScreen(
+                        message: languageProvider.getTranslatedText({
+                          'en': 'Loading materials...',
+                          'id': 'Memuat materi...',
+                        }),
+                      )
+                    : _selectedMataPelajaran == null
+                    ? _buildEmptyState(
+                        languageProvider.getTranslatedText({
+                          'en': 'Select subject to view materials',
+                          'id': 'Pilih mata pelajaran untuk melihat materi',
+                        }),
+                        languageProvider,
+                      )
+                    : _babMateriList.isEmpty
+                    ? _buildEmptyState(
+                        languageProvider.getTranslatedText({
+                          'en': 'No materials available for this subject',
+                          'id': 'Tidak ada materi untuk mata pelajaran ini',
+                        }),
+                        languageProvider,
+                      )
+                    : _getFilteredBabMateri().isEmpty
+                    ? EmptyState(
+                        title: languageProvider.getTranslatedText({
+                          'en': 'No Materials Found',
+                          'id': 'Materi Tidak Ditemukan',
+                        }),
+                        subtitle: languageProvider.getTranslatedText({
+                          'en': 'No search results found for "${_searchController.text}"',
+                          'id': 'Tidak ditemukan hasil pencarian untuk "${_searchController.text}"',
+                        }),
+                        icon: Icons.search,
+                      )
+                    : _buildMateriList(),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   // Update Filter Section untuk tambah info dan tombol
-  Widget _buildFilterSection() {
+  Widget _buildFilterSection(LanguageProvider languageProvider) {
     final totalChecked = _getCheckedCount();
 
     return Container(
@@ -378,13 +498,16 @@ class MateriPageState extends State<MateriPage> {
                 Expanded(
                   child: Text(
                     _mataPelajaranList.isEmpty
-                        ? 'Tidak ada mata pelajaran'
-                        : '${_babMateriList.length} bab materi • ${_getSelectedMataPelajaranName()}',
+                        ? languageProvider.getTranslatedText({
+                            'en': 'No subjects available',
+                            'id': 'Tidak ada mata pelajaran',
+                          })
+                        : '${_babMateriList.length} ${languageProvider.getTranslatedText({'en': 'materials', 'id': 'bab materi'})} • ${_getSelectedMataPelajaranName()}',
                     style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
                   ),
                 ),
                 Text(
-                  '$totalChecked dicentang',
+                  '$totalChecked ${languageProvider.getTranslatedText({'en': 'checked', 'id': 'dicentang'})}',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.blue.shade800,
@@ -403,7 +526,9 @@ class MateriPageState extends State<MateriPage> {
               child: ElevatedButton.icon(
                 onPressed: _navigateToGenerateRPP,
                 icon: Icon(Icons.auto_awesome, size: 20),
-                label: Text('Generate RPP ($totalChecked dipilih)'),
+                label: Text(
+                  '${languageProvider.getTranslatedText({'en': 'Generate RPP', 'id': 'Generate RPP'})} ($totalChecked ${languageProvider.getTranslatedText({'en': 'selected', 'id': 'dipilih'})})'
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Color(0xFF10B981),
                   foregroundColor: Colors.white,
@@ -418,18 +543,21 @@ class MateriPageState extends State<MateriPage> {
           ],
 
           // Dropdown Mata Pelajaran
-          _buildMataPelajaranDropdown(),
+          _buildMataPelajaranDropdown(languageProvider),
         ],
       ),
     );
   }
 
-  Widget _buildMataPelajaranDropdown() {
+  Widget _buildMataPelajaranDropdown(LanguageProvider languageProvider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Mata Pelajaran',
+          languageProvider.getTranslatedText({
+            'en': 'Subject',
+            'id': 'Mata Pelajaran',
+          }),
           style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
         ),
         SizedBox(height: 4),
@@ -470,6 +598,7 @@ class MateriPageState extends State<MateriPage> {
                     _babMateriList = [];
                     _subBabMateriList = [];
                     _kontenMateriList = [];
+                    _searchController.clear();
                   });
                   _loadBabMateri(newValue);
                 }
@@ -481,52 +610,25 @@ class MateriPageState extends State<MateriPage> {
     );
   }
 
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Memuat materi...'),
-          if (_debugInfo.isNotEmpty) ...[
-            SizedBox(height: 8),
-            Text(
-              _debugInfo,
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(String message) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.menu_book, size: 64, color: Colors.grey.shade300),
-          SizedBox(height: 16),
-          Text(
-            message,
-            style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 16),
-          ElevatedButton(onPressed: _loadData, child: Text('Coba Lagi')),
-        ],
-      ),
+  Widget _buildEmptyState(String message, LanguageProvider languageProvider) {
+    return EmptyState(
+      title: languageProvider.getTranslatedText({
+        'en': 'No Materials',
+        'id': 'Tidak Ada Materi',
+      }),
+      subtitle: message,
+      icon: Icons.menu_book,
     );
   }
 
   Widget _buildMateriList() {
+    final filteredBabMateri = _getFilteredBabMateri();
+    
     return ListView.builder(
       padding: EdgeInsets.all(16),
-      itemCount: _babMateriList.length,
+      itemCount: filteredBabMateri.length,
       itemBuilder: (context, index) {
-        final bab = _babMateriList[index];
+        final bab = filteredBabMateri[index];
         final cardColor = _getCardColor(index);
         final isExpanded = _expandedBab[bab['id']] ?? false;
 
@@ -622,7 +724,7 @@ class MateriPageState extends State<MateriPage> {
     }
 
     return Column(
-      children: _subBabMateriList.map((subBab) {
+      children: _subBabMateriList.where((subBab) => subBab['bab_id'] == bab['id']).map((subBab) {
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Container(
@@ -762,114 +864,132 @@ class SubBabDetailPageState extends State<SubBabDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'BAB ${widget.bab['urutan']}',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white.withOpacity(0.8),
-              ),
-            ),
-            Text(
-              widget.bab['judul_bab'] ?? 'Judul Bab',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-        backgroundColor: Color(0xFF4F46E5),
-        foregroundColor: Colors.white,
-        actions: [
-          Padding(
-            padding: EdgeInsets.only(right: 8),
-            child: Row(
-              children: [
-                Text('Selesai', style: TextStyle(fontSize: 14)),
-                Checkbox(
-                  value: _isChecked,
-                  onChanged: (value) {
-                    setState(() {
-                      _isChecked = value ?? false;
-                    });
-                    widget.onCheckChanged(value);
-                  },
-                  fillColor: MaterialStateProperty.all(Colors.white),
-                  checkColor: Color(0xFF4F46E5),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Header Sub Bab
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(16),
-            color: Colors.white,
-            child: Column(
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return Scaffold(
+          backgroundColor: Colors.grey.shade50,
+          appBar: AppBar(
+            title: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Sub Bab ${widget.subBab['urutan']}',
+                  'BAB ${widget.bab['urutan']}',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withOpacity(0.8),
                   ),
                 ),
-                SizedBox(height: 4),
                 Text(
-                  widget.subBab['judul_sub_bab'] ?? 'Judul Sub Bab',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF4F46E5),
-                  ),
+                  widget.bab['judul_bab'] ?? 'Judul Bab',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: true,
+            iconTheme: IconThemeData(color: Colors.black),
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            actions: [
+              Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: Row(
+                  children: [
+                    Text(
+                      languageProvider.getTranslatedText({
+                        'en': 'Done',
+                        'id': 'Selesai',
+                      }), 
+                      style: TextStyle(fontSize: 14, color: Colors.black)
+                    ),
+                    Checkbox(
+                      value: _isChecked,
+                      onChanged: (value) {
+                        setState(() {
+                          _isChecked = value ?? false;
+                        });
+                        widget.onCheckChanged(value);
+                      },
+                      fillColor: MaterialStateProperty.all(Colors.blue),
+                      checkColor: Colors.white,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            bottom: PreferredSize(
+              preferredSize: Size.fromHeight(1),
+              child: Container(height: 1, color: Colors.grey.shade300),
+            ),
           ),
-          SizedBox(height: 1),
+          body: Column(
+            children: [
+              // Header Sub Bab
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(16),
+                color: Colors.white,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sub Bab ${widget.subBab['urutan']}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      widget.subBab['judul_sub_bab'] ?? 'Judul Sub Bab',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF4F46E5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 1),
 
-          // Content
-          Expanded(
-            child: _isLoading
-                ? Center(child: CircularProgressIndicator())
-                : _kontenMateriList.isEmpty
-                ? _buildEmptyContent()
-                : _buildContentList(),
+              // Content
+              Expanded(
+                child: _isLoading
+                    ? LoadingScreen(
+                        message: languageProvider.getTranslatedText({
+                          'en': 'Loading content...',
+                          'id': 'Memuat konten...',
+                        }),
+                      )
+                    : _kontenMateriList.isEmpty
+                    ? _buildEmptyContent(languageProvider)
+                    : _buildContentList(),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildEmptyContent() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.article, size: 64, color: Colors.grey.shade300),
-          SizedBox(height: 16),
-          Text(
-            'Tidak ada konten materi',
-            style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Konten untuk sub bab ini belum tersedia',
-            style: TextStyle(color: Colors.grey.shade500),
-          ),
-        ],
-      ),
+  Widget _buildEmptyContent(LanguageProvider languageProvider) {
+    return EmptyState(
+      title: languageProvider.getTranslatedText({
+        'en': 'No Content',
+        'id': 'Tidak Ada Konten',
+      }),
+      subtitle: languageProvider.getTranslatedText({
+        'en': 'Content for this sub-chapter is not available yet',
+        'id': 'Konten untuk sub bab ini belum tersedia',
+      }),
+      icon: Icons.article,
     );
   }
 

@@ -2,10 +2,15 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:manajemensekolah/components/enhanced_search_bar.dart';
+import 'package:manajemensekolah/components/empty_state.dart';
+import 'package:manajemensekolah/components/loading_screen.dart';
 import 'package:manajemensekolah/services/api_subject_services.dart';
 import 'package:manajemensekolah/services/api_class_activity_services.dart';
 import 'package:manajemensekolah/services/api_schedule_services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:manajemensekolah/utils/language_utils.dart';
+import 'package:provider/provider.dart';
 
 class ClassActifityScreen extends StatefulWidget {
   const ClassActifityScreen({super.key});
@@ -28,6 +33,11 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
   String _teacherName = '';
   String _selectedDay = 'Semua Hari';
   String _selectedClass = 'Semua Kelas';
+
+  // Search dan Filter
+  final TextEditingController _searchController = TextEditingController();
+  final List<String> _filterOptions = ['All', 'Today', 'This Week'];
+  String _selectedFilter = 'All';
 
   late TabController _tabController;
   String _currentTarget = 'umum';
@@ -52,6 +62,7 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -140,272 +151,426 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
     );
   }
 
-  Widget _buildActivityList() {
-    final filteredActivities = _activityList.where((activity) {
-      return activity['target'] == _currentTarget;
+  List<dynamic> _getFilteredActivities() {
+    final searchTerm = _searchController.text.toLowerCase();
+    final now = DateTime.now();
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final endOfWeek = startOfWeek.add(Duration(days: 6));
+
+    return _activityList.where((activity) {
+      final matchesTarget = activity['target'] == _currentTarget;
+      
+      final matchesSearch = searchTerm.isEmpty ||
+          (activity['judul']?.toString().toLowerCase().contains(searchTerm) ?? false) ||
+          (activity['mata_pelajaran_nama']?.toString().toLowerCase().contains(searchTerm) ?? false);
+
+      final activityDate = activity['tanggal'] != null 
+          ? DateTime.tryParse(activity['tanggal'])
+          : null;
+
+      final matchesFilter = _selectedFilter == 'All' ||
+          (_selectedFilter == 'Today' && 
+           activityDate != null && 
+           _isSameDay(activityDate, now)) ||
+          (_selectedFilter == 'This Week' &&
+           activityDate != null &&
+           activityDate.isAfter(startOfWeek.subtract(Duration(days: 1))) &&
+           activityDate.isBefore(endOfWeek.add(Duration(days: 1))));
+
+      return matchesTarget && matchesSearch && matchesFilter;
     }).toList();
+  }
+
+  bool _isSameDay(DateTime date1, DateTime date2) {
+    return date1.year == date2.year &&
+        date1.month == date2.month &&
+        date1.day == date2.day;
+  }
+
+  Widget _buildActivityList() {
+    final filteredActivities = _getFilteredActivities();
 
     if (filteredActivities.isEmpty) {
       return _buildEmptyStateForTab();
     }
 
-    return ListView.builder(
-      padding: EdgeInsets.all(16),
-      itemCount: filteredActivities.length,
-      itemBuilder: (context, index) {
-        final activity = filteredActivities[index];
-        final day = activity['hari']?.toString() ?? 'Unknown';
-        final cardColor = _getDayColor(day);
-        final isAssignment = activity['jenis'] == 'tugas';
-        final isSpecificTarget = activity['target'] == 'khusus';
+    return Column(
+      children: [
+        // Search Bar dengan Filter
+        Consumer<LanguageProvider>(
+          builder: (context, languageProvider, child) {
+            final translatedFilterOptions = [
+              languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
+              languageProvider.getTranslatedText({'en': 'Today', 'id': 'Hari Ini'}),
+              languageProvider.getTranslatedText({
+                'en': 'This Week',
+                'id': 'Minggu Ini',
+              }),
+            ];
 
-        return Card(
-          elevation: 2,
-          margin: EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            children: [
-              // Activity Header
-              ListTile(
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    isAssignment ? Icons.assignment : Icons.menu_book,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                title: Text(
-                  activity['judul'] ?? 'Judul Kegiatan',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            return EnhancedSearchBar(
+              controller: _searchController,
+              hintText: languageProvider.getTranslatedText({
+                'en': 'Search activities...',
+                'id': 'Cari kegiatan...',
+              }),
+              onChanged: (value) {
+                setState(() {});
+              },
+              filterOptions: translatedFilterOptions,
+              selectedFilter:
+                  translatedFilterOptions[_selectedFilter == 'All'
+                      ? 0
+                      : _selectedFilter == 'Today'
+                      ? 1
+                      : 2],
+              onFilterChanged: (filter) {
+                final index = translatedFilterOptions.indexOf(filter);
+                setState(() {
+                  _selectedFilter = index == 0
+                      ? 'All'
+                      : index == 1
+                      ? 'Today'
+                      : 'This Week';
+                });
+              },
+              showFilter: true,
+            );
+          },
+        ),
+
+        if (filteredActivities.isNotEmpty)
+          Consumer<LanguageProvider>(
+            builder: (context, languageProvider, child) {
+              return Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
                   children: [
-                    SizedBox(height: 4),
                     Text(
-                      '${activity['mata_pelajaran_nama']} • ${activity['kelas_nama']}',
-                      style: TextStyle(color: Colors.grey.shade600),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      '${activity['hari']} • ${_formatDate(activity['tanggal'])}',
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 12,
-                      ),
+                      '${filteredActivities.length} ${languageProvider.getTranslatedText({'en': 'activities found', 'id': 'kegiatan ditemukan'})}',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
                     ),
                   ],
                 ),
-                trailing: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isAssignment
-                        ? Colors.orange.shade50
-                        : Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: isAssignment ? Colors.orange : Colors.blue,
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    isAssignment ? 'TUGAS' : 'MATERI',
-                    style: TextStyle(
-                      color: isAssignment ? Colors.orange : Colors.blue,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
+              );
+            },
+          ),
+        SizedBox(height: 8),
 
-              // Activity Details
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        Expanded(
+          child: ListView.builder(
+            padding: EdgeInsets.all(16),
+            itemCount: filteredActivities.length,
+            itemBuilder: (context, index) {
+              final activity = filteredActivities[index];
+              final day = activity['hari']?.toString() ?? 'Unknown';
+              final cardColor = _getDayColor(day);
+              final isAssignment = activity['jenis'] == 'tugas';
+              final isSpecificTarget = activity['target'] == 'khusus';
+
+              return Card(
+                elevation: 2,
+                margin: EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (activity['deskripsi'] != null &&
-                        activity['deskripsi'].isNotEmpty)
-                      Container(
-                        padding: EdgeInsets.all(8),
+                    // Activity Header
+                    ListTile(
+                      leading: Container(
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
+                          color: cardColor,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          isAssignment ? Icons.assignment : Icons.menu_book,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
+                        activity['judul'] ?? 'Judul Kegiatan',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(height: 4),
+                          Text(
+                            '${activity['mata_pelajaran_nama']} • ${activity['kelas_nama']}',
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            '${activity['hari']} • ${_formatDate(activity['tanggal'])}',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                      trailing: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isAssignment
+                              ? Colors.orange.shade50
+                              : Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isAssignment ? Colors.orange : Colors.blue,
+                            width: 1,
+                          ),
                         ),
                         child: Text(
-                          activity['deskripsi'],
+                          isAssignment ? 'TUGAS' : 'MATERI',
                           style: TextStyle(
-                            color: Colors.grey.shade700,
-                            fontSize: 14,
+                            color: isAssignment ? Colors.orange : Colors.blue,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
+                    ),
 
-                    if (activity['bab_judul'] != null)
-                      Container(
-                        margin: EdgeInsets.only(top: 8),
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.menu_book,
-                              size: 14,
-                              color: Colors.grey.shade600,
-                            ),
-                            SizedBox(width: 6),
-                            Expanded(
+                    // Activity Details
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (activity['deskripsi'] != null &&
+                              activity['deskripsi'].isNotEmpty)
+                            Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
                               child: Text(
-                                '${activity['bab_judul']}${activity['sub_bab_judul'] != null ? ' • ${activity['sub_bab_judul']}' : ''}',
+                                activity['deskripsi'],
                                 style: TextStyle(
-                                  fontSize: 12,
                                   color: Colors.grey.shade700,
+                                  fontSize: 14,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
 
-                    SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isSpecificTarget
-                                ? Colors.purple.shade50
-                                : Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: isSpecificTarget
-                                  ? Colors.purple
-                                  : Colors.green,
-                              width: 0.5,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                isSpecificTarget ? Icons.person : Icons.group,
-                                size: 12,
-                                color: isSpecificTarget
-                                    ? Colors.purple
-                                    : Colors.green,
+                          if (activity['bab_judul'] != null)
+                            Container(
+                              margin: EdgeInsets.only(top: 8),
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(6),
                               ),
-                              SizedBox(width: 4),
-                              Text(
-                                isSpecificTarget
-                                    ? 'Khusus Siswa'
-                                    : 'Semua Siswa',
-                                style: TextStyle(
-                                  fontSize: 10,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.menu_book,
+                                    size: 14,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                  SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      '${activity['bab_judul']}${activity['sub_bab_judul'] != null ? ' • ${activity['sub_bab_judul']}' : ''}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                          SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
                                   color: isSpecificTarget
-                                      ? Colors.purple
-                                      : Colors.green,
-                                  fontWeight: FontWeight.bold,
+                                      ? Colors.purple.shade50
+                                      : Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: isSpecificTarget
+                                        ? Colors.purple
+                                        : Colors.green,
+                                    width: 0.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isSpecificTarget ? Icons.person : Icons.group,
+                                      size: 12,
+                                      color: isSpecificTarget
+                                          ? Colors.purple
+                                          : Colors.green,
+                                    ),
+                                    SizedBox(width: 4),
+                                    Consumer<LanguageProvider>(
+                                      builder: (context, languageProvider, child) {
+                                        return Text(
+                                          isSpecificTarget
+                                              ? languageProvider.getTranslatedText({
+                                                  'en': 'Specific Student',
+                                                  'id': 'Khusus Siswa',
+                                                })
+                                              : languageProvider.getTranslatedText({
+                                                  'en': 'All Students',
+                                                  'id': 'Semua Siswa',
+                                                }),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: isSpecificTarget
+                                                ? Colors.purple
+                                                : Colors.green,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ),
+                              Spacer(),
+                              if (isAssignment)
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade50,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: Colors.red.shade300,
+                                      width: 0.5,
+                                    ),
+                                  ),
+                                  child: Consumer<LanguageProvider>(
+                                    builder: (context, languageProvider, child) {
+                                      return Text(
+                                        '${languageProvider.getTranslatedText({'en': 'Deadline:', 'id': 'Batas:'})} ${_formatDate(activity['batas_waktu'])}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.red.shade700,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
                             ],
                           ),
-                        ),
-                        Spacer(),
-                        if (isAssignment)
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: Colors.red.shade300,
-                                width: 0.5,
-                              ),
-                            ),
-                            child: Text(
-                              'Batas: ${_formatDate(activity['batas_waktu'])}',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.red.shade700,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ],
+              );
+            },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 
   Widget _buildEmptyStateForTab() {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return Column(
           children: [
-            Icon(Icons.event_note, size: 80, color: Colors.grey.shade300),
+            // Search Bar
+            EnhancedSearchBar(
+              controller: _searchController,
+              hintText: languageProvider.getTranslatedText({
+                'en': 'Search activities...',
+                'id': 'Cari kegiatan...',
+              }),
+              onChanged: (value) {
+                setState(() {});
+              },
+              filterOptions: [
+                languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
+                languageProvider.getTranslatedText({'en': 'Today', 'id': 'Hari Ini'}),
+                languageProvider.getTranslatedText({'en': 'This Week', 'id': 'Minggu Ini'}),
+              ],
+              selectedFilter: languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
+              onFilterChanged: (filter) {},
+              showFilter: true,
+            ),
             SizedBox(height: 20),
-            Text(
-              _currentTarget == 'umum'
-                  ? 'Belum ada kegiatan untuk semua siswa'
-                  : 'Belum ada kegiatan khusus siswa',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.w500,
+            
+            Expanded(
+              child: EmptyState(
+                title: languageProvider.getTranslatedText({
+                  'en': 'No Activities',
+                  'id': 'Belum ada kegiatan',
+                }),
+                subtitle: _searchController.text.isEmpty && _selectedFilter == 'All'
+                    ? languageProvider.getTranslatedText({
+                        'en': _currentTarget == 'umum'
+                            ? 'No activities for all students available'
+                            : 'No specific student activities available',
+                        'id': _currentTarget == 'umum'
+                            ? 'Tidak ada kegiatan untuk semua siswa tersedia'
+                            : 'Tidak ada kegiatan khusus siswa tersedia',
+                      })
+                    : languageProvider.getTranslatedText({
+                        'en': 'No search results found',
+                        'id': 'Tidak ditemukan hasil pencarian',
+                      }),
+                icon: Icons.event_note,
               ),
-              textAlign: TextAlign.center,
             ),
-            SizedBox(height: 8),
-            Text(
-              'Tambahkan kegiatan ${_currentTarget == 'umum' ? 'untuk semua siswa' : 'khusus siswa'}',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _showAddActivityDialog,
-              icon: Icon(Icons.add),
-              label: Text('Tambah Kegiatan'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF4F46E5),
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            
+            // Add Activity Button
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _showAddActivityDialog,
+                  icon: Icon(Icons.add, size: 20),
+                  label: Text(
+                    languageProvider.getTranslatedText({
+                      'en': 'Add Activity',
+                      'id': 'Tambah Kegiatan',
+                    }),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                  ),
                 ),
               ),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -475,150 +640,112 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Text(
-          'Kegiatan Kelas',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-        ),
-        backgroundColor: Color(0xFF4F46E5),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _loadActivities,
-            tooltip: 'Refresh',
-          ),
-          IconButton(
-            icon: Icon(Icons.add),
-            onPressed: _showAddActivityDialog,
-            tooltip: 'Tambah Kegiatan',
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(48),
-          child: Container(
-            color: Color(0xFF4F46E5),
-            child: TabBar(
-              controller: _tabController,
-              tabs: [
-                Tab(icon: Icon(Icons.group, size: 20), text: 'Semua Siswa'),
-                Tab(icon: Icon(Icons.person, size: 20), text: 'Khusus Siswa'),
-              ],
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              indicatorColor: Colors.white,
-              indicatorWeight: 3,
-              labelStyle: TextStyle(fontWeight: FontWeight.w500),
-            ),
-          ),
-        ),
-      ),
-      body: Column(
-        children: [
-          // Header Info
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF4F46E5), Color(0xFF7C73FA)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(20),
-                bottomRight: Radius.circular(20),
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return Scaffold(
+          backgroundColor: Colors.grey.shade50,
+          appBar: AppBar(
+            title: Text(
+              languageProvider.getTranslatedText({
+                'en': 'Class Activities',
+                'id': 'Kegiatan Kelas',
+              }),
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(Icons.school, color: Colors.white),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: true,
+            iconTheme: IconThemeData(color: Colors.black),
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.refresh, color: Colors.black),
+                onPressed: _loadActivities,
+                tooltip: languageProvider.getTranslatedText({
+                  'en': 'Refresh',
+                  'id': 'Muat Ulang',
+                }),
+              ),
+              IconButton(
+                icon: Icon(Icons.add, color: Colors.black),
+                onPressed: _showAddActivityDialog,
+                tooltip: languageProvider.getTranslatedText({
+                  'en': 'Add Activity',
+                  'id': 'Tambah Kegiatan',
+                }),
+              ),
+            ],
+            bottom: PreferredSize(
+              preferredSize: Size.fromHeight(48),
+              child: Container(
+                color: Colors.white,
+                child: TabBar(
+                  controller: _tabController,
+                  tabs: [
+                    Tab(
+                      icon: Icon(Icons.group, size: 20, color: Colors.black),
+                      text: languageProvider.getTranslatedText({
+                        'en': 'All Students',
+                        'id': 'Semua Siswa',
+                      }),
                     ),
-                    SizedBox(width: 12),
+                    Tab(
+                      icon: Icon(Icons.person, size: 20, color: Colors.black),
+                      text: languageProvider.getTranslatedText({
+                        'en': 'Specific Student',
+                        'id': 'Khusus Siswa',
+                      }),
+                    ),
+                  ],
+                  labelColor: Colors.black,
+                  unselectedLabelColor: Colors.grey,
+                  indicatorColor: Colors.blue,
+                  indicatorWeight: 3,
+                  labelStyle: TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ),
+            ),
+          ),
+          body: _isLoading 
+              ? LoadingScreen(
+                  message: languageProvider.getTranslatedText({
+                    'en': 'Loading activities...',
+                    'id': 'Memuat kegiatan...',
+                  }),
+                )
+              : Column(
+                  children: [
+                    // Content Section with Tabs
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: TabBarView(
+                        controller: _tabController,
                         children: [
-                          Text(
-                            _teacherName,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Total Kegiatan: ${_activityList.length}',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 14,
-                            ),
-                          ),
+                          // Tab 1: Untuk Semua Siswa
+                          _buildActivityList(),
+
+                          // Tab 2: Khusus Siswa
+                          _buildActivityList(),
                         ],
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-
-          // Content Section with Tabs
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // Tab 1: Untuk Semua Siswa
-                _isLoading ? _buildLoadingState() : _buildActivityList(),
-
-                // Tab 2: Khusus Siswa
-                _isLoading ? _buildLoadingState() : _buildActivityList(),
-              ],
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddActivityDialog,
-        backgroundColor: Color(0xFF4F46E5),
-        foregroundColor: Colors.white,
-        child: Icon(Icons.add),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
-          ),
-          SizedBox(height: 16),
-          Text(
-            'Memuat kegiatan...',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
+
+// AddActivityDialog class remains the same as in your original code...
+// [Keep the existing AddActivityDialog class unchanged]
 
 class AddActivityDialog extends StatefulWidget {
   final String teacherId;

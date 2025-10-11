@@ -2,6 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/services/api_class_activity_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
+import 'package:manajemensekolah/components/enhanced_search_bar.dart';
+import 'package:manajemensekolah/components/empty_state.dart';
+import 'package:manajemensekolah/components/loading_screen.dart';
+import 'package:manajemensekolah/components/error_screen.dart';
+import 'package:manajemensekolah/utils/color_utils.dart';
+import 'package:manajemensekolah/utils/language_utils.dart';
+import 'package:provider/provider.dart';
 
 class AdminClassActivityScreen extends StatefulWidget {
   const AdminClassActivityScreen({super.key});
@@ -18,6 +25,12 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen> {
   String? _selectedTeacherId;
   String? _selectedTeacherName;
   bool _showTeacherList = true;
+  String? _errorMessage;
+
+  // Search dan filter
+  final TextEditingController _searchController = TextEditingController();
+  final List<String> _filterOptions = ['All', 'Assignment', 'Material'];
+  String _selectedFilter = 'All';
 
   final Map<String, Color> _dayColorMap = {
     'Senin': Color(0xFF6366F1),
@@ -34,9 +47,18 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen> {
     _loadTeachers();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadTeachers() async {
     try {
-      setState(() => _isLoading = true);
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
       
       final apiTeacherService = ApiTeacherService();
       final teachers = await apiTeacherService.getTeacher();
@@ -46,7 +68,10 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString();
+      });
       _showErrorSnackBar('Gagal memuat data guru: $e');
     }
   }
@@ -55,6 +80,7 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen> {
     try {
       setState(() {
         _isLoading = true;
+        _errorMessage = null;
         _selectedTeacherId = teacherId;
         _selectedTeacherName = teacherName;
         _showTeacherList = false;
@@ -78,7 +104,10 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString();
+      });
       _showErrorSnackBar('Gagal memuat kegiatan: $e');
     }
   }
@@ -98,213 +127,268 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen> {
       _showTeacherList = true;
       _selectedTeacherId = null;
       _selectedTeacherName = null;
+      _searchController.clear();
+      _selectedFilter = 'All';
     });
   }
 
+  List<dynamic> _getFilteredTeachers() {
+    final searchTerm = _searchController.text.toLowerCase();
+    return _teacherList.where((teacher) {
+      final teacherName = teacher['nama']?.toString().toLowerCase() ?? '';
+      final teacherEmail = teacher['email']?.toString().toLowerCase() ?? '';
+      final teacherSubject = teacher['mata_pelajaran_nama']?.toString().toLowerCase() ?? '';
+
+      return searchTerm.isEmpty ||
+          teacherName.contains(searchTerm) ||
+          teacherEmail.contains(searchTerm) ||
+          teacherSubject.contains(searchTerm);
+    }).toList();
+  }
+
+  List<dynamic> _getFilteredActivities() {
+    final searchTerm = _searchController.text.toLowerCase();
+    return _activityList.where((activity) {
+      final title = activity['judul']?.toString().toLowerCase() ?? '';
+      final subject = activity['mata_pelajaran_nama']?.toString().toLowerCase() ?? '';
+      final className = activity['kelas_nama']?.toString().toLowerCase() ?? '';
+      final description = activity['deskripsi']?.toString().toLowerCase() ?? '';
+
+      final matchesSearch =
+          searchTerm.isEmpty ||
+          title.contains(searchTerm) ||
+          subject.contains(searchTerm) ||
+          className.contains(searchTerm) ||
+          description.contains(searchTerm);
+
+      final isAssignment = activity['jenis'] == 'tugas';
+      final matchesFilter =
+          _selectedFilter == 'All' ||
+          (_selectedFilter == 'Assignment' && isAssignment) ||
+          (_selectedFilter == 'Material' && !isAssignment);
+
+      return matchesSearch && matchesFilter;
+    }).toList();
+  }
+
   Widget _buildTeacherList() {
-    if (_teacherList.isEmpty && !_isLoading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline, size: 80, color: Colors.grey.shade300),
-            SizedBox(height: 16),
-            Text(
-              'Tidak ada data guru',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            SizedBox(height: 8),
-            ElevatedButton.icon(
-              onPressed: _loadTeachers,
-              icon: Icon(Icons.refresh),
-              label: Text('Refresh'),
-            ),
-          ],
-        ),
+    final filteredTeachers = _getFilteredTeachers();
+
+    if (filteredTeachers.isEmpty && !_isLoading) {
+      return EmptyState(
+        title: 'Tidak ada data guru',
+        subtitle: _searchController.text.isEmpty
+            ? 'Data guru tidak tersedia'
+            : 'Tidak ditemukan hasil pencarian',
+        icon: Icons.people_outline,
       );
     }
 
-    return ListView.builder(
-      padding: EdgeInsets.all(16),
-      itemCount: _teacherList.length,
-      itemBuilder: (context, index) {
-        final teacher = _teacherList[index];
-        final teacherName = teacher['nama']?.toString() ?? 'Nama tidak tersedia';
-        final teacherEmail = teacher['email']?.toString() ?? '';
-        final teacherSubject = teacher['mata_pelajaran_nama']?.toString() ?? 'Mata Pelajaran';
-
-        return Card(
-          elevation: 2,
-          margin: EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: ListTile(
-            leading: Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: Color(0xFF4F46E5).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: Icon(
-                Icons.person,
-                color: Color(0xFF4F46E5),
-                size: 24,
-              ),
-            ),
-            title: Text(
-              teacherName,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      children: [
+        if (filteredTeachers.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
               children: [
-                SizedBox(height: 4),
                 Text(
-                  teacherEmail,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  teacherSubject,
-                  style: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 12,
-                  ),
+                  '${filteredTeachers.length} guru ditemukan',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
                 ),
               ],
             ),
-            onTap: () => _loadActivitiesByTeacher(
-              teacher['id'].toString(),
-              teacherName,
-            ),
           ),
-        );
-      },
+        SizedBox(height: 8),
+        Expanded(
+          child: ListView.builder(
+            padding: EdgeInsets.all(16),
+            itemCount: filteredTeachers.length,
+            itemBuilder: (context, index) {
+              final teacher = filteredTeachers[index];
+              final teacherName = teacher['nama']?.toString() ?? 'Nama tidak tersedia';
+              final teacherEmail = teacher['email']?.toString() ?? '';
+              final teacherSubject = teacher['mata_pelajaran_nama']?.toString() ?? 'Mata Pelajaran';
+
+              return Card(
+                elevation: 2,
+                margin: EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  leading: Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: ColorUtils.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Icon(
+                      Icons.person,
+                      color: ColorUtils.primaryColor,
+                      size: 24,
+                    ),
+                  ),
+                  title: Text(
+                    teacherName,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 4),
+                      Text(
+                        teacherEmail,
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        teacherSubject,
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  trailing: Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Colors.grey.shade400,
+                  ),
+                  onTap: () => _loadActivitiesByTeacher(
+                    teacher['id'].toString(),
+                    teacherName,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildActivityList() {
-    if (_activityList.isEmpty && !_isLoading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.event_note, size: 80, color: Colors.grey.shade300),
-            SizedBox(height: 16),
-            Text(
-              'Belum ada kegiatan',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Guru ${_selectedTeacherName} belum membuat kegiatan kelas',
-              style: TextStyle(
-                color: Colors.grey.shade500,
-                fontSize: 14,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+    final filteredActivities = _getFilteredActivities();
+
+    if (filteredActivities.isEmpty && !_isLoading) {
+      return EmptyState(
+        title: 'Belum ada kegiatan',
+        subtitle: _searchController.text.isEmpty
+            ? 'Guru ${_selectedTeacherName} belum membuat kegiatan kelas'
+            : 'Tidak ditemukan hasil pencarian',
+        icon: Icons.event_note,
       );
     }
 
     // Kelompokkan kegiatan berdasarkan target
-    final umumActivities = _activityList.where((activity) => activity['target'] == 'umum').toList();
-    final khususActivities = _activityList.where((activity) => activity['target'] == 'khusus').toList();
+    final umumActivities = filteredActivities.where((activity) => activity['target'] == 'umum').toList();
+    final khususActivities = filteredActivities.where((activity) => activity['target'] == 'khusus').toList();
 
-    return DefaultTabController(
-      length: 2,
-      child: Column(
-        children: [
-          // Tab Bar
-          Container(
-            color: Colors.white,
-            child: TabBar(
-              labelColor: Color(0xFF4F46E5),
-              unselectedLabelColor: Colors.grey.shade600,
-              indicatorColor: Color(0xFF4F46E5),
-              indicatorWeight: 3,
-              tabs: [
-                Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.group, size: 18),
-                      SizedBox(width: 6),
-                      Text('Semua Siswa'),
-                      SizedBox(width: 6),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          umumActivities.length.toString(),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.green.shade700,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Tab(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.person, size: 18),
-                      SizedBox(width: 6),
-                      Text('Khusus Siswa'),
-                      SizedBox(width: 6),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.purple.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          khususActivities.length.toString(),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.purple.shade700,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: TabBarView(
+    return Column(
+      children: [
+        if (filteredActivities.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
               children: [
-                _buildActivityTabList(umumActivities, 'Semua Siswa'),
-                _buildActivityTabList(khususActivities, 'Khusus Siswa'),
+                Text(
+                  '${filteredActivities.length} kegiatan ditemukan',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                ),
               ],
             ),
           ),
-        ],
-      ),
+        SizedBox(height: 8),
+        Expanded(
+          child: DefaultTabController(
+            length: 2,
+            child: Column(
+              children: [
+                // Tab Bar
+                Container(
+                  color: Colors.white,
+                  child: TabBar(
+                    labelColor: ColorUtils.primaryColor,
+                    unselectedLabelColor: Colors.grey.shade600,
+                    indicatorColor: ColorUtils.primaryColor,
+                    indicatorWeight: 3,
+                    tabs: [
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.group, size: 18),
+                            SizedBox(width: 6),
+                            Text('Semua Siswa'),
+                            SizedBox(width: 6),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                umumActivities.length.toString(),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.green.shade700,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Tab(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.person, size: 18),
+                            SizedBox(width: 6),
+                            Text('Khusus Siswa'),
+                            SizedBox(width: 6),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.purple.shade50,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                khususActivities.length.toString(),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.purple.shade700,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _buildActivityTabList(umumActivities, 'Semua Siswa'),
+                      _buildActivityTabList(khususActivities, 'Khusus Siswa'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -317,7 +401,7 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen> {
             Icon(Icons.event_busy, size: 60, color: Colors.grey.shade300),
             SizedBox(height: 16),
             Text(
-              'Tidak ada kegiatan $title.toLowerCase()',
+              'Tidak ada kegiatan ${title.toLowerCase()}',
               style: TextStyle(
                 color: Colors.grey.shade600,
                 fontSize: 16,
@@ -556,58 +640,98 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen> {
     return _dayColorMap[day] ?? Color(0xFF6B7280);
   }
 
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
-          ),
-          SizedBox(height: 16),
-          Text(
-            _showTeacherList ? 'Memuat data guru...' : 'Memuat kegiatan...',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Text(
-          _showTeacherList ? 'Kegiatan Kelas - Semua Guru' : 'Kegiatan - $_selectedTeacherName',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        backgroundColor: Color(0xFF4F46E5),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        leading: _showTeacherList 
-            ? null
-            : IconButton(
-                icon: Icon(Icons.arrow_back),
-                onPressed: _backToTeacherList,
-                tooltip: 'Kembali ke daftar guru',
-              ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _showTeacherList ? _loadTeachers : () {
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        if (_isLoading) {
+          return LoadingScreen(
+            message: _showTeacherList 
+                ? 'Memuat data guru...'
+                : 'Memuat kegiatan...',
+          );
+        }
+
+        if (_errorMessage != null) {
+          return ErrorScreen(
+            errorMessage: _errorMessage!,
+            onRetry: _showTeacherList ? _loadTeachers : () {
               if (_selectedTeacherId != null) {
                 _loadActivitiesByTeacher(_selectedTeacherId!, _selectedTeacherName!);
               }
             },
-            tooltip: 'Refresh',
+          );
+        }
+
+        return Scaffold(
+          backgroundColor: Colors.grey.shade50,
+          appBar: AppBar(
+            title: Text(
+              _showTeacherList 
+                  ? 'Kegiatan Kelas - Semua Guru'
+                  : 'Kegiatan - $_selectedTeacherName',
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: true,
+            iconTheme: IconThemeData(color: Colors.black),
+            leading: _showTeacherList 
+                ? null
+                : IconButton(
+                    icon: Icon(Icons.arrow_back, color: Colors.black),
+                    onPressed: _backToTeacherList,
+                    tooltip: 'Kembali ke daftar guru',
+                  ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.refresh, color: Colors.black),
+                onPressed: _showTeacherList ? _loadTeachers : () {
+                  if (_selectedTeacherId != null) {
+                    _loadActivitiesByTeacher(_selectedTeacherId!, _selectedTeacherName!);
+                  }
+                },
+                tooltip: 'Refresh',
+              ),
+            ],
+            bottom: PreferredSize(
+              preferredSize: Size.fromHeight(1),
+              child: Container(height: 1, color: Colors.grey.shade300),
+            ),
           ),
-        ],
-      ),
-      body: _isLoading ? _buildLoadingState() : (
-        _showTeacherList ? _buildTeacherList() : _buildActivityList()
-      ),
+          body: Column(
+            children: [
+              EnhancedSearchBar(
+                controller: _searchController,
+                hintText: _showTeacherList
+                    ? 'Cari guru...'
+                    : 'Cari kegiatan...',
+                onChanged: (value) {
+                  setState(() {});
+                },
+                filterOptions: _showTeacherList 
+                    ? ['All', 'With Activities', 'Without Activities']
+                    : _filterOptions,
+                selectedFilter: _selectedFilter,
+                onFilterChanged: (filter) {
+                  setState(() {
+                    _selectedFilter = filter;
+                  });
+                },
+                showFilter: !_showTeacherList,
+              ),
+              Expanded(
+                child: _showTeacherList ? _buildTeacherList() : _buildActivityList(),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

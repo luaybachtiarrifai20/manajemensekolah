@@ -4,7 +4,7 @@ import 'package:manajemensekolah/components/confirmation_dialog.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/error_screen.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
-import 'package:manajemensekolah/components/search_bar.dart';
+import 'package:manajemensekolah/components/enhanced_search_bar.dart';
 import 'package:manajemensekolah/components/subject_list_item.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
@@ -22,12 +22,24 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
   List<dynamic> _subjectList = [];
   bool _isLoading = true;
   String _errorMessage = '';
+  
+  // Search dan filter
   final TextEditingController _searchController = TextEditingController();
+  
+  // Filter options untuk EnhancedSearchBar
+  final List<String> _filterOptions = ['All', 'With Classes', 'Without Classes'];
+  String _selectedFilter = 'All';
 
   @override
   void initState() {
     super.initState();
     _loadSubjects();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSubjects() async {
@@ -327,6 +339,28 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
     );
   }
 
+  List<dynamic> _getFilteredSubjects() {
+    return _subjectList.where((subject) {
+      final searchTerm = _searchController.text.toLowerCase();
+      final subjectName = subject['nama']?.toString().toLowerCase() ?? '';
+      final subjectCode = subject['kode']?.toString().toLowerCase() ?? '';
+
+      final matchesSearch =
+          searchTerm.isEmpty ||
+          subjectName.contains(searchTerm) ||
+          subjectCode.contains(searchTerm);
+
+      final hasClasses = (subject['jumlah_kelas'] ?? 0) > 0;
+      
+      final matchesFilter =
+          _selectedFilter == 'All' ||
+          (_selectedFilter == 'With Classes' && hasClasses) ||
+          (_selectedFilter == 'Without Classes' && !hasClasses);
+
+      return matchesSearch && matchesFilter;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
@@ -347,12 +381,20 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
           );
         }
 
-        final filteredSubjects = _subjectList.where((subject) {
-          final searchTerm = _searchController.text.toLowerCase();
-          return searchTerm.isEmpty ||
-              subject['nama'].toLowerCase().contains(searchTerm) ||
-              subject['kode'].toLowerCase().contains(searchTerm);
-        }).toList();
+        final filteredSubjects = _getFilteredSubjects();
+
+        // Terjemahan filter options
+        final translatedFilterOptions = [
+          languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
+          languageProvider.getTranslatedText({
+            'en': 'With Classes',
+            'id': 'Dengan Kelas',
+          }),
+          languageProvider.getTranslatedText({
+            'en': 'Without Classes',
+            'id': 'Tanpa Kelas',
+          }),
+        ];
 
         return Scaffold(
           backgroundColor: Colors.grey.shade50,
@@ -384,14 +426,51 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
           ),
           body: Column(
             children: [
-              CustomSearchBar(
+              EnhancedSearchBar(
                 controller: _searchController,
                 hintText: languageProvider.getTranslatedText({
                   'en': 'Search subjects...',
                   'id': 'Cari mata pelajaran...',
                 }),
-                onChanged: (value) => setState(() {}),
+                onChanged: (value) {
+                  setState(() {});
+                },
+                filterOptions: translatedFilterOptions,
+                selectedFilter: translatedFilterOptions[
+                  _selectedFilter == 'All' 
+                    ? 0 
+                    : _selectedFilter == 'With Classes' 
+                      ? 1 
+                      : 2
+                ],
+                onFilterChanged: (filter) {
+                  final index = translatedFilterOptions.indexOf(filter);
+                  setState(() {
+                    _selectedFilter = index == 0 
+                      ? 'All' 
+                      : index == 1 
+                        ? 'With Classes' 
+                        : 'Without Classes';
+                  });
+                },
+                showFilter: true,
               ),
+              if (filteredSubjects.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${filteredSubjects.length} ${languageProvider.getTranslatedText({
+                          'en': 'subjects found',
+                          'id': 'mata pelajaran ditemukan',
+                        })}',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              SizedBox(height: 8),
               Expanded(
                 child: filteredSubjects.isEmpty
                     ? EmptyState(
@@ -399,7 +478,7 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
                           'en': 'No subjects',
                           'id': 'Tidak ada mata pelajaran',
                         }),
-                        subtitle: _searchController.text.isEmpty
+                        subtitle: _searchController.text.isEmpty && _selectedFilter == 'All'
                             ? languageProvider.getTranslatedText({
                                 'en': 'Tap + to add a subject',
                                 'id': 'Tap + untuk menambah mata pelajaran',
@@ -462,12 +541,21 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
   List<dynamic> _assignedClasses = [];
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
-  int _currentTabIndex = 1; // Default ke tab "Semua Kelas"
+
+  // Filter options untuk EnhancedSearchBar
+  final List<String> _filterOptions = ['All', 'Assigned', 'Unassigned'];
+  String _selectedFilter = 'All';
 
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -732,8 +820,6 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
                         child: ElevatedButton(
                           onPressed: () {
                             Navigator.pop(context);
-                            // Switch ke tab Semua Kelas
-                            _currentTabIndex = 1;
                             setState(() {});
                           },
                           style: ElevatedButton.styleFrom(
@@ -763,21 +849,27 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
     return _assignedClasses.any((kelas) => kelas['id'] == kelasId);
   }
 
-  List<dynamic> _getFilteredAvailableClasses() {
+  List<dynamic> _getFilteredClasses() {
     final searchTerm = _searchController.text.toLowerCase();
     return _availableClasses.where((kelas) {
-      return searchTerm.isEmpty ||
-          kelas['nama'].toLowerCase().contains(searchTerm) ||
-          (kelas['tingkat']?.toString().toLowerCase().contains(searchTerm) ?? false);
-    }).toList();
-  }
+      final className = kelas['nama']?.toString().toLowerCase() ?? '';
+      final classLevel = kelas['tingkat']?.toString().toLowerCase() ?? '';
+      final homeroomTeacher = kelas['wali_kelas_nama']?.toString().toLowerCase() ?? '';
 
-  List<dynamic> _getFilteredAssignedClasses() {
-    final searchTerm = _searchController.text.toLowerCase();
-    return _assignedClasses.where((kelas) {
-      return searchTerm.isEmpty ||
-          kelas['nama'].toLowerCase().contains(searchTerm) ||
-          (kelas['tingkat']?.toString().toLowerCase().contains(searchTerm) ?? false);
+      final matchesSearch =
+          searchTerm.isEmpty ||
+          className.contains(searchTerm) ||
+          classLevel.contains(searchTerm) ||
+          homeroomTeacher.contains(searchTerm);
+
+      final isAssigned = _isClassAssigned(kelas['id']);
+      
+      final matchesFilter =
+          _selectedFilter == 'All' ||
+          (_selectedFilter == 'Assigned' && isAssigned) ||
+          (_selectedFilter == 'Unassigned' && !isAssigned);
+
+      return matchesSearch && matchesFilter;
     }).toList();
   }
 
@@ -880,33 +972,93 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
   @override
   Widget build(BuildContext context) {
     final canAddMoreClasses = _getCanAddMoreClasses();
+    final filteredClasses = _getFilteredClasses();
     
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: Text('Kelola Kelas - ${widget.subject['nama']}'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+        title: Text(
+          'Kelola Kelas - ${widget.subject['nama']}',
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: IconThemeData(color: Colors.black),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: Colors.black),
             onPressed: _loadData,
-            tooltip: 'Muat Ulang',
+            tooltip: 'Refresh',
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Container(height: 1, color: Colors.grey.shade300),
+        ),
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // Info Mata Pelajaran
+                // Enhanced Search Bar dengan filter
+                EnhancedSearchBar(
+                  controller: _searchController,
+                  hintText: 'Cari kelas...',
+                  onChanged: (value) {
+                    setState(() {});
+                  },
+                  filterOptions: _filterOptions,
+                  selectedFilter: _selectedFilter,
+                  onFilterChanged: (filter) {
+                    setState(() {
+                      _selectedFilter = filter;
+                    });
+                  },
+                  showFilter: true,
+                ),
+
+                if (filteredClasses.isNotEmpty)
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Text(
+                          '${filteredClasses.length} kelas ditemukan',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                SizedBox(height: 8),
+
+                // Info Mata Pelajaran (Card yang lebih sederhana)
                 Card(
-                  margin: EdgeInsets.all(16),
-                  color: Colors.blue[50],
+                  margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: Colors.blue.shade50,
+                  elevation: 1,
                   child: Padding(
                     padding: EdgeInsets.all(12),
                     child: Row(
                       children: [
-                        Icon(Icons.menu_book, color: Colors.blue),
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.menu_book, color: Colors.blue, size: 20),
+                        ),
                         SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -916,15 +1068,10 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
                                 widget.subject['nama'],
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                                  fontSize: 14,
                                 ),
                               ),
-                              if (widget.subject['kode'] != null)
-                                Text(
-                                  'Kode: ${widget.subject['kode']}',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              SizedBox(height: 4),
+                              SizedBox(height: 2),
                               Text(
                                 '${_assignedClasses.length} kelas terdaftar',
                                 style: TextStyle(
@@ -933,7 +1080,7 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
                                 ),
                               ),
                               if (!canAddMoreClasses) ...[
-                                SizedBox(height: 4),
+                                SizedBox(height: 2),
                                 Text(
                                   'Semua kelas sudah ditambahkan',
                                   style: TextStyle(
@@ -950,93 +1097,24 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
                     ),
                   ),
                 ),
-                SizedBox(height: 8),
 
-                // Search Bar
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Cari kelas...',
-                        prefixIcon: Icon(Icons.search, color: Colors.grey),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onChanged: (value) => setState(() {}),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 8),
-
-                // Tab untuk Kelas Terdaftar dan Semua Kelas
+                // Daftar Kelas
                 Expanded(
-                  child: DefaultTabController(
-                    length: 2,
-                    child: Column(
-                      children: [
-                        TabBar(
-                          labelColor: Colors.blue,
-                          unselectedLabelColor: Colors.grey,
-                          indicatorColor: Colors.blue,
-                          onTap: (index) {
-                            setState(() {
-                              _currentTabIndex = index;
-                            });
+                  child: filteredClasses.isEmpty
+                      ? _buildEmptyState(
+                          _searchController.text.isEmpty && _selectedFilter == 'All'
+                              ? 'Belum ada kelas yang tersedia'
+                              : 'Tidak ada kelas yang cocok dengan pencarian',
+                          showAddButton: _searchController.text.isEmpty && _selectedFilter == 'All' && canAddMoreClasses,
+                        )
+                      : ListView.builder(
+                          itemCount: filteredClasses.length,
+                          itemBuilder: (context, index) {
+                            final kelas = filteredClasses[index];
+                            final isAssigned = _isClassAssigned(kelas['id']);
+                            return _buildClassCard(kelas, isAssigned);
                           },
-                          tabs: [
-                            Tab(
-                              text: 'Kelas Terdaftar (${_getFilteredAssignedClasses().length})',
-                            ),
-                            Tab(
-                              text: 'Semua Kelas (${_getFilteredAvailableClasses().length})',
-                            ),
-                          ],
                         ),
-                        Expanded(
-                          child: TabBarView(
-                            children: [
-                              // Tab Kelas Terdaftar
-                              _getFilteredAssignedClasses().isEmpty
-                                  ? _buildEmptyState(
-                                      _searchController.text.isEmpty
-                                          ? 'Belum ada kelas yang terdaftar\n\nTambahkan kelas menggunakan tombol + di bawah'
-                                          : 'Tidak ada kelas yang cocok dengan pencarian',
-                                      showAddButton: _searchController.text.isEmpty && canAddMoreClasses,
-                                    )
-                                  : ListView.builder(
-                                      itemCount: _getFilteredAssignedClasses().length,
-                                      itemBuilder: (context, index) {
-                                        final kelas = _getFilteredAssignedClasses()[index];
-                                        return _buildClassCard(kelas, true);
-                                      },
-                                    ),
-
-                              // Tab Semua Kelas
-                              _getFilteredAvailableClasses().isEmpty
-                                  ? _buildEmptyState(
-                                      'Tidak ada kelas yang tersedia',
-                                    )
-                                  : ListView.builder(
-                                      itemCount: _getFilteredAvailableClasses().length,
-                                      itemBuilder: (context, index) {
-                                        final kelas = _getFilteredAvailableClasses()[index];
-                                        final isAssigned = _isClassAssigned(kelas['id']);
-                                        return _buildClassCard(kelas, isAssigned);
-                                      },
-                                    ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               ],
             ),
@@ -1044,10 +1122,11 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
       floatingActionButton: canAddMoreClasses
           ? FloatingActionButton(
               onPressed: _showQuickAddClassDialog,
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-              tooltip: 'Tambah Kelas',
-              child: Icon(Icons.add),
+              backgroundColor: ColorUtils.primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(Icons.add, color: Colors.white),
             )
           : null,
     );

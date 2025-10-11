@@ -5,7 +5,7 @@ import 'package:manajemensekolah/components/class_list_item.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/error_screen.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
-import 'package:manajemensekolah/components/search_bar.dart';
+import 'package:manajemensekolah/components/enhanced_search_bar.dart';
 import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
@@ -33,6 +33,13 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
   final apiServiceClass = ApiClassService();
   final ApiTeacherService apiTeacherService = ApiTeacherService();
 
+  // Search dan filter
+  final TextEditingController _searchController = TextEditingController();
+  
+  // Filter options untuk EnhancedSearchBar
+  final List<String> _filterOptions = ['All', 'With Homeroom Teacher', 'Without Homeroom Teacher'];
+  String _selectedFilter = 'All';
+
   @override
   void initState() {
     super.initState();
@@ -42,6 +49,7 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -326,10 +334,26 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
     );
   }
 
-  List<dynamic> _getFilteredClasses(String searchTerm) {
+  List<dynamic> _getFilteredClasses() {
     return _classList.where((classItem) {
-      return searchTerm.isEmpty ||
-          classItem['name'].toLowerCase().contains(searchTerm.toLowerCase());
+      final searchTerm = _searchController.text.toLowerCase();
+      final className = classItem['nama']?.toString().toLowerCase() ?? '';
+      final homeroomTeacherName = classItem['wali_kelas_nama']?.toString().toLowerCase() ?? '';
+
+      final matchesSearch =
+          searchTerm.isEmpty ||
+          className.contains(searchTerm) ||
+          homeroomTeacherName.contains(searchTerm);
+
+      final hasHomeroomTeacher = classItem['wali_kelas_id'] != null && 
+          classItem['wali_kelas_id'].toString().isNotEmpty;
+      
+      final matchesFilter =
+          _selectedFilter == 'All' ||
+          (_selectedFilter == 'With Homeroom Teacher' && hasHomeroomTeacher) ||
+          (_selectedFilter == 'Without Homeroom Teacher' && !hasHomeroomTeacher);
+
+      return matchesSearch && matchesFilter;
     }).toList();
   }
 
@@ -353,8 +377,20 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
           );
         }
 
-        final TextEditingController searchController = TextEditingController();
-        final filteredClasses = _getFilteredClasses(searchController.text);
+        final filteredClasses = _getFilteredClasses();
+
+        // Terjemahan filter options
+        final translatedFilterOptions = [
+          languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
+          languageProvider.getTranslatedText({
+            'en': 'With Homeroom Teacher',
+            'id': 'Dengan Wali Kelas',
+          }),
+          languageProvider.getTranslatedText({
+            'en': 'Without Homeroom Teacher',
+            'id': 'Tanpa Wali Kelas',
+          }),
+        ];
 
         return Scaffold(
           backgroundColor: Colors.grey.shade50,
@@ -389,8 +425,8 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
           ),
           body: Column(
             children: [
-              CustomSearchBar(
-                controller: searchController,
+              EnhancedSearchBar(
+                controller: _searchController,
                 hintText: languageProvider.getTranslatedText({
                   'en': 'Search classes...',
                   'id': 'Cari kelas...',
@@ -398,7 +434,42 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
                 onChanged: (value) {
                   setState(() {});
                 },
+                filterOptions: translatedFilterOptions,
+                selectedFilter: translatedFilterOptions[
+                  _selectedFilter == 'All' 
+                    ? 0 
+                    : _selectedFilter == 'With Homeroom Teacher' 
+                      ? 1 
+                      : 2
+                ],
+                onFilterChanged: (filter) {
+                  final index = translatedFilterOptions.indexOf(filter);
+                  setState(() {
+                    _selectedFilter = index == 0 
+                      ? 'All' 
+                      : index == 1 
+                        ? 'With Homeroom Teacher' 
+                        : 'Without Homeroom Teacher';
+                  });
+                },
+                showFilter: true,
               ),
+              if (filteredClasses.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${filteredClasses.length} ${languageProvider.getTranslatedText({
+                          'en': 'classes found',
+                          'id': 'kelas ditemukan',
+                        })}',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              SizedBox(height: 8),
               Expanded(
                 child: filteredClasses.isEmpty
                     ? EmptyState(
@@ -406,7 +477,7 @@ class ClassManagementScreenState extends State<ClassManagementScreen> {
                           'en': 'No classes',
                           'id': 'Tidak ada kelas',
                         }),
-                        subtitle: searchController.text.isEmpty
+                        subtitle: _searchController.text.isEmpty && _selectedFilter == 'All'
                             ? languageProvider.getTranslatedText({
                                 'en': 'Tap + to add a class',
                                 'id': 'Tap + untuk menambah kelas',

@@ -7,7 +7,7 @@ import 'package:manajemensekolah/components/filter_section.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
 import 'package:manajemensekolah/components/schedule_form_dialog.dart';
 import 'package:manajemensekolah/components/schedule_list.dart';
-import 'package:manajemensekolah/components/search_bar.dart';
+import 'package:manajemensekolah/components/enhanced_search_bar.dart';
 import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_schedule_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
@@ -16,7 +16,6 @@ import 'package:manajemensekolah/services/api_teacher_services.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
 import 'package:provider/provider.dart';
-
 
 class TeachingScheduleManagementScreen extends StatefulWidget {
   const TeachingScheduleManagementScreen({super.key});
@@ -46,10 +45,20 @@ class TeachingScheduleManagementScreenState
   String _selectedAcademicYear = '2024/2025';
   final TextEditingController _searchController = TextEditingController();
 
+  // Filter options untuk EnhancedSearchBar
+  final List<String> _filterOptions = ['All', 'With Conflicts', 'Without Conflicts'];
+  String _selectedFilter = 'All';
+
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -284,22 +293,30 @@ class TeachingScheduleManagementScreenState
   }
 
   List<dynamic> _getFilteredSchedules() {
+    final searchTerm = _searchController.text.toLowerCase();
     return _scheduleList.where((schedule) {
-      final searchTerm = _searchController.text.toLowerCase();
-      return searchTerm.isEmpty ||
-          (schedule['mata_pelajaran_nama']
-                  ?.toString()
-                  .toLowerCase()
-                  .contains(searchTerm) ??
-              false) ||
-          (schedule['guru_nama']?.toString().toLowerCase().contains(
-                searchTerm,
-              ) ??
-              false) ||
-          (schedule['kelas_nama']?.toString().toLowerCase().contains(
-                searchTerm,
-              ) ??
-              false);
+      final subjectName = schedule['mata_pelajaran_nama']?.toString().toLowerCase() ?? '';
+      final teacherName = schedule['guru_nama']?.toString().toLowerCase() ?? '';
+      final className = schedule['kelas_nama']?.toString().toLowerCase() ?? '';
+      final dayName = schedule['hari_nama']?.toString().toLowerCase() ?? '';
+
+      final matchesSearch =
+          searchTerm.isEmpty ||
+          subjectName.contains(searchTerm) ||
+          teacherName.contains(searchTerm) ||
+          className.contains(searchTerm) ||
+          dayName.contains(searchTerm);
+
+      // Untuk sementara, kita asumsikan semua schedule tanpa konflik
+      // Di implementasi nyata, Anda perlu mengecek konflik sebenarnya
+      final hasConflict = false; // Ganti dengan logika deteksi konflik sebenarnya
+      
+      final matchesFilter =
+          _selectedFilter == 'All' ||
+          (_selectedFilter == 'With Conflicts' && hasConflict) ||
+          (_selectedFilter == 'Without Conflicts' && !hasConflict);
+
+      return matchesSearch && matchesFilter;
     }).toList();
   }
 
@@ -318,26 +335,46 @@ class TeachingScheduleManagementScreenState
 
         final filteredSchedules = _getFilteredSchedules();
 
+        // Terjemahan filter options
+        final translatedFilterOptions = [
+          languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
+          languageProvider.getTranslatedText({
+            'en': 'With Conflicts',
+            'id': 'Dengan Konflik',
+          }),
+          languageProvider.getTranslatedText({
+            'en': 'Without Conflicts',
+            'id': 'Tanpa Konflik',
+          }),
+        ];
+
         return Scaffold(
           backgroundColor: Colors.grey.shade50,
           appBar: AppBar(
             title: Text(
               AppLocalizations.manageTeachingSchedule.tr,
               style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
+                fontFamily: 'Poppins',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
             ),
-            backgroundColor: ColorUtils.primaryColor,
+            backgroundColor: Colors.white,
             elevation: 0,
             centerTitle: true,
+            iconTheme: IconThemeData(color: Colors.black),
             actions: [
               IconButton(
-                icon: Icon(Icons.refresh, color: Colors.white),
+                icon: Icon(Icons.refresh, color: Colors.black),
                 onPressed: _loadData,
                 tooltip: AppLocalizations.refresh.tr,
               ),
             ],
+            bottom: PreferredSize(
+              preferredSize: Size.fromHeight(1),
+              child: Container(height: 1, color: Colors.grey.shade300),
+            ),
           ),
           body: Column(
             children: [
@@ -348,19 +385,52 @@ class TeachingScheduleManagementScreenState
                 onSemesterChanged: _onSemesterChanged,
                 onAcademicYearChanged: _onAcademicYearChanged,
               ),
-              SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: CustomSearchBar(
-                  controller: _searchController,
-                  hintText: languageProvider.getTranslatedText({
-                    'en': 'Search schedules...',
-                    'id': 'Cari jadwal...',
-                  }),
-                  onChanged: (value) => setState(() {}),
-                ),
+              SizedBox(height: 8),
+              EnhancedSearchBar(
+                controller: _searchController,
+                hintText: languageProvider.getTranslatedText({
+                  'en': 'Search schedules...',
+                  'id': 'Cari jadwal...',
+                }),
+                onChanged: (value) {
+                  setState(() {});
+                },
+                filterOptions: translatedFilterOptions,
+                selectedFilter: translatedFilterOptions[
+                  _selectedFilter == 'All' 
+                    ? 0 
+                    : _selectedFilter == 'With Conflicts' 
+                      ? 1 
+                      : 2
+                ],
+                onFilterChanged: (filter) {
+                  final index = translatedFilterOptions.indexOf(filter);
+                  setState(() {
+                    _selectedFilter = index == 0 
+                      ? 'All' 
+                      : index == 1 
+                        ? 'With Conflicts' 
+                        : 'Without Conflicts';
+                  });
+                },
+                showFilter: true,
               ),
-              SizedBox(height: 16),
+              if (filteredSchedules.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${filteredSchedules.length} ${languageProvider.getTranslatedText({
+                          'en': 'schedules found',
+                          'id': 'jadwal ditemukan',
+                        })}',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              SizedBox(height: 8),
               Expanded(
                 child: filteredSchedules.isEmpty
                     ? EmptyState(
@@ -368,7 +438,7 @@ class TeachingScheduleManagementScreenState
                           'en': 'No teaching schedules',
                           'id': 'Belum ada jadwal mengajar',
                         }),
-                        subtitle: _searchController.text.isEmpty
+                        subtitle: _searchController.text.isEmpty && _selectedFilter == 'All'
                             ? languageProvider.getTranslatedText({
                                 'en': 'Tap + to add new schedule',
                                 'id': 'Tap + untuk menambah jadwal baru',
