@@ -1,4 +1,9 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:manajemensekolah/services/api_services.dart';
+import 'package:manajemensekolah/services/excel_teacher_service.dart';
 import 'package:provider/provider.dart';
 import 'package:manajemensekolah/components/confirmation_dialog.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
@@ -20,7 +25,8 @@ class TeacherAdminScreen extends StatefulWidget {
   TeacherAdminScreenState createState() => TeacherAdminScreenState();
 }
 
-class TeacherAdminScreenState extends State<TeacherAdminScreen> {
+class TeacherAdminScreenState extends State<TeacherAdminScreen>
+    with SingleTickerProviderStateMixin {
   final ApiTeacherService _teacherService = ApiTeacherService();
   final ApiClassService _classService = ApiClassService();
   final ApiSubjectService _subjectService = ApiSubjectService();
@@ -30,10 +36,13 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
   final TextEditingController _searchController = TextEditingController();
 
   // Filter options untuk EnhancedSearchBar
-  // Alternatif lebih sederhana:
   List<String> getFilterOptions(LanguageProvider languageProvider) {
     return [
       languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
@@ -48,12 +57,32 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
     ];
   }
 
-  String _selectedFilter = 'All'; // Tetap gunakan English sebagai key internal
+  String _selectedFilter = 'All';
 
   @override
   void initState() {
     super.initState();
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 800),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -73,6 +102,8 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
         _classes = classData;
         _isLoading = false;
       });
+
+      _animationController.forward();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -87,8 +118,109 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
               'id': 'Gagal memuat data: $e',
             }),
           ),
+          backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  // Export teachers to Excel
+  Future<void> _exportToExcel() async {
+    await ExcelTeacherService.exportTeachersToExcel(
+      teachers: _teachers,
+      context: context,
+    );
+  }
+
+  // Import teachers from Excel
+  Future<void> _importFromExcel() async {
+    final languageProvider = context.read<LanguageProvider>();
+
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'xls'],
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        await ApiTeacherService.importTeachersFromExcel(
+          File(result.files.single.path!)
+        );
+
+        // Refresh data setelah import
+        await _loadData();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            languageProvider.getTranslatedText({
+              'en': 'Failed to import file: $e',
+              'id': 'Gagal mengimpor file: $e',
+            }),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // Download template
+  Future<void> _downloadTemplate() async {
+    await ExcelTeacherService.downloadTemplate(context);
+  }
+
+  // Import teacher from Excel (API call)
+  Future<Map<String, dynamic>> importTeachersFromExcelAPI(
+    String base64File,
+  ) async {
+    try {
+      final response = await ApiService().post('/guru/import', {
+        'file_data': base64File,
+      });
+      return response;
+    } catch (e) {
+      debugPrint('Error importing teachers from Excel: $e');
+      rethrow;
+    }
+  }
+
+  // Download teacher template (API call)
+  Future<String> downloadTeacherTemplateAPI() async {
+    try {
+      final response = await ApiService().get('/guru/template');
+      return response['file_data'];
+    } catch (e) {
+      debugPrint('Error downloading teacher template: $e');
+      rethrow;
+    }
+  }
+
+  // Import teacher from Excel
+  Future<Map<String, dynamic>> importTeachersFromExcel(
+    String base64File,
+  ) async {
+    try {
+      final response = await ApiService().post('/guru/import', {
+        'file_data': base64File,
+      });
+      return response;
+    } catch (e) {
+      debugPrint('Error importing teachers from Excel: $e');
+      rethrow;
+    }
+  }
+
+  // Download teacher template
+  Future<String> downloadTeacherTemplate() async {
+    try {
+      final response = await ApiService().get('/guru/template');
+      return response['file_data'];
+    } catch (e) {
+      debugPrint('Error downloading teacher template: $e');
+      rethrow;
     }
   }
 
@@ -126,6 +258,7 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
               'id': 'Gagal mengupdate mata pelajaran guru: $error',
             }),
           ),
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -157,251 +290,404 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
           builder: (context, languageProvider, child) {
             return StatefulBuilder(
               builder: (context, setState) {
-                return AlertDialog(
-                  title: Text(
-                    teacher == null
-                        ? languageProvider.getTranslatedText({
-                            'en': 'Add Teacher',
-                            'id': 'Tambah Guru',
-                          })
-                        : languageProvider.getTranslatedText({
-                            'en': 'Edit Teacher',
-                            'id': 'Edit Guru',
-                          }),
+                return Dialog(
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  content: SingleChildScrollView(
+                  child: SingleChildScrollView(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        TextField(
-                          controller: nameController,
-                          decoration: InputDecoration(
-                            labelText: languageProvider.getTranslatedText({
-                              'en': 'Teacher Name',
-                              'id': 'Nama Guru',
-                            }),
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        TextField(
-                          controller: emailController,
-                          decoration: InputDecoration(
-                            labelText: languageProvider.getTranslatedText({
-                              'en': 'Email',
-                              'id': 'Email',
-                            }),
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        SizedBox(height: 16),
-                        TextField(
-                          controller: nipController,
-                          decoration: InputDecoration(
-                            labelText: 'NIP',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        DropdownButtonFormField<String>(
-                          initialValue: selectedClassId,
-                          decoration: InputDecoration(
-                            labelText: languageProvider.getTranslatedText({
-                              'en': 'Class (Optional)',
-                              'id': 'Kelas (Opsional)',
-                            }),
-                            border: OutlineInputBorder(),
-                          ),
-                          items: [
-                            DropdownMenuItem(
-                              value: null,
-                              child: Text(
-                                languageProvider.getTranslatedText({
-                                  'en': 'None',
-                                  'id': 'Tidak ada',
-                                }),
-                              ),
+                        // Header dengan gradient
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: _getCardGradient(),
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              topRight: Radius.circular(20),
                             ),
-                            ..._classes
-                                .where(
-                                  (classItem) =>
-                                      classItem['id'] != null &&
-                                      classItem['name'] != null,
-                                )
-                                .map(
-                                  (classItem) => DropdownMenuItem<String>(
-                                    value: classItem['id'].toString(),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  teacher == null
+                                      ? Icons.person_add
+                                      : Icons.edit,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  teacher == null
+                                      ? languageProvider.getTranslatedText({
+                                          'en': 'Add Teacher',
+                                          'id': 'Tambah Guru',
+                                        })
+                                      : languageProvider.getTranslatedText({
+                                          'en': 'Edit Teacher',
+                                          'id': 'Edit Guru',
+                                        }),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildDialogTextField(
+                                controller: nameController,
+                                label: languageProvider.getTranslatedText({
+                                  'en': 'Teacher Name',
+                                  'id': 'Nama Guru',
+                                }),
+                                icon: Icons.person,
+                              ),
+                              SizedBox(height: 12),
+                              _buildDialogTextField(
+                                controller: emailController,
+                                label: languageProvider.getTranslatedText({
+                                  'en': 'Email',
+                                  'id': 'Email',
+                                }),
+                                icon: Icons.email,
+                                keyboardType: TextInputType.emailAddress,
+                              ),
+                              SizedBox(height: 12),
+                              _buildDialogTextField(
+                                controller: nipController,
+                                label: 'NIP',
+                                icon: Icons.badge,
+                              ),
+                              SizedBox(height: 12),
+                              _buildDialogDropdown(
+                                value: selectedClassId,
+                                label: languageProvider.getTranslatedText({
+                                  'en': 'Class (Optional)',
+                                  'id': 'Kelas (Opsional)',
+                                }),
+                                icon: Icons.school,
+                                items: [
+                                  DropdownMenuItem(
+                                    value: null,
                                     child: Text(
-                                      classItem['name']?.toString() ??
-                                          'Unknown Class',
+                                      languageProvider.getTranslatedText({
+                                        'en': 'None',
+                                        'id': 'Tidak ada',
+                                      }),
+                                    ),
+                                  ),
+                                  ..._classes
+                                      .where(
+                                        (classItem) =>
+                                            classItem['id'] != null &&
+                                            classItem['name'] != null,
+                                      )
+                                      .map(
+                                        (classItem) => DropdownMenuItem<String>(
+                                          value: classItem['id'].toString(),
+                                          child: Text(
+                                            classItem['name']?.toString() ??
+                                                'Unknown Class',
+                                          ),
+                                        ),
+                                      ),
+                                ],
+                                onChanged: (value) {
+                                  setState(() => selectedClassId = value);
+                                },
+                              ),
+                              SizedBox(height: 16),
+
+                              // Subjects Section
+                              Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.grey.shade200,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      languageProvider.getTranslatedText({
+                                        'en': 'Subjects:',
+                                        'id': 'Mata Pelajaran:',
+                                      }),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    ..._subjects
+                                        .where(
+                                          (subject) =>
+                                              subject['id'] != null &&
+                                              subject['nama'] != null,
+                                        )
+                                        .map(
+                                          (subject) => CheckboxListTile(
+                                            contentPadding: EdgeInsets.zero,
+                                            title: Text(
+                                              subject['nama']?.toString() ??
+                                                  'Unknown Subject',
+                                              style: TextStyle(fontSize: 14),
+                                            ),
+                                            value: selectedSubjectIds.contains(
+                                              subject['id']?.toString(),
+                                            ),
+                                            onChanged: (value) {
+                                              final subjectId = subject['id']
+                                                  ?.toString();
+                                              if (subjectId == null) return;
+
+                                              setState(() {
+                                                if (value == true) {
+                                                  selectedSubjectIds.add(
+                                                    subjectId,
+                                                  );
+                                                } else {
+                                                  selectedSubjectIds.remove(
+                                                    subjectId,
+                                                  );
+                                                }
+                                              });
+                                            },
+                                            controlAffinity:
+                                                ListTileControlAffinity.leading,
+                                          ),
+                                        ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(height: 12),
+
+                              // Homeroom Teacher Checkbox
+                              Container(
+                                padding: EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.grey.shade200,
+                                  ),
+                                ),
+                                child: CheckboxListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Homeroom Teacher',
+                                      'id': 'Wali Kelas',
+                                    }),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  value: isHomeroomTeacher,
+                                  onChanged: (value) {
+                                    setState(
+                                      () => isHomeroomTeacher = value ?? false,
+                                    );
+                                  },
+                                  controlAffinity:
+                                      ListTileControlAffinity.leading,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Actions
+                        Container(
+                          padding: EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  style: OutlinedButton.styleFrom(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                    side: BorderSide(
+                                      color: Colors.grey.shade300,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    AppLocalizations.cancel.tr,
+                                    style: TextStyle(
+                                      color: Colors.grey.shade700,
                                     ),
                                   ),
                                 ),
-                          ],
-                          onChanged: (value) {
-                            setState(() => selectedClassId = value);
-                          },
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          languageProvider.getTranslatedText({
-                            'en': 'Subjects:',
-                            'id': 'Mata Pelajaran:',
-                          }),
-                        ),
-                        ..._subjects
-                            .where(
-                              (subject) =>
-                                  subject['id'] != null &&
-                                  subject['nama'] != null,
-                            )
-                            .map(
-                              (subject) => CheckboxListTile(
-                                title: Text(
-                                  subject['nama']?.toString() ??
-                                      'Unknown Subject',
-                                ),
-                                value: selectedSubjectIds.contains(
-                                  subject['id']?.toString(),
-                                ),
-                                onChanged: (value) {
-                                  final subjectId = subject['id']?.toString();
-                                  if (subjectId == null) return;
-
-                                  setState(() {
-                                    if (value == true) {
-                                      selectedSubjectIds.add(subjectId);
-                                    } else {
-                                      selectedSubjectIds.remove(subjectId);
-                                    }
-                                  });
-                                },
-                                controlAffinity:
-                                    ListTileControlAffinity.leading,
                               ),
-                            ),
-                        SizedBox(height: 16),
-                        CheckboxListTile(
-                          title: Text(
-                            languageProvider.getTranslatedText({
-                              'en': 'Homeroom Teacher',
-                              'id': 'Wali Kelas',
-                            }),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    final name = nameController.text.trim();
+                                    final email = emailController.text.trim();
+                                    final nip = nipController.text.trim();
+
+                                    if (name.isEmpty ||
+                                        email.isEmpty ||
+                                        nip.isEmpty) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            languageProvider.getTranslatedText({
+                                              'en':
+                                                  'Name, email, and NIP must be filled',
+                                              'id':
+                                                  'Nama, email, dan NIP harus diisi',
+                                            }),
+                                          ),
+                                          backgroundColor: Colors.orange,
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    try {
+                                      final data = {
+                                        'name': name,
+                                        'email': email,
+                                        'class_id': selectedClassId,
+                                        'nip': nip,
+                                        'is_homeroom_teacher':
+                                            isHomeroomTeacher,
+                                      };
+
+                                      String teacherId;
+                                      if (teacher == null) {
+                                        final result = await _teacherService
+                                            .addTeacher(data);
+                                        teacherId =
+                                            result['id']?.toString() ?? '';
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                languageProvider.getTranslatedText({
+                                                  'en':
+                                                      'Teacher added successfully. Default password: password123',
+                                                  'id':
+                                                      'Guru berhasil ditambahkan. Password default: password123',
+                                                }),
+                                              ),
+                                              backgroundColor: Colors.green,
+                                              duration: Duration(seconds: 5),
+                                            ),
+                                          );
+                                        }
+                                      } else {
+                                        teacherId =
+                                            teacher['id']?.toString() ?? '';
+                                        await _teacherService.updateTeacher(
+                                          teacherId,
+                                          data,
+                                        );
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                languageProvider.getTranslatedText({
+                                                  'en':
+                                                      'Teacher updated successfully',
+                                                  'id':
+                                                      'Guru berhasil diupdate',
+                                                }),
+                                              ),
+                                              backgroundColor: Colors.green,
+                                            ),
+                                          );
+                                        }
+                                      }
+
+                                      if (teacherId.isNotEmpty) {
+                                        await _manageTeacherSubject(
+                                          teacherId,
+                                          selectedSubjectIds,
+                                        );
+                                      }
+
+                                      if (context.mounted) {
+                                        Navigator.pop(context);
+                                      }
+                                      _loadData();
+                                    } catch (error) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              languageProvider.getTranslatedText({
+                                                'en':
+                                                    'Failed to save data: $error',
+                                                'id':
+                                                    'Gagal menyimpan data: $error',
+                                              }),
+                                            ),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: _getPrimaryColor(),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                  child: Text(
+                                    AppLocalizations.save.tr,
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          value: isHomeroomTeacher,
-                          onChanged: (value) {
-                            setState(() => isHomeroomTeacher = value ?? false);
-                          },
-                          controlAffinity: ListTileControlAffinity.leading,
                         ),
                       ],
                     ),
                   ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(AppLocalizations.cancel.tr),
-                    ),
-                    ElevatedButton(
-                      onPressed: () async {
-                        final name = nameController.text.trim();
-                        final email = emailController.text.trim();
-                        final nip = nipController.text.trim();
-
-                        if (name.isEmpty || email.isEmpty || nip.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                languageProvider.getTranslatedText({
-                                  'en': 'Name, email, and NIP must be filled',
-                                  'id': 'Nama, email, dan NIP harus diisi',
-                                }),
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-
-                        try {
-                          final data = {
-                            'name': name,
-                            'email': email,
-                            'class_id': selectedClassId,
-                            'nip': nip,
-                            'is_homeroom_teacher': isHomeroomTeacher,
-                          };
-
-                          String teacherId;
-                          if (teacher == null) {
-                            final result = await _teacherService.addTeacher(
-                              data,
-                            );
-                            teacherId = result['id']?.toString() ?? '';
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    languageProvider.getTranslatedText({
-                                      'en':
-                                          'Teacher added successfully. Default password: password123',
-                                      'id':
-                                          'Guru berhasil ditambahkan. Password default: password123',
-                                    }),
-                                  ),
-                                  duration: Duration(seconds: 5),
-                                ),
-                              );
-                            }
-                          } else {
-                            teacherId = teacher['id']?.toString() ?? '';
-                            await _teacherService.updateTeacher(
-                              teacherId,
-                              data,
-                            );
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    languageProvider.getTranslatedText({
-                                      'en': 'Teacher updated successfully',
-                                      'id': 'Guru berhasil diupdate',
-                                    }),
-                                  ),
-                                ),
-                              );
-                            }
-                          }
-
-                          if (teacherId.isNotEmpty) {
-                            await _manageTeacherSubject(
-                              teacherId,
-                              selectedSubjectIds,
-                            );
-                          }
-
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                          }
-                          _loadData();
-                        } catch (error) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  languageProvider.getTranslatedText({
-                                    'en': 'Failed to save data: $error',
-                                    'id': 'Gagal menyimpan data: $error',
-                                  }),
-                                ),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      child: Text(AppLocalizations.save.tr),
-                    ),
-                  ],
                 );
               },
             );
@@ -423,28 +709,81 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
             showDialogWithSubjects(ids);
           })
           .catchError((error) {
-            // Handle error jika gagal mengambil data subject
             showDialogWithSubjects([]);
           });
     }
   }
 
+  Widget _buildDialogTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: _getPrimaryColor(), size: 20),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        ),
+        keyboardType: keyboardType,
+      ),
+    );
+  }
+
+  Widget _buildDialogDropdown({
+    required String? value,
+    required String label,
+    required IconData icon,
+    required List<DropdownMenuItem<String>> items,
+    required Function(String?) onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: _getPrimaryColor(), size: 20),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 12),
+        ),
+        items: items,
+        onChanged: onChanged,
+        style: TextStyle(fontSize: 14, color: Colors.grey.shade800),
+      ),
+    );
+  }
+
   Future<void> _deleteTeacher(Map<String, dynamic> teacher) async {
     final confirmed = await showDialog(
       context: context,
-      builder: (context) => Consumer<LanguageProvider>(
-        builder: (context, languageProvider, child) {
-          return ConfirmationDialog(
-            title: languageProvider.getTranslatedText({
-              'en': 'Delete Teacher',
-              'id': 'Hapus Guru',
-            }),
-            content: languageProvider.getTranslatedText({
-              'en': 'Are you sure you want to delete this teacher?',
-              'id': 'Apakah Anda yakin ingin menghapus guru ini?',
-            }),
-          );
-        },
+      builder: (context) => ConfirmationDialog(
+        title: context.read<LanguageProvider>().getTranslatedText({
+          'en': 'Delete Teacher',
+          'id': 'Hapus Guru',
+        }),
+        content: context.read<LanguageProvider>().getTranslatedText({
+          'en': 'Are you sure you want to delete this teacher?',
+          'id': 'Apakah Anda yakin ingin menghapus guru ini?',
+        }),
+        confirmText: context.read<LanguageProvider>().getTranslatedText({
+          'en': 'Delete',
+          'id': 'Hapus',
+        }),
+        confirmColor: Colors.red,
       ),
     );
 
@@ -462,6 +801,7 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
                     'id': 'Guru berhasil dihapus',
                   }),
                 ),
+                backgroundColor: Colors.green,
               ),
             );
           }
@@ -477,6 +817,7 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
                   'id': 'Gagal menghapus guru: $error',
                 }),
               ),
+              backgroundColor: Colors.red,
             ),
           );
         }
@@ -490,6 +831,18 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
       MaterialPageRoute(
         builder: (context) => TeacherDetailScreen(guru: teacher),
       ),
+    );
+  }
+
+  Color _getPrimaryColor() {
+    return Color(0xFF4361EE); // Blue untuk admin
+  }
+
+  LinearGradient _getCardGradient() {
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
     );
   }
 
@@ -520,7 +873,6 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
               name.contains(searchTerm) ||
               nip.contains(searchTerm);
 
-          // Filter berdasarkan jenis guru
           final isHomeroom =
               teacher['is_wali_kelas'] == 1 || teacher['is_wali_kelas'] == true;
           final matchesFilter =
@@ -532,32 +884,103 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
         }).toList();
 
         return Scaffold(
-          backgroundColor: Colors.grey.shade50,
+          backgroundColor: Color(0xFFF8F9FA),
           appBar: AppBar(
             title: Text(
               AppLocalizations.manageTeachers.tr,
               style: TextStyle(
-                fontFamily: 'Poppins',
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black,
+                color: Colors.white,
               ),
             ),
-            backgroundColor: Colors.white,
+            backgroundColor: _getPrimaryColor(),
             elevation: 0,
             centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.black),
+            iconTheme: IconThemeData(color: Colors.white),
             actions: [
-              IconButton(
-                icon: Icon(Icons.refresh, color: Colors.black),
-                onPressed: _loadData,
-                tooltip: AppLocalizations.refresh.tr,
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert, color: Colors.white),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'export':
+                      _exportToExcel();
+                      break;
+                    case 'import':
+                      _importFromExcel();
+                      break;
+                    case 'template':
+                      _downloadTemplate();
+                      break;
+                    case 'refresh':
+                      _loadData();
+                      break;
+                  }
+                },
+                itemBuilder: (BuildContext context) => [
+                  PopupMenuItem<String>(
+                    value: 'export',
+                    child: Row(
+                      children: [
+                        Icon(Icons.file_download, color: _getPrimaryColor()),
+                        SizedBox(width: 8),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Export to Excel',
+                            'id': 'Export ke Excel',
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'import',
+                    child: Row(
+                      children: [
+                        Icon(Icons.file_upload, color: _getPrimaryColor()),
+                        SizedBox(width: 8),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Import from Excel',
+                            'id': 'Import dari Excel',
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'template',
+                    child: Row(
+                      children: [
+                        Icon(Icons.download, color: _getPrimaryColor()),
+                        SizedBox(width: 8),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Download Template',
+                            'id': 'Unduh Template',
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'refresh',
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh, color: _getPrimaryColor()),
+                        SizedBox(width: 8),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Refresh',
+                            'id': 'Refresh',
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
-            bottom: PreferredSize(
-              preferredSize: Size.fromHeight(1),
-              child: Container(height: 1, color: Colors.grey.shade300),
-            ),
           ),
           body: Column(
             children: [
@@ -588,6 +1011,19 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
                 },
                 showFilter: true,
               ),
+              if (filteredTeachers.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${filteredTeachers.length} ${languageProvider.getTranslatedText({'en': 'teachers found', 'id': 'guru ditemukan'})}',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              SizedBox(height: 4),
               Expanded(
                 child: filteredTeachers.isEmpty
                     ? EmptyState(
@@ -613,13 +1049,35 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
                         itemCount: filteredTeachers.length,
                         itemBuilder: (context, index) {
                           final teacher = filteredTeachers[index];
+                          return AnimatedBuilder(
+                            animation: _animationController,
+                            builder: (context, child) {
+                              final delay = index * 0.1;
+                              final animation = CurvedAnimation(
+                                parent: _animationController,
+                                curve: Interval(
+                                  delay,
+                                  1.0,
+                                  curve: Curves.easeOut,
+                                ),
+                              );
 
-                          return TeacherListItem(
-                            guru: teacher,
-                            index: index,
-                            onTap: () => _navigateToDetail(teacher),
-                            onEdit: () => _showAddEditDialog(teacher: teacher),
-                            onDelete: () => _deleteTeacher(teacher),
+                              return FadeTransition(
+                                opacity: animation,
+                                child: Transform.translate(
+                                  offset: Offset(0, 50 * (1 - animation.value)),
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: TeacherListItem(
+                              guru: teacher,
+                              index: index,
+                              onTap: () => _navigateToDetail(teacher),
+                              onEdit: () =>
+                                  _showAddEditDialog(teacher: teacher),
+                              onDelete: () => _deleteTeacher(teacher),
+                            ),
                           );
                         },
                       ),
@@ -628,11 +1086,11 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen> {
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () => _showAddEditDialog(),
-            backgroundColor: ColorUtils.primaryColor,
+            backgroundColor: _getPrimaryColor(),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(Icons.add, color: Colors.white),
+            child: Icon(Icons.add, color: Colors.white, size: 20),
           ),
         );
       },

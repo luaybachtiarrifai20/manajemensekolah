@@ -1,8 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="Ai Easy School"
+        android:label="Kamil Edu"
         android:name="${applicationName}"
-        android:icon="@mipmap/iconaieasetech">
+        android:icon="@mipmap/kamilicon">
         <activity
             android:name=".MainActivity"
             android:exported="true"

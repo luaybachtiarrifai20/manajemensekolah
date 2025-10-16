@@ -6,12 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // static const String baseUrl = 'http://10.0.2.2:3000/api'; // Android emulator
-  // static const String baseUrl = 'http://localhost:3000/api'; // iOS simulator atau web
+  static const String baseUrl = 'http://localhost:3000/api'; // iOS simulator atau web
 
   // static const String baseUrl = 'https://backendmanajemensekolah2.vercel.app/api';
   // static const String baseUrl = 'https://libra.web.id/apimanajemen';
 
-  static const String baseUrl = 'http://aieasytech.id/api';
+  // static const String baseUrl = 'http://aieasytech.id/api';
 
   Future<dynamic> get(String endpoint) async {
     final response = await http.get(
@@ -286,6 +286,25 @@ class ApiService {
     );
 
     return _handleResponse(response);
+  }
+
+  // Dalam class ApiService di api_services.dart
+  Future<List<int>> getGradeLevels() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/school-configs/grade-levels'),
+        headers: await _getHeaders(),
+      );
+
+      final result = _handleResponse(response);
+      if (result is List) {
+        return result.cast<int>();
+      }
+      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; // fallback
+    } catch (e) {
+      print('Error getting grade levels: $e');
+      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; // fallback
+    }
   }
 
   // Get kelas by mata pelajaran

@@ -1,4 +1,3 @@
-// Versi paling compact dengan IntrinsicWidth
 import 'package:flutter/material.dart';
 
 class EnhancedSearchBar extends StatefulWidget {
@@ -34,12 +33,12 @@ class _EnhancedSearchBarState extends State<EnhancedSearchBar> {
         height: 48,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black12,
-              blurRadius: 4,
-              offset: Offset(0, 2),
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: Offset(0, 4),
             ),
           ],
         ),
@@ -47,14 +46,14 @@ class _EnhancedSearchBarState extends State<EnhancedSearchBar> {
           children: [
             // Search Icon
             const Padding(
-              padding: EdgeInsets.only(left: 12),
-              child: Icon(Icons.search, color: Colors.grey, size: 20),
+              padding: EdgeInsets.only(left: 16),
+              child: Icon(Icons.search_rounded, color: Colors.grey, size: 20),
             ),
             
             // Search Field
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: TextField(
                   controller: widget.controller,
                   decoration: InputDecoration(
@@ -74,11 +73,16 @@ class _EnhancedSearchBarState extends State<EnhancedSearchBar> {
             
             // Clear Search Button
             if (widget.controller.text.isNotEmpty)
-              SizedBox(
+              Container(
                 width: 36,
                 height: 36,
+                margin: EdgeInsets.only(right: 4),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  shape: BoxShape.circle,
+                ),
                 child: IconButton(
-                  icon: const Icon(Icons.clear, color: Colors.grey, size: 18),
+                  icon: const Icon(Icons.clear, color: Colors.grey, size: 16),
                   onPressed: () {
                     widget.controller.clear();
                     widget.onChanged?.call('');
@@ -93,17 +97,18 @@ class _EnhancedSearchBarState extends State<EnhancedSearchBar> {
                 width: 1,
                 height: 24,
                 color: Colors.grey[300],
-                margin: const EdgeInsets.symmetric(horizontal: 4),
+                margin: const EdgeInsets.symmetric(horizontal: 8),
               ),
             
-            // Filter Dropdown dengan width intrinsic
+            // Filter Dropdown dengan design modern
             if (widget.showFilter && widget.filterOptions != null)
-              IntrinsicWidth(
+              Container(
+                padding: EdgeInsets.only(right: 12),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: widget.selectedFilter,
                     isDense: true,
-                    icon: const Icon(Icons.arrow_drop_down, color: Colors.grey, size: 20),
+                    icon: const Icon(Icons.filter_list_rounded, color: Colors.grey, size: 18),
                     style: TextStyle(
                       fontSize: 13,
                       color: Colors.grey[700],
@@ -128,8 +133,6 @@ class _EnhancedSearchBarState extends State<EnhancedSearchBar> {
                   ),
                 ),
               ),
-            
-            const SizedBox(width: 8),
           ],
         ),
       ),

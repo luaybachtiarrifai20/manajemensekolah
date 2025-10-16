@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:manajemensekolah/services/api_services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiScheduleService {
@@ -277,6 +279,151 @@ class ApiScheduleService {
         print('Error loading filtered schedule: $e');
       }
       return [];
+    }
+  }
+
+  // Tambahkan method berikut di class ApiScheduleService
+
+  // Download template jadwal mengajar
+  static Future<String> downloadScheduleTemplate() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/jadwal-mengajar/template'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        // Get directory
+        final directory = await getApplicationDocumentsDirectory();
+        final filePath =
+            '${directory.path}/template_import_jadwal_mengajar.xlsx';
+        final file = File(filePath);
+
+        await file.writeAsBytes(response.bodyBytes);
+        return filePath;
+      } else {
+        throw Exception('Download failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Failed to download template: $e');
+    }
+  }
+
+  // Import jadwal mengajar dari Excel
+  static Future<Map<String, dynamic>> importSchedulesFromExcel(
+    File file,
+  ) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/jadwal-mengajar/import'),
+      );
+
+      // Add headers
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      request.headers['Authorization'] = 'Bearer $token';
+
+      // Add file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          file.path,
+          filename: file.path.split('/').last,
+        ),
+      );
+
+      // Send request
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      print('Import Schedule Response Status: ${response.statusCode}');
+      print('Import Schedule Response Body: $responseBody');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return json.decode(responseBody);
+      } else {
+        throw Exception(
+          'Import failed with status: ${response.statusCode}. Response: $responseBody',
+        );
+      }
+    } catch (e) {
+      print('Import schedule error details: $e');
+      throw Exception('Import error: $e');
+    }
+  }
+
+  // Debug Excel untuk jadwal mengajar
+  static Future<Map<String, dynamic>> debugExcelSchedule(File file) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/debug/excel-jadwal-mengajar'),
+      );
+
+      // Add headers
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      request.headers['Authorization'] = 'Bearer $token';
+
+      // Add file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          file.path,
+          filename: file.path.split('/').last,
+        ),
+      );
+
+      // Send request
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return json.decode(responseBody);
+      } else {
+        throw Exception('Debug failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Debug error: $e');
+    }
+  }
+
+  // Export jadwal mengajar ke Excel
+  static Future<String> exportSchedules({
+    String? guruId,
+    String? kelasId,
+    String? hariId,
+    String? semesterId,
+    String? tahunAjaran,
+  }) async {
+    try {
+      String url = '$baseUrl/jadwal-mengajar/export?';
+      if (guruId != null) url += 'guru_id=$guruId&';
+      if (kelasId != null) url += 'kelas_id=$kelasId&';
+      if (hariId != null) url += 'hari_id=$hariId&';
+      if (semesterId != null) url += 'semester_id=$semesterId&';
+      if (tahunAjaran != null) url += 'tahun_ajaran=$tahunAjaran&';
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        // Get directory
+        final directory = await getApplicationDocumentsDirectory();
+        final filePath =
+            '${directory.path}/jadwal_mengajar_export_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+        final file = File(filePath);
+
+        await file.writeAsBytes(response.bodyBytes);
+        return filePath;
+      } else {
+        throw Exception('Export failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Failed to export schedules: $e');
     }
   }
 }

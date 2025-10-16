@@ -1,7 +1,8 @@
 import 'dart:convert';
-
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:manajemensekolah/services/api_services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiStudentService {
@@ -29,12 +30,119 @@ class ApiStudentService {
     }
   }
 
-  // Di ApiStudentService
+  // Import siswa dari Excel
+  static Future<Map<String, dynamic>> importStudentsFromExcel(File file) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/siswa/import'),
+      );
+
+      // Add headers
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      request.headers['Authorization'] = 'Bearer $token';
+
+      // Add file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          file.path,
+          filename: file.path.split('/').last,
+        ),
+      );
+
+      // Send request
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      print('Import Response Status: ${response.statusCode}');
+      print('Import Response Body: $responseBody');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return json.decode(responseBody);
+      } else {
+        throw Exception(
+          'Import failed with status: ${response.statusCode}. Response: $responseBody',
+        );
+      }
+    } catch (e) {
+      print('Import error details: $e');
+      throw Exception('Import error: $e');
+    }
+  }
+
+  // Download template Excel
+  static Future<String> downloadTemplate() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/siswa/template'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        // Save file locally
+        final directory = await getExternalStorageDirectory();
+        final filePath = '${directory?.path}/template_import_siswa.xlsx';
+        final file = File(filePath);
+        
+        await file.writeAsBytes(response.bodyBytes);
+        
+        print('Template downloaded to: $filePath');
+        return filePath;
+      } else {
+        throw Exception('Download failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Download template error: $e');
+      throw Exception('Failed to download template: $e');
+    }
+  }
+
+  static Future<String> downloadTemplateGuru() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/guru/template'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        // Save file locally
+        final directory = await getExternalStorageDirectory();
+        final filePath = '${directory?.path}/template_import_guru.xlsx';
+        final file = File(filePath);
+        
+        await file.writeAsBytes(response.bodyBytes);
+        
+        print('Template downloaded to: $filePath');
+        return filePath;
+      } else {
+        throw Exception('Download failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Download template error: $e');
+      throw Exception('Failed to download template: $e');
+    }
+  }
+
+  // Get external storage directory (helper function)
+  static Future<Directory?> getExternalStorageDirectory() async {
+    try {
+      // For mobile
+      final directory = await getApplicationDocumentsDirectory();
+      return directory;
+    } catch (e) {
+      // For web or other platforms
+      return null;
+    }
+  }
+
+  // Get parent user
   static Future<Map<String, dynamic>?> getParentUser(String studentId) async {
     try {
       final response = await ApiService().get('users?siswa_id=$studentId');
       if (response != null && response is List && response.isNotEmpty) {
-        return response.first; // Ambil user pertama yang terkait dengan siswa
+        return response.first;
       }
       return null;
     } catch (e) {
@@ -51,7 +159,6 @@ class ApiStudentService {
     );
 
     final result = _handleResponse(response);
-    // Backend mengembalikan array langsung, bukan object dengan property 'data'
     return result is List ? result : [];
   }
 
@@ -84,7 +191,6 @@ class ApiStudentService {
     _handleResponse(response);
   }
 
-  // Tambahkan method ini di ApiStudentService
   static Future<List<dynamic>> getStudentByClass(String kelasId) async {
     try {
       final semuaSiswa = await getStudent();

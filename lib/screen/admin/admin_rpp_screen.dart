@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/services/api_services.dart';
+import 'package:manajemensekolah/services/excel_rpp_service.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
+import 'package:manajemensekolah/components/enhanced_search_bar.dart';
+import 'package:manajemensekolah/components/empty_state.dart';
+import 'package:manajemensekolah/components/error_screen.dart';
+import 'package:manajemensekolah/components/loading_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:manajemensekolah/utils/language_utils.dart';
 
 class AdminRppScreen extends StatefulWidget {
   final String? teacherId;
@@ -12,18 +19,55 @@ class AdminRppScreen extends StatefulWidget {
   State<AdminRppScreen> createState() => _AdminRppScreenState();
 }
 
-class _AdminRppScreenState extends State<AdminRppScreen> {
+class _AdminRppScreenState extends State<AdminRppScreen>
+    with SingleTickerProviderStateMixin {
   List<dynamic> _rppList = [];
   List<dynamic> _filteredRppList = [];
   bool _isLoading = true;
   String? _errorMessage;
   String _filterStatus = 'Semua';
+  final TextEditingController _searchController = TextEditingController();
+
+  // Filter options untuk EnhancedSearchBar
+  final List<String> _filterOptions = ['Semua', 'Menunggu', 'Disetujui', 'Ditolak'];
+  
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 800),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
     _loadRppByTeacher();
   }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _exportToExcel() async {
+    await ExcelRppService.exportRppToExcel(
+      rppList: _rppList,
+      context: context,
+    );
+  }
+
 
   Future<void> _loadRppByTeacher() async {
     try {
@@ -48,6 +92,8 @@ class _AdminRppScreenState extends State<AdminRppScreen> {
         _filteredRppList = filteredData;
         _isLoading = false;
       });
+
+      _animationController.forward();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -70,6 +116,8 @@ class _AdminRppScreenState extends State<AdminRppScreen> {
         _filteredRppList = rppData;
         _isLoading = false;
       });
+
+      _animationController.forward();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -139,227 +187,464 @@ class _AdminRppScreenState extends State<AdminRppScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Text(
-          widget.teacherName != null
-              ? 'RPP - ${widget.teacherName}'
-              : 'Kelola RPP - Admin',
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
+  Color _getPrimaryColor() {
+    return Color(0xFF4361EE); // Blue untuk admin
+  }
+
+  LinearGradient _getCardGradient() {
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
+    );
+  }
+
+  Widget _buildRppCard(Map<String, dynamic> rpp, int index) {
+    final languageProvider = context.read<LanguageProvider>();
+
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        final delay = index * 0.1;
+        final animation = CurvedAnimation(
+          parent: _animationController,
+          curve: Interval(delay, 1.0, curve: Curves.easeOut),
+        );
+
+        return FadeTransition(
+          opacity: animation,
+          child: Transform.translate(
+            offset: Offset(0, 50 * (1 - animation.value)),
+            child: child,
           ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.black),
-        leading: widget.teacherId != null
-            ? IconButton(
-                icon: Icon(Icons.arrow_back, color: Colors.black),
-                onPressed: () => Navigator.pop(context),
-              )
-            : null,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: Colors.black),
-            onPressed: _loadRppByTeacher,
-            tooltip: 'Refresh',
-          ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Container(height: 1, color: Colors.grey.shade300),
-        ),
-      ),
-      body: Column(
-        children: [
-          // Filter Section
-          Container(
-            padding: EdgeInsets.all(16),
-            color: Colors.white,
-            child: Row(
-              children: [
-                Text(
-                  'Filter Status:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[700],
-                  ),
+        );
+      },
+      child: GestureDetector(
+        onTap: () => _lihatDetailRpp(rpp),
+        child: Container(
+          margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _lihatDetailRpp(rpp),
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: _getCardGradient(),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getPrimaryColor().withOpacity(0.2),
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
                 ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: DropdownButtonFormField(
-                    value: _filterStatus,
-                    items: ['Semua', 'Menunggu', 'Disetujui', 'Ditolak'].map((status) {
-                      return DropdownMenuItem(
-                        value: status,
-                        child: Text(status),
-                      );
-                    }).toList(),
-                    onChanged: (value) => _filterRpp(value!),
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                child: Stack(
+                  children: [
+                    // Background pattern
+                    Positioned(
+                      right: -10,
+                      top: -10,
+                      child: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
                     ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 1),
-          // List Section
-          Expanded(
-            child: _isLoading
-                ? Center(child: CircularProgressIndicator())
-                : _errorMessage != null
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.error_outline, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'Terjadi kesalahan',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                        SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _loadAllRpp,
-                          child: Text('Coba Lagi'),
-                        ),
-                      ],
-                    ),
-                  )
-                : _filteredRppList.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.description, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'Tidak ada RPP',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          _filterStatus == 'Semua' 
-                            ? 'Belum ada RPP yang dibuat'
-                            : 'Tidak ada RPP dengan status $_filterStatus',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: EdgeInsets.all(16),
-                    itemCount: _filteredRppList.length,
-                    itemBuilder: (context, index) {
-                      final rpp = _filteredRppList[index];
-                      return Card(
-                        margin: EdgeInsets.only(bottom: 12),
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.all(16),
-                          leading: Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(rpp['status']).withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              _getStatusIcon(rpp['status']),
-                              color: _getStatusColor(rpp['status']),
-                              size: 24,
-                            ),
-                          ),
-                          title: Text(
-                            rpp['judul'] ?? '-',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header dengan judul dan status
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              SizedBox(height: 4),
-                              Text(
-                                '${rpp['mata_pelajaran_nama'] ?? '-'}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[700],
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      rpp['judul'] ?? 'No Title',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      '${rpp['mata_pelajaran_nama'] ?? 'No Subject'}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white.withOpacity(0.8),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              if (rpp['kelas_nama'] != null) 
-                                Text(
-                                  'Kelas: ${rpp['kelas_nama']}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
                                   ),
                                 ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Oleh: ${rpp['guru_nama'] ?? '-'}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
+                                child: Text(
+                                  rpp['status'] == 'Menunggu' ? 'Menunggu' :
+                                  rpp['status'] == 'Disetujui' ? 'Disetujui' : 'Ditolak',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          trailing: Container(
-                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: _getStatusColor(rpp['status']),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Text(
-                              rpp['status'] == 'Menunggu' ? 'Menunggu' :
-                              rpp['status'] == 'Disetujui' ? 'Disetujui' : 'Ditolak',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+
+                          SizedBox(height: 12),
+
+                          // Informasi kelas dan guru
+                          Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(
+                                  Icons.school,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
                               ),
-                            ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Kelas',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.white.withOpacity(0.8),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 1),
+                                    Text(
+                                      rpp['kelas_nama'] ?? 'No Class',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                          onTap: () => _lihatDetailRpp(rpp),
-                        ),
-                      );
-                    },
-                  ),
+
+                          SizedBox(height: 8),
+
+                          Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Guru',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.white.withOpacity(0.8),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 1),
+                                    Text(
+                                      rpp['guru_nama'] ?? 'No Teacher',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          SizedBox(height: 12),
+
+                          // Action buttons
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              _buildActionButton(
+                                icon: Icons.visibility,
+                                label: 'Detail',
+                                color: Colors.white,
+                                onPressed: () => _lihatDetailRpp(rpp),
+                              ),
+                              SizedBox(width: 8),
+                              _buildActionButton(
+                                icon: Icons.edit,
+                                label: 'Status',
+                                color: Colors.white,
+                                onPressed: () => _updateStatus(rpp['id'], rpp['status']),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: color),
+            SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        if (_isLoading) {
+          return LoadingScreen(
+            message: languageProvider.getTranslatedText({
+              'en': 'Loading RPP data...',
+              'id': 'Memuat data RPP...',
+            }),
+          );
+        }
+
+        if (_errorMessage != null) {
+          return ErrorScreen(errorMessage: _errorMessage!, onRetry: _loadAllRpp);
+        }
+
+        final filteredRpp = _filteredRppList.where((rpp) {
+          final searchTerm = _searchController.text.toLowerCase();
+          return searchTerm.isEmpty ||
+              (rpp['judul']?.toLowerCase().contains(searchTerm) ?? false) ||
+              (rpp['mata_pelajaran_nama']?.toLowerCase().contains(searchTerm) ?? false) ||
+              (rpp['guru_nama']?.toLowerCase().contains(searchTerm) ?? false) ||
+              (rpp['kelas_nama']?.toLowerCase().contains(searchTerm) ?? false);
+        }).toList();
+
+        return Scaffold(
+          backgroundColor: Color(0xFFF8F9FA),
+          appBar: AppBar(
+            title: Text(
+              widget.teacherName != null
+                  ? 'RPP - ${widget.teacherName}'
+                  : languageProvider.getTranslatedText({
+                      'en': 'Manage RPP',
+                      'id': 'Kelola RPP',
+                    }),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            backgroundColor: _getPrimaryColor(),
+            elevation: 0,
+            centerTitle: true,
+            iconTheme: IconThemeData(color: Colors.white),
+            leading: widget.teacherId != null
+                ? IconButton(
+                    icon: Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  )
+                : null,
+            actions: [
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert, color: Colors.white),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'export':
+                      _exportToExcel();
+                      break;
+                    case 'refresh':
+                      _loadRppByTeacher();
+                      break;
+                  }
+                },
+                itemBuilder: (BuildContext context) => [
+                  PopupMenuItem<String>(
+                    value: 'export',
+                    child: Row(
+                      children: [
+                        Icon(Icons.file_download, color: _getPrimaryColor()),
+                        SizedBox(width: 8),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Export to Excel',
+                            'id': 'Export ke Excel',
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'refresh',
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh, color: _getPrimaryColor()),
+                        SizedBox(width: 8),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Refresh',
+                            'id': 'Refresh',
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          body: Column(
+            children: [
+              EnhancedSearchBar(
+                controller: _searchController,
+                hintText: languageProvider.getTranslatedText({
+                  'en': 'Search RPP...',
+                  'id': 'Cari RPP...',
+                }),
+                onChanged: (value) => setState(() {}),
+                filterOptions: _filterOptions,
+                selectedFilter: _filterStatus,
+                onFilterChanged: (filter) {
+                  setState(() {
+                    _filterStatus = filter;
+                    _filterRpp(filter);
+                  });
+                },
+                showFilter: true,
+              ),
+              if (filteredRpp.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Text(
+                        '${filteredRpp.length} ${languageProvider.getTranslatedText({'en': 'RPP found', 'id': 'RPP ditemukan'})}',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              SizedBox(height: 4),
+              Expanded(
+                child: filteredRpp.isEmpty
+                    ? EmptyState(
+                        title: languageProvider.getTranslatedText({
+                          'en': 'No RPP',
+                          'id': 'Tidak ada RPP',
+                        }),
+                        subtitle:
+                            _searchController.text.isEmpty &&
+                                _filterStatus == 'Semua'
+                            ? languageProvider.getTranslatedText({
+                                'en': 'No RPP data available',
+                                'id': 'Tidak ada data RPP',
+                              })
+                            : languageProvider.getTranslatedText({
+                                'en': 'No search results found',
+                                'id': 'Tidak ditemukan hasil pencarian',
+                              }),
+                        icon: Icons.description,
+                      )
+                    : ListView.builder(
+                        itemCount: filteredRpp.length,
+                        itemBuilder: (context, index) {
+                          final rpp = filteredRpp[index];
+                          return _buildRppCard(rpp, index);
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
+// ... (UpdateStatusDialog dan RppAdminDetailPage tetap sama seperti sebelumnya)
 class UpdateStatusDialog extends StatefulWidget {
   final String rppId;
   final String currentStatus;

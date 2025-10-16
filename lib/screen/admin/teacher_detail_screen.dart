@@ -29,15 +29,11 @@ class TeacherDetailScreenState extends State<TeacherDetailScreen> {
         _errorMessage = null;
       });
 
-      // Mengambil data detail guru dari API
       final guruDetail = await apiTeacherService.getTeacherById(widget.guru['id']);
-
-      // Load mata pelajaran guru
       final mataPelajaranGuru = await apiTeacherService.getSubjectByTeacher(
         widget.guru['id'],
       );
 
-      // Gabungkan data
       final combinedData = Map<String, dynamic>.from(guruDetail);
       combinedData['mata_pelajaran_list'] = mataPelajaranGuru;
       combinedData['mata_pelajaran_names'] = mataPelajaranGuru
@@ -55,33 +51,59 @@ class TeacherDetailScreenState extends State<TeacherDetailScreen> {
         _errorMessage = e.toString();
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal memuat detail guru: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memuat detail guru: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+  Widget _buildInfoRow(String label, String value, {bool isMultiline = false}) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[700],
-              ),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Color(0xFF4361EE).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              _getIconForLabel(label),
+              size: 18,
+              color: Color(0xFF4361EE),
             ),
           ),
-          SizedBox(width: 16),
+          SizedBox(width: 12),
           Expanded(
-            child: Text(
-              value.isNotEmpty ? value : 'Tidak ada',
-              style: TextStyle(fontSize: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  value.isNotEmpty ? value : 'Tidak ada',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade800,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: isMultiline ? 3 : 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ],
@@ -89,167 +111,363 @@ class TeacherDetailScreenState extends State<TeacherDetailScreen> {
     );
   }
 
+  IconData _getIconForLabel(String label) {
+    switch (label) {
+      case 'Nama':
+        return Icons.person;
+      case 'NIP':
+        return Icons.badge;
+      case 'Email':
+        return Icons.email;
+      case 'Kelas':
+        return Icons.school;
+      case 'Mata Pelajaran':
+        return Icons.menu_book;
+      case 'Role':
+        return Icons.work;
+      case 'Status Wali Kelas':
+        return Icons.groups;
+      case 'ID':
+        return Icons.fingerprint;
+      case 'Tanggal Dibuat':
+        return Icons.calendar_today;
+      case 'Terakhir Diupdate':
+        return Icons.update;
+      default:
+        return Icons.info;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final guru = _guruDetail ?? widget.guru;
 
     return Scaffold(
+      backgroundColor: Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: Text('Detail Guru'),
+        title: Text(
+          'Detail Guru',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        backgroundColor: Color(0xFF4361EE),
+        elevation: 0,
+        iconTheme: IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadTeacherDetail,
             tooltip: 'Refresh',
           ),
         ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF4361EE),
+                          Color(0xFF4361EE).withOpacity(0.7),
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      strokeWidth: 3,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Memuat detail guru...',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            )
           : _errorMessage != null
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Terjadi kesalahan: $_errorMessage'),
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.red.withOpacity(0.1),
+                          Colors.red.withOpacity(0.05),
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.error_outline_rounded,
+                      size: 40,
+                      color: Colors.red.withOpacity(0.6),
+                    ),
+                  ),
                   SizedBox(height: 16),
+                  Text(
+                    'Terjadi kesalahan:',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    _errorMessage!,
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: _loadTeacherDetail,
-                    child: Text('Coba Lagi'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF4361EE),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: Text(
+                      'Coba Lagi',
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
                 ],
               ),
             )
           : SingleChildScrollView(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Header dengan avatar
-                  Center(
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFF4361EE),
+                          Color(0xFF4361EE).withOpacity(0.8),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0xFF4361EE).withOpacity(0.3),
+                          blurRadius: 15,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
                     child: Column(
                       children: [
                         CircleAvatar(
                           radius: 40,
-                          backgroundColor: Colors.blue.shade100,
-                          child: Text(
-                            guru['nama'][0],
-                            style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue,
-                            ),
+                          backgroundColor: Colors.white,
+                          child: Icon(
+                            Icons.person,
+                            size: 40,
+                            color: Color(0xFF4361EE),
                           ),
                         ),
                         SizedBox(height: 16),
                         Text(
                           guru['nama'],
                           style: TextStyle(
-                            fontSize: 24,
+                            fontSize: 20,
                             fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
+                          textAlign: TextAlign.center,
                         ),
                         SizedBox(height: 4),
                         Text(
                           guru['nip'] ?? 'Tidak ada NIP',
                           style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.9),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  SizedBox(height: 32),
+                  SizedBox(height: 24),
 
                   // Informasi Pribadi
-                  Text(
-                    'Informasi Pribadi',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
+                  Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Informasi Pribadi',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF4361EE),
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        _buildInfoRow('Nama', guru['nama']),
+                        _buildInfoRow('NIP', guru['nip'] ?? 'Tidak ada'),
+                        _buildInfoRow('Email', guru['email']),
+                      ],
                     ),
                   ),
-                  Divider(),
-                  _buildInfoRow('Nama', guru['nama']),
-                  _buildInfoRow('NIP', guru['nip'] ?? 'Tidak ada'),
-                  _buildInfoRow('Email', guru['email']),
-
-                  SizedBox(height: 24),
+                  SizedBox(height: 16),
 
                   // Informasi Mengajar
-                  Text(
-                    'Informasi Mengajar',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
+                  Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Informasi Mengajar',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF4361EE),
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        _buildInfoRow(
+                          'Kelas',
+                          guru['kelas_nama'] ?? 'Tidak ditugaskan',
+                        ),
+                        _buildInfoRow(
+                          'Mata Pelajaran',
+                          guru['mata_pelajaran_names']?.isNotEmpty == true
+                              ? guru['mata_pelajaran_names']
+                              : 'Tidak ditugaskan',
+                          isMultiline: true,
+                        ),
+                        _buildInfoRow('Role', guru['role']?.toUpperCase() ?? 'GURU'),
+                        _buildInfoRow(
+                          'Status Wali Kelas',
+                          guru['is_wali_kelas'] == 1 || guru['is_wali_kelas'] == true
+                              ? 'Ya'
+                              : 'Tidak',
+                        ),
+                      ],
                     ),
                   ),
-                  Divider(),
-                  _buildInfoRow(
-                    'Kelas',
-                    guru['kelas_nama'] ?? 'Tidak ditugaskan',
-                  ),
-                  _buildInfoRow(
-                    'Mata Pelajaran',
-                    guru['mata_pelajaran_names']?.isNotEmpty == true
-                        ? guru['mata_pelajaran_names']
-                        : 'Tidak ditugaskan',
-                  ),
-                  _buildInfoRow('Role', guru['role']?.toUpperCase() ?? 'GURU'),
-                  // Di dalam method build, tambahkan informasi wali kelas:
-                  _buildInfoRow(
-                    'Status Wali Kelas',
-                    guru['is_wali_kelas'] == 1 || guru['is_wali_kelas'] == true
-                        ? 'Ya'
-                        : 'Tidak',
-                  ),
-
-                  SizedBox(height: 24),
+                  SizedBox(height: 16),
 
                   // Informasi Sistem
-                  Text(
-                    'Informasi Sistem',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
+                  Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
                     ),
-                  ),
-                  Divider(),
-                  _buildInfoRow('ID', guru['id'] ?? 'Tidak ada'),
-                  _buildInfoRow(
-                    'Tanggal Dibuat',
-                    guru['created_at'] != null
-                        ? DateTime.parse(guru['created_at']).toString()
-                        : 'Tidak diketahui',
-                  ),
-                  _buildInfoRow(
-                    'Terakhir Diupdate',
-                    guru['updated_at'] != null
-                        ? DateTime.parse(guru['updated_at']).toString()
-                        : 'Tidak diketahui',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Informasi Sistem',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF4361EE),
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        _buildInfoRow('ID', guru['id'] ?? 'Tidak ada'),
+                        _buildInfoRow(
+                          'Tanggal Dibuat',
+                          guru['created_at'] != null
+                              ? DateTime.parse(guru['created_at']).toString()
+                              : 'Tidak diketahui',
+                        ),
+                        _buildInfoRow(
+                          'Terakhir Diupdate',
+                          guru['updated_at'] != null
+                              ? DateTime.parse(guru['updated_at']).toString()
+                              : 'Tidak diketahui',
+                        ),
+                      ],
+                    ),
                   ),
 
                   SizedBox(height: 32),
 
-                  // Tombol Aksi
+                  // Tombol Kembali
                   Center(
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Color(0xFF4361EE),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         padding: EdgeInsets.symmetric(
                           horizontal: 32,
                           vertical: 12,
                         ),
                       ),
-                      child: Text('Kembali ke Daftar Guru'),
+                      child: Text(
+                        'Kembali ke Daftar Guru',
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
                   ),
                 ],

@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:manajemensekolah/services/api_services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiSubjectService {
@@ -233,5 +235,72 @@ class ApiSubjectService {
 
     final result = _handleResponse(response);
     return result is List ? result : [];
+  }
+
+  static Future<Map<String, dynamic>> importSubjectFromExcel(File file) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/mata-pelajaran/import'),
+      );
+
+      // Add headers
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      request.headers['Authorization'] = 'Bearer $token';
+
+      // Add file
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'file',
+          file.path,
+          filename: file.path.split('/').last,
+        ),
+      );
+
+      // Send request
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      print('Import Response Status: ${response.statusCode}');
+      print('Import Response Body: $responseBody');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return json.decode(responseBody);
+      } else {
+        throw Exception(
+          'Import failed with status: ${response.statusCode}. Response: $responseBody',
+        );
+      }
+    } catch (e) {
+      print('Import error details: $e');
+      throw Exception('Import error: $e');
+    }
+  }
+
+  static Future<String> downloadTemplate() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/mata-pelajaran/template'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        // Save file locally
+        final directory = await getExternalStorageDirectory();
+        final filePath = '${directory?.path}/template_import_kelas.xlsx';
+        final file = File(filePath);
+
+        await file.writeAsBytes(response.bodyBytes);
+
+        print('Template downloaded to: $filePath');
+        return filePath;
+      } else {
+        throw Exception('Download failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Download template error: $e');
+      throw Exception('Failed to download template: $e');
+    }
   }
 }

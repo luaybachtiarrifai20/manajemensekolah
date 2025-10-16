@@ -57,6 +57,10 @@ class ScheduleFormDialogState extends State<ScheduleFormDialog> {
     _initializeForm();
   }
 
+  Color _getPrimaryColor() {
+    return Color(0xFF4361EE); // Blue untuk admin
+  }
+
   void _initializeForm() {
     _selectedTeacher = '';
     _selectedSubject = '';
@@ -210,7 +214,7 @@ class ScheduleFormDialogState extends State<ScheduleFormDialog> {
               'id': message.replaceAll('Failed to load teacher subjects', 'Gagal memuat mata pelajaran guru'),
             }),
           ),
-          backgroundColor: Colors.red.shade400,
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -260,61 +264,142 @@ class ScheduleFormDialogState extends State<ScheduleFormDialog> {
         final uniqueSubjectList = _removeDuplicates(_filteredSubjectList, 'id');
 
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildDialogTitle(languageProvider),
-                SizedBox(height: 20),
-                Form(
-                  key: _formKey,
-                  child: SingleChildScrollView(
+                // Header dengan gradient
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        _getPrimaryColor(),
+                        _getPrimaryColor().withOpacity(0.7),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          widget.schedule != null ? Icons.edit : Icons.add,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          widget.schedule != null
+                              ? languageProvider.getTranslatedText({
+                                  'en': 'Edit Schedule',
+                                  'id': 'Edit Jadwal',
+                                })
+                              : languageProvider.getTranslatedText({
+                                  'en': 'Add Schedule',
+                                  'id': 'Tambah Jadwal',
+                                }),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Form(
+                    key: _formKey,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _buildTeacherDropdown(uniqueTeacherList, languageProvider),
-                        SizedBox(height: 16),
+                        SizedBox(height: 12),
                         _buildSubjectDropdown(uniqueSubjectList, languageProvider),
-                        SizedBox(height: 16),
+                        SizedBox(height: 12),
                         _buildClassDropdown(uniqueClassList, languageProvider),
-                        SizedBox(height: 16),
+                        SizedBox(height: 12),
                         _buildDayDropdown(uniqueHariList, languageProvider),
-                        SizedBox(height: 16),
+                        SizedBox(height: 12),
                         _buildSemesterDropdown(uniqueSemesterList, languageProvider),
-                        SizedBox(height: 16),
+                        SizedBox(height: 12),
                         _buildTeachingHourDropdown(uniqueJamPelajaranList, languageProvider),
                       ],
                     ),
                   ),
                 ),
-                SizedBox(height: 20),
-                _buildActionButtons(languageProvider),
+                
+                // Actions
+                Container(
+                  padding: EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            side: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          child: Text(
+                            AppLocalizations.cancel.tr,
+                            style: TextStyle(color: Colors.grey.shade700),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _saveSchedule,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _getPrimaryColor(),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: Text(
+                            languageProvider.getTranslatedText({
+                              'en': 'Save',
+                              'id': 'Simpan',
+                            }),
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildDialogTitle(LanguageProvider languageProvider) {
-    return Text(
-      widget.schedule != null
-          ? languageProvider.getTranslatedText({
-              'en': 'Edit Schedule',
-              'id': 'Edit Jadwal',
-            })
-          : languageProvider.getTranslatedText({
-              'en': 'Add Schedule',
-              'id': 'Tambah Jadwal',
-            }),
-      style: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFF4F46E5),
-      ),
     );
   }
 
@@ -330,58 +415,64 @@ class ScheduleFormDialogState extends State<ScheduleFormDialog> {
           style: TextStyle(fontWeight: FontWeight.w500),
         ),
         SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: _selectedTeacher.isNotEmpty ? _selectedTeacher : null,
-          items: [
-            DropdownMenuItem(
-              value: '',
-              child: Text(
-                languageProvider.getTranslatedText({
-                  'en': 'Select Teacher',
-                  'id': 'Pilih Guru',
-                }),
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-            ...teachers.map<DropdownMenuItem<String>>((teacher) {
-              return DropdownMenuItem<String>(
-                value: teacher['id'] as String,
-                child: Text(
-                  teacher['nama'] ?? 'Unknown',
-                  style: TextStyle(fontSize: 14),
-                ),
-              );
-            }).toList(),
-          ],
-          onChanged: (value) {
-            setState(() {
-              _selectedTeacher = value ?? '';
-              _selectedSubject = '';
-              _filteredSubjectList = [];
-            });
-            if (value != null && value.isNotEmpty) {
-              _filterSubjectsByTeacher(value);
-            } else {
-              setState(() {
-                _filteredSubjectList = widget.subjectList;
-              });
-            }
-          },
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return languageProvider.getTranslatedText({
-                'en': 'Please select a teacher',
-                'id': 'Harap pilih guru',
+          child: DropdownButtonFormField<String>(
+            value: _selectedTeacher.isNotEmpty ? _selectedTeacher : null,
+            items: [
+              DropdownMenuItem(
+                value: '',
+                child: Text(
+                  languageProvider.getTranslatedText({
+                    'en': 'Select Teacher',
+                    'id': 'Pilih Guru',
+                  }),
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ...teachers.map<DropdownMenuItem<String>>((teacher) {
+                return DropdownMenuItem<String>(
+                  value: teacher['id'] as String,
+                  child: Text(
+                    teacher['nama'] ?? 'Unknown',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                );
+              }).toList(),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _selectedTeacher = value ?? '';
+                _selectedSubject = '';
+                _filteredSubjectList = [];
               });
-            }
-            return null;
-          },
+              if (value != null && value.isNotEmpty) {
+                _filterSubjectsByTeacher(value);
+              } else {
+                setState(() {
+                  _filteredSubjectList = widget.subjectList;
+                });
+              }
+            },
+            decoration: InputDecoration(
+              prefixIcon: Icon(Icons.person, color: _getPrimaryColor(), size: 20),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return languageProvider.getTranslatedText({
+                  'en': 'Please select a teacher',
+                  'id': 'Harap pilih guru',
+                });
+              }
+              return null;
+            },
+          ),
         ),
       ],
     );
@@ -399,61 +490,67 @@ class ScheduleFormDialogState extends State<ScheduleFormDialog> {
           style: TextStyle(fontWeight: FontWeight.w500),
         ),
         SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: _selectedSubject.isNotEmpty ? _selectedSubject : null,
-          items: [
-            DropdownMenuItem(
-              value: '',
-              child: Text(
-                languageProvider.getTranslatedText({
-                  'en': 'Select Subject',
-                  'id': 'Pilih Mata Pelajaran',
-                }),
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-            ...subjects.map<DropdownMenuItem<String>>((subject) {
-              return DropdownMenuItem<String>(
-                value: subject['id'] as String,
-                child: Text(
-                  subject['nama'] ?? 'Unknown',
-                  style: TextStyle(fontSize: 14),
-                ),
-              );
-            }).toList(),
-          ],
-          onChanged: _isLoadingSubjects
-              ? null
-              : (value) {
-                  setState(() {
-                    _selectedSubject = value ?? '';
-                  });
-                },
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            suffixIcon: _isLoadingSubjects
-                ? Padding(
-                    padding: EdgeInsets.all(12),
-                    child: SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : null,
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return languageProvider.getTranslatedText({
-                'en': 'Please select a subject',
-                'id': 'Harap pilih mata pelajaran',
-              });
-            }
-            return null;
-          },
+          child: DropdownButtonFormField<String>(
+            value: _selectedSubject.isNotEmpty ? _selectedSubject : null,
+            items: [
+              DropdownMenuItem(
+                value: '',
+                child: Text(
+                  languageProvider.getTranslatedText({
+                    'en': 'Select Subject',
+                    'id': 'Pilih Mata Pelajaran',
+                  }),
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ...subjects.map<DropdownMenuItem<String>>((subject) {
+                return DropdownMenuItem<String>(
+                  value: subject['id'] as String,
+                  child: Text(
+                    subject['nama'] ?? 'Unknown',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                );
+              }).toList(),
+            ],
+            onChanged: _isLoadingSubjects
+                ? null
+                : (value) {
+                    setState(() {
+                      _selectedSubject = value ?? '';
+                    });
+                  },
+            decoration: InputDecoration(
+              prefixIcon: Icon(Icons.book, color: _getPrimaryColor(), size: 20),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              suffixIcon: _isLoadingSubjects
+                  ? Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : null,
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return languageProvider.getTranslatedText({
+                  'en': 'Please select a subject',
+                  'id': 'Harap pilih mata pelajaran',
+                });
+              }
+              return null;
+            },
+          ),
         ),
       ],
     );
@@ -471,54 +568,60 @@ class ScheduleFormDialogState extends State<ScheduleFormDialog> {
           style: TextStyle(fontWeight: FontWeight.w500),
         ),
         SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: _selectedClass.isNotEmpty ? _selectedClass : null,
-          items: [
-            DropdownMenuItem(
-              value: '',
-              child: Text(
-                languageProvider.getTranslatedText({
-                  'en': 'Select Class',
-                  'id': 'Pilih Kelas',
-                }),
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-            ...classes.map((classItem) {
-              return DropdownMenuItem<String>(
-                value: classItem['id']?.toString() ?? '',
-                child: Text(
-                  classItem['nama'] ?? 'Unknown',
-                  style: TextStyle(fontSize: 14),
-                ),
-              );
-            }).toList(),
-          ],
-          onChanged: (value) {
-            setState(() {
-              _selectedClass = value ?? '';
-            });
-            if (_selectedHari.isNotEmpty &&
-                _selectedSemester.isNotEmpty &&
-                _selectedClass.isNotEmpty) {
-              _filterAvailableJamPelajaran();
-            }
-          },
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return languageProvider.getTranslatedText({
-                'en': 'Please select a class',
-                'id': 'Harap pilih kelas',
+          child: DropdownButtonFormField<String>(
+            value: _selectedClass.isNotEmpty ? _selectedClass : null,
+            items: [
+              DropdownMenuItem(
+                value: '',
+                child: Text(
+                  languageProvider.getTranslatedText({
+                    'en': 'Select Class',
+                    'id': 'Pilih Kelas',
+                  }),
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ...classes.map((classItem) {
+                return DropdownMenuItem<String>(
+                  value: classItem['id']?.toString() ?? '',
+                  child: Text(
+                    classItem['nama'] ?? 'Unknown',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                );
+              }).toList(),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _selectedClass = value ?? '';
               });
-            }
-            return null;
-          },
+              if (_selectedHari.isNotEmpty &&
+                  _selectedSemester.isNotEmpty &&
+                  _selectedClass.isNotEmpty) {
+                _filterAvailableJamPelajaran();
+              }
+            },
+            decoration: InputDecoration(
+              prefixIcon: Icon(Icons.school, color: _getPrimaryColor(), size: 20),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return languageProvider.getTranslatedText({
+                  'en': 'Please select a class',
+                  'id': 'Harap pilih kelas',
+                });
+              }
+              return null;
+            },
+          ),
         ),
       ],
     );
@@ -536,54 +639,60 @@ class ScheduleFormDialogState extends State<ScheduleFormDialog> {
           style: TextStyle(fontWeight: FontWeight.w500),
         ),
         SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: _selectedHari.isNotEmpty ? _selectedHari : null,
-          items: [
-            DropdownMenuItem(
-              value: '',
-              child: Text(
-                languageProvider.getTranslatedText({
-                  'en': 'Select Day',
-                  'id': 'Pilih Hari',
-                }),
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-            ...days.map<DropdownMenuItem<String>>((day) {
-              return DropdownMenuItem<String>(
-                value: day['id']?.toString() ?? '',
-                child: Text(
-                  day['nama'] ?? 'Unknown',
-                  style: TextStyle(fontSize: 14),
-                ),
-              );
-            }).toList(),
-          ],
-          onChanged: (value) {
-            setState(() {
-              _selectedHari = value ?? '';
-            });
-            if (_selectedClass.isNotEmpty &&
-                _selectedSemester.isNotEmpty &&
-                _selectedHari.isNotEmpty) {
-              _filterAvailableJamPelajaran();
-            }
-          },
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return languageProvider.getTranslatedText({
-                'en': 'Please select a day',
-                'id': 'Harap pilih hari',
+          child: DropdownButtonFormField<String>(
+            value: _selectedHari.isNotEmpty ? _selectedHari : null,
+            items: [
+              DropdownMenuItem(
+                value: '',
+                child: Text(
+                  languageProvider.getTranslatedText({
+                    'en': 'Select Day',
+                    'id': 'Pilih Hari',
+                  }),
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ...days.map<DropdownMenuItem<String>>((day) {
+                return DropdownMenuItem<String>(
+                  value: day['id']?.toString() ?? '',
+                  child: Text(
+                    day['nama'] ?? 'Unknown',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                );
+              }).toList(),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _selectedHari = value ?? '';
               });
-            }
-            return null;
-          },
+              if (_selectedClass.isNotEmpty &&
+                  _selectedSemester.isNotEmpty &&
+                  _selectedHari.isNotEmpty) {
+                _filterAvailableJamPelajaran();
+              }
+            },
+            decoration: InputDecoration(
+              prefixIcon: Icon(Icons.calendar_today, color: _getPrimaryColor(), size: 20),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return languageProvider.getTranslatedText({
+                  'en': 'Please select a day',
+                  'id': 'Harap pilih hari',
+                });
+              }
+              return null;
+            },
+          ),
         ),
       ],
     );
@@ -601,54 +710,60 @@ class ScheduleFormDialogState extends State<ScheduleFormDialog> {
           style: TextStyle(fontWeight: FontWeight.w500),
         ),
         SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: _selectedSemester.isNotEmpty ? _selectedSemester : null,
-          items: [
-            DropdownMenuItem(
-              value: '',
-              child: Text(
-                languageProvider.getTranslatedText({
-                  'en': 'Select Semester',
-                  'id': 'Pilih Semester',
-                }),
-                style: TextStyle(color: Colors.grey),
-              ),
-            ),
-            ...semesters.map<DropdownMenuItem<String>>((semester) {
-              return DropdownMenuItem<String>(
-                value: semester['id']?.toString() ?? '',
-                child: Text(
-                  semester['nama'] ?? 'Unknown',
-                  style: TextStyle(fontSize: 14),
-                ),
-              );
-            }).toList(),
-          ],
-          onChanged: (value) {
-            setState(() {
-              _selectedSemester = value ?? '';
-            });
-            if (_selectedHari.isNotEmpty &&
-                _selectedClass.isNotEmpty &&
-                _selectedSemester.isNotEmpty) {
-              _filterAvailableJamPelajaran();
-            }
-          },
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
           ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return languageProvider.getTranslatedText({
-                'en': 'Please select a semester',
-                'id': 'Harap pilih semester',
+          child: DropdownButtonFormField<String>(
+            value: _selectedSemester.isNotEmpty ? _selectedSemester : null,
+            items: [
+              DropdownMenuItem(
+                value: '',
+                child: Text(
+                  languageProvider.getTranslatedText({
+                    'en': 'Select Semester',
+                    'id': 'Pilih Semester',
+                  }),
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ...semesters.map<DropdownMenuItem<String>>((semester) {
+                return DropdownMenuItem<String>(
+                  value: semester['id']?.toString() ?? '',
+                  child: Text(
+                    semester['nama'] ?? 'Unknown',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                );
+              }).toList(),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _selectedSemester = value ?? '';
               });
-            }
-            return null;
-          },
+              if (_selectedHari.isNotEmpty &&
+                  _selectedClass.isNotEmpty &&
+                  _selectedSemester.isNotEmpty) {
+                _filterAvailableJamPelajaran();
+              }
+            },
+            decoration: InputDecoration(
+              prefixIcon: Icon(Icons.grade, color: _getPrimaryColor(), size: 20),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return languageProvider.getTranslatedText({
+                  'en': 'Please select a semester',
+                  'id': 'Harap pilih semester',
+                });
+              }
+              return null;
+            },
+          ),
         ),
       ],
     );
@@ -666,112 +781,79 @@ class ScheduleFormDialogState extends State<ScheduleFormDialog> {
           style: TextStyle(fontWeight: FontWeight.w500),
         ),
         SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: _selectedJamPelajaran.isNotEmpty ? _selectedJamPelajaran : null,
-          items: [
-            DropdownMenuItem(
-              value: '',
-              child: Text(
-                languageProvider.getTranslatedText({
-                  'en': 'Select Teaching Hour',
-                  'id': 'Pilih Jam Pelajaran',
-                }),
-                style: TextStyle(color: Colors.grey),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: DropdownButtonFormField<String>(
+            value: _selectedJamPelajaran.isNotEmpty ? _selectedJamPelajaran : null,
+            items: [
+              DropdownMenuItem(
+                value: '',
+                child: Text(
+                  languageProvider.getTranslatedText({
+                    'en': 'Select Teaching Hour',
+                    'id': 'Pilih Jam Pelajaran',
+                  }),
+                  style: TextStyle(color: Colors.grey),
+                ),
               ),
-            ),
-            ...teachingHours.map<DropdownMenuItem<String>>((jam) {
-              final isAvailable = jam['is_terpakai'] != 1 && jam['is_terpakai'] != true;
-              final jamKe = jam['jam_ke'] ?? '';
-              final jamMulai = _formatTimeForDropdown(jam['jam_mulai']?.toString());
-              final jamSelesai = _formatTimeForDropdown(jam['jam_selesai']?.toString());
+              ...teachingHours.map<DropdownMenuItem<String>>((jam) {
+                final isAvailable = jam['is_terpakai'] != 1 && jam['is_terpakai'] != true;
+                final jamKe = jam['jam_ke'] ?? '';
+                final jamMulai = _formatTimeForDropdown(jam['jam_mulai']?.toString());
+                final jamSelesai = _formatTimeForDropdown(jam['jam_selesai']?.toString());
 
-              return DropdownMenuItem<String>(
-                value: jam['id']?.toString() ?? '',
-                child: Opacity(
-                  opacity: isAvailable ? 1.0 : 0.5,
-                  child: Text(
-                    isAvailable
-                        ? '$jamKe ($jamMulai - $jamSelesai)'
-                        : '$jamKe ($jamMulai - $jamSelesai) - Taken',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isAvailable ? Colors.black : Colors.grey,
+                return DropdownMenuItem<String>(
+                  value: jam['id']?.toString() ?? '',
+                  child: Opacity(
+                    opacity: isAvailable ? 1.0 : 0.5,
+                    child: Text(
+                      isAvailable
+                          ? '$jamKe ($jamMulai - $jamSelesai)'
+                          : '$jamKe ($jamMulai - $jamSelesai) - Taken',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isAvailable ? Colors.black : Colors.grey,
+                      ),
                     ),
                   ),
-                ),
-              );
-            }),
-          ],
-          onChanged: _isLoadingJamPelajaran
-              ? null
-              : (value) {
-                  setState(() {
-                    _selectedJamPelajaran = value ?? '';
-                  });
-                },
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            suffixIcon: _isLoadingJamPelajaran
-                ? Padding(
-                    padding: EdgeInsets.all(12),
-                    child: SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : null,
-          ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return languageProvider.getTranslatedText({
-                'en': 'Please select a teaching hour',
-                'id': 'Harap pilih jam pelajaran',
-              });
-            }
-            return null;
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButtons(LanguageProvider languageProvider) {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton(
-            onPressed: () => Navigator.pop(context),
-            style: OutlinedButton.styleFrom(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(AppLocalizations.cancel.tr),
-          ),
-        ),
-        SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: _saveSchedule,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF4F46E5),
-              padding: EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: Text(
-              languageProvider.getTranslatedText({
-                'en': 'Save',
-                'id': 'Simpan',
+                );
               }),
-              style: TextStyle(color: Colors.white),
+            ],
+            onChanged: _isLoadingJamPelajaran
+                ? null
+                : (value) {
+                    setState(() {
+                      _selectedJamPelajaran = value ?? '';
+                    });
+                  },
+            decoration: InputDecoration(
+              prefixIcon: Icon(Icons.access_time, color: _getPrimaryColor(), size: 20),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              suffixIcon: _isLoadingJamPelajaran
+                  ? Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : null,
             ),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return languageProvider.getTranslatedText({
+                  'en': 'Please select a teaching hour',
+                  'id': 'Harap pilih jam pelajaran',
+                });
+              }
+              return null;
+            },
           ),
         ),
       ],

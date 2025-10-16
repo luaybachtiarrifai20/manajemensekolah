@@ -1,4 +1,9 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:manajemensekolah/services/api_subject_services.dart';
+import 'package:manajemensekolah/services/excel_subject_service.dart';
 import 'package:provider/provider.dart';
 import 'package:manajemensekolah/components/confirmation_dialog.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
@@ -17,27 +22,52 @@ class SubjectManagementScreen extends StatefulWidget {
   SubjectManagementScreenState createState() => SubjectManagementScreenState();
 }
 
-class SubjectManagementScreenState extends State<SubjectManagementScreen> {
+class SubjectManagementScreenState extends State<SubjectManagementScreen>
+    with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   List<dynamic> _subjectList = [];
   bool _isLoading = true;
   String _errorMessage = '';
-  
+
   // Search dan filter
   final TextEditingController _searchController = TextEditingController();
-  
+
   // Filter options untuk EnhancedSearchBar
-  final List<String> _filterOptions = ['All', 'With Classes', 'Without Classes'];
+  final List<String> _filterOptions = [
+    'All',
+    'With Classes',
+    'Without Classes',
+  ];
   String _selectedFilter = 'All';
+
+  // Animations
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 800),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
     _loadSubjects();
   }
 
   @override
   void dispose() {
+    _animationController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -54,12 +84,59 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
         _subjectList = response;
         _isLoading = false;
       });
+
+      _animationController.forward();
     } catch (error) {
       setState(() {
         _isLoading = false;
         _errorMessage = 'Failed to load subject data';
       });
     }
+  }
+
+  Future<void> _exportToExcel() async {
+    await ExcelSubjectService.exportSubjectsToExcel(
+      subjects: _subjectList,
+      context: context,
+    );
+  }
+
+  Future<void> _importFromExcel() async {
+    final languageProvider = context.read<LanguageProvider>();
+
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'xls'],
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        await ApiSubjectService.importSubjectFromExcel(
+          File(result.files.single.path!)
+        );
+
+        // Refresh data setelah import
+        await _loadSubjects();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            languageProvider.getTranslatedText({
+              'en': 'Failed to import file: $e',
+              'id': 'Gagal mengimpor file: $e',
+            }),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _downloadTemplate() async {
+    await ExcelSubjectService.downloadTemplate(context);
   }
 
   void _showAddEditDialog({Map<String, dynamic>? subject}) {
@@ -74,152 +151,209 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
       builder: (context) => Consumer<LanguageProvider>(
         builder: (context, languageProvider, child) {
           return Dialog(
+            backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
+            child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    subject == null
-                        ? languageProvider.getTranslatedText({
-                            'en': 'Add Subject',
-                            'id': 'Tambah Mata Pelajaran',
-                          })
-                        : languageProvider.getTranslatedText({
-                            'en': 'Edit Subject',
-                            'id': 'Edit Mata Pelajaran',
-                          }),
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: ColorUtils.primaryColor,
+                  // Header dengan gradient
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: _getCardGradient(),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            subject == null ? Icons.add : Icons.edit,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            subject == null
+                                ? languageProvider.getTranslatedText({
+                                    'en': 'Add Subject',
+                                    'id': 'Tambah Mata Pelajaran',
+                                  })
+                                : languageProvider.getTranslatedText({
+                                    'en': 'Edit Subject',
+                                    'id': 'Edit Mata Pelajaran',
+                                  }),
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  SizedBox(height: 20),
-                  _buildTextField(
-                    languageProvider.getTranslatedText({
-                      'en': 'Code',
-                      'id': 'Kode',
-                    }),
-                    codeController,
-                  ),
-                  SizedBox(height: 16),
-                  _buildTextField(
-                    languageProvider.getTranslatedText({
-                      'en': 'Subject Name',
-                      'id': 'Nama Mata Pelajaran',
-                    }),
-                    nameController,
-                  ),
-                  SizedBox(height: 16),
-                  _buildTextField(
-                    languageProvider.getTranslatedText({
-                      'en': 'Description',
-                      'id': 'Deskripsi',
-                    }),
-                    descriptionController,
-                    maxLines: 3,
-                  ),
-                  SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: Text(AppLocalizations.cancel.tr),
+
+                  Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildDialogTextField(
+                          controller: codeController,
+                          label: languageProvider.getTranslatedText({
+                            'en': 'Code',
+                            'id': 'Kode',
+                          }),
+                          icon: Icons.code,
                         ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            if (codeController.text.isEmpty ||
-                                nameController.text.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    languageProvider.getTranslatedText({
-                                      'en': 'Code and name must be filled',
-                                      'id': 'Kode dan nama harus diisi',
-                                    }),
-                                  ),
-                                  backgroundColor: Colors.red.shade400,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                              return;
-                            }
+                        SizedBox(height: 12),
+                        _buildDialogTextField(
+                          controller: nameController,
+                          label: languageProvider.getTranslatedText({
+                            'en': 'Subject Name',
+                            'id': 'Nama Mata Pelajaran',
+                          }),
+                          icon: Icons.menu_book,
+                        ),
+                        SizedBox(height: 12),
+                        _buildDialogTextField(
+                          controller: descriptionController,
+                          label: languageProvider.getTranslatedText({
+                            'en': 'Description',
+                            'id': 'Deskripsi',
+                          }),
+                          icon: Icons.description,
+                          maxLines: 3,
+                        ),
+                      ],
+                    ),
+                  ),
 
-                            try {
-                              final data = {
-                                'kode': codeController.text,
-                                'nama': nameController.text,
-                                'deskripsi': descriptionController.text,
-                              };
-
-                              if (subject == null) {
-                                await _apiService.post('/mata-pelajaran', data);
-                              } else {
-                                await _apiService.put(
-                                  '/mata-pelajaran/${subject['id']}',
-                                  data,
-                                );
-                              }
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                              }
-                              _loadSubjects();
-                              if (context.mounted) {
+                  // Actions
+                  Container(
+                    padding: EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              side: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            child: Text(
+                              AppLocalizations.cancel.tr,
+                              style: TextStyle(color: Colors.grey.shade700),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              if (codeController.text.isEmpty ||
+                                  nameController.text.isEmpty) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
                                       languageProvider.getTranslatedText({
-                                        'en': 'Data saved successfully',
-                                        'id': 'Data berhasil disimpan',
-                                      }),
-                                    ),
-                                    backgroundColor: Colors.green.shade400,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
-                              }
-                            } catch (error) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      languageProvider.getTranslatedText({
-                                        'en': 'Failed to save data',
-                                        'id': 'Gagal menyimpan data',
+                                        'en': 'Code and name must be filled',
+                                        'id': 'Kode dan nama harus diisi',
                                       }),
                                     ),
                                     backgroundColor: Colors.red.shade400,
                                     behavior: SnackBarBehavior.floating,
                                   ),
                                 );
+                                return;
                               }
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ColorUtils.primaryColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+
+                              try {
+                                final data = {
+                                  'kode': codeController.text,
+                                  'nama': nameController.text,
+                                  'deskripsi': descriptionController.text,
+                                };
+
+                                if (subject == null) {
+                                  await _apiService.post(
+                                    '/mata-pelajaran',
+                                    data,
+                                  );
+                                } else {
+                                  await _apiService.put(
+                                    '/mata-pelajaran/${subject['id']}',
+                                    data,
+                                  );
+                                }
+                                if (context.mounted) {
+                                  Navigator.pop(context);
+                                }
+                                _loadSubjects();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        languageProvider.getTranslatedText({
+                                          'en': 'Data saved successfully',
+                                          'id': 'Data berhasil disimpan',
+                                        }),
+                                      ),
+                                      backgroundColor: Colors.green.shade400,
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              } catch (error) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        languageProvider.getTranslatedText({
+                                          'en': 'Failed to save data',
+                                          'id': 'Gagal menyimpan data',
+                                        }),
+                                      ),
+                                      backgroundColor: Colors.red.shade400,
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _getPrimaryColor(),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: EdgeInsets.symmetric(vertical: 12),
                             ),
-                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Text(
+                              AppLocalizations.save.tr,
+                              style: TextStyle(color: Colors.white),
+                            ),
                           ),
-                          child: Text(AppLocalizations.save.tr),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -230,42 +364,28 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
     );
   }
 
-  Widget _buildTextField(
-    String label,
-    TextEditingController controller, {
+  Widget _buildDialogTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
     int maxLines = 1,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            color: Colors.grey.shade700,
-            fontSize: 14,
-          ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: _getPrimaryColor(), size: 20),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
         ),
-        SizedBox(height: 4),
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: TextField(
-            controller: controller,
-            maxLines: maxLines,
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 12,
-              ),
-              isDense: true,
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -285,6 +405,11 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
               'id':
                   'Yakin ingin menghapus mata pelajaran "${subject['nama']}"?',
             }),
+            confirmText: languageProvider.getTranslatedText({
+              'en': 'Delete',
+              'id': 'Hapus',
+            }),
+            confirmColor: Colors.red,
           );
         },
       ),
@@ -332,9 +457,7 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SubjectClassManagementPage(
-          subject: subject,
-        ),
+        builder: (context) => SubjectClassManagementPage(subject: subject),
       ),
     );
   }
@@ -351,7 +474,7 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
           subjectCode.contains(searchTerm);
 
       final hasClasses = (subject['jumlah_kelas'] ?? 0) > 0;
-      
+
       final matchesFilter =
           _selectedFilter == 'All' ||
           (_selectedFilter == 'With Classes' && hasClasses) ||
@@ -359,6 +482,275 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
 
       return matchesSearch && matchesFilter;
     }).toList();
+  }
+
+  Widget _buildSubjectCard(Map<String, dynamic> subject, int index) {
+    final languageProvider = context.read<LanguageProvider>();
+    final kelasCount = subject['jumlah_kelas'] ?? 0;
+    final kelasNames = subject['kelas_names']?.toString().split(',') ?? [];
+
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        final delay = index * 0.1;
+        final animation = CurvedAnimation(
+          parent: _animationController,
+          curve: Interval(delay, 1.0, curve: Curves.easeOut),
+        );
+
+        return FadeTransition(
+          opacity: animation,
+          child: Transform.translate(
+            offset: Offset(0, 50 * (1 - animation.value)),
+            child: child,
+          ),
+        );
+      },
+      child: GestureDetector(
+        onTap: () => _navigateToClassManagement(subject),
+        child: Container(
+          margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _navigateToClassManagement(subject),
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: _getCardGradient(),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getPrimaryColor().withOpacity(0.2),
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    // Background pattern
+                    Positioned(
+                      right: -10,
+                      top: -10,
+                      child: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header dengan nama dan kode
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      subject['nama'] ?? 'No Name',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Kode: ${subject['kode'] ?? 'No Code'}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white.withOpacity(0.8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  '$kelasCount Kelas',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          SizedBox(height: 12),
+
+                          // Informasi kelas
+                          if (kelasNames.isNotEmpty)
+                            Row(
+                              children: [
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    Icons.class_,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Kelas Terdaftar',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.white.withOpacity(0.8),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      SizedBox(height: 1),
+                                      Text(
+                                        kelasNames.take(2).join(', ') +
+                                            (kelasNames.length > 2
+                                                ? '...'
+                                                : ''),
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                          if (subject['deskripsi'] != null &&
+                              subject['deskripsi'].isNotEmpty) ...[
+                            SizedBox(height: 8),
+                            Text(
+                              subject['deskripsi'],
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+
+                          SizedBox(height: 12),
+
+                          // Action buttons
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              _buildActionButton(
+                                icon: Icons.edit,
+                                label: languageProvider.getTranslatedText({
+                                  'en': 'Edit',
+                                  'id': 'Edit',
+                                }),
+                                color: Colors.white,
+                                onPressed: () =>
+                                    _showAddEditDialog(subject: subject),
+                              ),
+                              SizedBox(width: 8),
+                              _buildActionButton(
+                                icon: Icons.delete,
+                                label: languageProvider.getTranslatedText({
+                                  'en': 'Delete',
+                                  'id': 'Hapus',
+                                }),
+                                color: Colors.white,
+                                onPressed: () => _deleteSubject(subject),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: color),
+            SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getPrimaryColor() {
+    return Color(0xFF4361EE); // Blue untuk admin
+  }
+
+  LinearGradient _getCardGradient() {
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
+    );
   }
 
   @override
@@ -397,32 +789,101 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
         ];
 
         return Scaffold(
-          backgroundColor: Colors.grey.shade50,
+          backgroundColor: Color(0xFFF8F9FA),
           appBar: AppBar(
             title: Text(
-              AppLocalizations.manageSubjects.tr,
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
+              languageProvider.getTranslatedText({
+                'en': 'Manage Subjects',
+                'id': 'Kelola Mata Pelajaran',
+              }),
             ),
-            backgroundColor: Colors.white,
+            backgroundColor: _getPrimaryColor(),
             elevation: 0,
             centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.black),
+            iconTheme: IconThemeData(color: Colors.white),
             actions: [
-              IconButton(
-                icon: Icon(Icons.refresh, color: Colors.black),
-                onPressed: _loadSubjects,
-                tooltip: AppLocalizations.refresh.tr,
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert, color: Colors.white),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'export':
+                      _exportToExcel();
+                      break;
+                    case 'import':
+                      _importFromExcel();
+                      break;
+                    case 'template':
+                      _downloadTemplate();
+                      break;
+                    case 'refresh':
+                      _loadSubjects();
+                      break;
+                  }
+                },
+                itemBuilder: (BuildContext context) => [
+                  PopupMenuItem<String>(
+                    value: 'export',
+                    child: Row(
+                      children: [
+                        Icon(Icons.file_download, color: _getPrimaryColor()),
+                        SizedBox(width: 8),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Export to Excel',
+                            'id': 'Export ke Excel',
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'import',
+                    child: Row(
+                      children: [
+                        Icon(Icons.file_upload, color: _getPrimaryColor()),
+                        SizedBox(width: 8),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Import from Excel',
+                            'id': 'Import dari Excel',
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'template',
+                    child: Row(
+                      children: [
+                        Icon(Icons.download, color: _getPrimaryColor()),
+                        SizedBox(width: 8),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Download Template',
+                            'id': 'Unduh Template',
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'refresh',
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh, color: _getPrimaryColor()),
+                        SizedBox(width: 8),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Refresh',
+                            'id': 'Refresh',
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
-            bottom: PreferredSize(
-              preferredSize: Size.fromHeight(1),
-              child: Container(height: 1, color: Colors.grey.shade300),
-            ),
           ),
           body: Column(
             children: [
@@ -436,20 +897,19 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
                   setState(() {});
                 },
                 filterOptions: translatedFilterOptions,
-                selectedFilter: translatedFilterOptions[
-                  _selectedFilter == 'All' 
-                    ? 0 
-                    : _selectedFilter == 'With Classes' 
-                      ? 1 
-                      : 2
-                ],
+                selectedFilter:
+                    translatedFilterOptions[_selectedFilter == 'All'
+                        ? 0
+                        : _selectedFilter == 'With Classes'
+                        ? 1
+                        : 2],
                 onFilterChanged: (filter) {
                   final index = translatedFilterOptions.indexOf(filter);
                   setState(() {
-                    _selectedFilter = index == 0 
-                      ? 'All' 
-                      : index == 1 
-                        ? 'With Classes' 
+                    _selectedFilter = index == 0
+                        ? 'All'
+                        : index == 1
+                        ? 'With Classes'
                         : 'Without Classes';
                   });
                 },
@@ -461,16 +921,13 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
                   child: Row(
                     children: [
                       Text(
-                        '${filteredSubjects.length} ${languageProvider.getTranslatedText({
-                          'en': 'subjects found',
-                          'id': 'mata pelajaran ditemukan',
-                        })}',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        '${filteredSubjects.length} ${languageProvider.getTranslatedText({'en': 'subjects found', 'id': 'mata pelajaran ditemukan'})}',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),
                     ],
                   ),
                 ),
-              SizedBox(height: 8),
+              SizedBox(height: 4),
               Expanded(
                 child: filteredSubjects.isEmpty
                     ? EmptyState(
@@ -478,7 +935,9 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
                           'en': 'No subjects',
                           'id': 'Tidak ada mata pelajaran',
                         }),
-                        subtitle: _searchController.text.isEmpty && _selectedFilter == 'All'
+                        subtitle:
+                            _searchController.text.isEmpty &&
+                                _selectedFilter == 'All'
                             ? languageProvider.getTranslatedText({
                                 'en': 'Tap + to add a subject',
                                 'id': 'Tap + untuk menambah mata pelajaran',
@@ -490,21 +949,11 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
                         icon: Icons.school_outlined,
                       )
                     : ListView.builder(
-                        padding: EdgeInsets.all(16),
                         itemCount: filteredSubjects.length,
                         itemBuilder: (context, index) {
-                          final subject = filteredSubjects[index];
-                          final kelasNames = subject['kelas_names']?.toString().split(',') ?? [];
-                          final jumlahKelas = subject['jumlah_kelas'] ?? 0;
-
-                          return SubjectListItem(
-                            subject: subject,
-                            index: index,
-                            onEdit: () => _showAddEditDialog(subject: subject),
-                            onDelete: () => _deleteSubject(subject),
-                            onTap: () => _navigateToClassManagement(subject),
-                            kelasCount: jumlahKelas,
-                            kelasNames: kelasNames,
+                          return _buildSubjectCard(
+                            filteredSubjects[index],
+                            index,
                           );
                         },
                       ),
@@ -513,11 +962,11 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () => _showAddEditDialog(),
-            backgroundColor: ColorUtils.primaryColor,
+            backgroundColor: _getPrimaryColor(),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(Icons.add, color: Colors.white),
+            child: Icon(Icons.add, color: Colors.white, size: 20),
           ),
         );
       },
@@ -525,17 +974,19 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen> {
   }
 }
 
-// Halaman Manajemen Kelas untuk Mata Pelajaran
+// Halaman Manajemen Kelas untuk Mata Pelajaran (Updated dengan style yang sama)
 class SubjectClassManagementPage extends StatefulWidget {
   final Map<String, dynamic> subject;
 
   const SubjectClassManagementPage({super.key, required this.subject});
 
   @override
-  SubjectClassManagementPageState createState() => SubjectClassManagementPageState();
+  SubjectClassManagementPageState createState() =>
+      SubjectClassManagementPageState();
 }
 
-class SubjectClassManagementPageState extends State<SubjectClassManagementPage> {
+class SubjectClassManagementPageState extends State<SubjectClassManagementPage>
+    with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   List<dynamic> _availableClasses = [];
   List<dynamic> _assignedClasses = [];
@@ -546,14 +997,34 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
   final List<String> _filterOptions = ['All', 'Assigned', 'Unassigned'];
   String _selectedFilter = 'All';
 
+  // Animations
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
   @override
   void initState() {
     super.initState();
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 800),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
     _loadData();
   }
 
   @override
   void dispose() {
+    _animationController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -566,22 +1037,26 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
 
       // Load semua kelas yang tersedia
       final allClasses = await _apiService.get('/kelas');
-      
+
       // Load kelas yang sudah ditetapkan untuk mata pelajaran ini
-      final assignedClasses = await _apiService.getKelasByMataPelajaran(widget.subject['id']);
+      final assignedClasses = await _apiService.getKelasByMataPelajaran(
+        widget.subject['id'],
+      );
 
       setState(() {
         _availableClasses = List<dynamic>.from(allClasses);
         _assignedClasses = List<dynamic>.from(assignedClasses);
         _isLoading = false;
       });
+
+      _animationController.forward();
     } catch (error) {
       setState(() {
         _isLoading = false;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $error')),
+          SnackBar(content: Text('Error: $error'), backgroundColor: Colors.red),
         );
       }
     }
@@ -607,10 +1082,7 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $error'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $error'), backgroundColor: Colors.red),
         );
       }
     }
@@ -621,13 +1093,18 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
       context: context,
       builder: (context) => ConfirmationDialog(
         title: 'Hapus Kelas',
-        content: 'Yakin ingin menghapus kelas ${kelas['nama']} dari mata pelajaran ini?',
+        content:
+            'Yakin ingin menghapus kelas ${kelas['nama']} dari mata pelajaran ini?',
+        confirmText: 'Hapus',
+        confirmColor: Colors.red,
       ),
     );
 
     if (confirmed == true) {
       try {
-        await _apiService.delete('/mata-pelajaran-kelas?mata_pelajaran_id=${widget.subject['id']}&kelas_id=${kelas['id']}');
+        await _apiService.delete(
+          '/mata-pelajaran-kelas?mata_pelajaran_id=${widget.subject['id']}&kelas_id=${kelas['id']}',
+        );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -674,167 +1151,239 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
         builder: (context, setDialogState) {
           return Dialog(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.add_circle, color: Colors.blue, size: 24),
-                      SizedBox(width: 8),
-                      Text(
-                        'Tambah Kelas',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    'Pilih kelas yang ingin ditambahkan ke ${widget.subject['nama']}:',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  
-                  // Search bar dalam dialog
+                  // Header dengan gradient
                   Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Cari kelas...',
-                        prefixIcon: Icon(Icons.search, color: Colors.grey),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      gradient: _getCardGradient(),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20),
                       ),
-                      onChanged: (value) {
-                        setDialogState(() {});
-                      },
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.add_circle,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Tambah Kelas',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  SizedBox(height: 12),
-                  
-                  Container(
-                    constraints: BoxConstraints(maxHeight: 300),
-                    child: unassignedClasses.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.check_circle, size: 48, color: Colors.green),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Semua kelas sudah ditambahkan',
-                                  style: TextStyle(
-                                    color: Colors.green,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+
+                  Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Pilih kelas yang ingin ditambahkan ke ${widget.subject['nama']}:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 16),
+
+                        // Search bar dalam dialog
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: 'Cari kelas...',
+                              prefixIcon: Icon(
+                                Icons.search,
+                                color: _getPrimaryColor(),
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.symmetric(
+                                vertical: 12,
+                                horizontal: 12,
+                              ),
                             ),
-                          )
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: unassignedClasses.length,
-                            itemBuilder: (context, index) {
-                              final kelas = unassignedClasses[index];
-                              return Card(
-                                margin: EdgeInsets.symmetric(vertical: 4),
-                                elevation: 1,
-                                child: ListTile(
-                                  leading: Container(
-                                    width: 36,
-                                    height: 36,
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue.shade50,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Icon(Icons.class_, color: Colors.blue, size: 18),
-                                  ),
-                                  title: Text(
-                                    kelas['nama'] ?? 'Kelas',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      if (kelas['tingkat'] != null)
-                                        Text(
-                                          'Tingkat: ${kelas['tingkat']}',
-                                          style: TextStyle(fontSize: 12),
-                                        ),
-                                      if (kelas['wali_kelas_nama'] != null)
-                                        Text(
-                                          'Wali: ${kelas['wali_kelas_nama']}',
-                                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                                        ),
-                                    ],
-                                  ),
-                                  trailing: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    padding: EdgeInsets.all(6),
-                                    child: Icon(Icons.add, color: Colors.white, size: 16),
-                                  ),
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                    _addClassToSubject(kelas);
-                                  },
-                                ),
-                              );
+                            onChanged: (value) {
+                              setDialogState(() {});
                             },
                           ),
+                        ),
+                        SizedBox(height: 16),
+
+                        Container(
+                          constraints: BoxConstraints(maxHeight: 300),
+                          child: unassignedClasses.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle,
+                                        size: 48,
+                                        color: Colors.green,
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Semua kelas sudah ditambahkan',
+                                        style: TextStyle(
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : ListView.builder(
+                                  shrinkWrap: true,
+                                  itemCount: unassignedClasses.length,
+                                  itemBuilder: (context, index) {
+                                    final kelas = unassignedClasses[index];
+                                    return Card(
+                                      margin: EdgeInsets.symmetric(vertical: 4),
+                                      elevation: 1,
+                                      child: ListTile(
+                                        leading: Container(
+                                          width: 36,
+                                          height: 36,
+                                          decoration: BoxDecoration(
+                                            color: _getPrimaryColor()
+                                                .withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            Icons.class_,
+                                            color: _getPrimaryColor(),
+                                            size: 18,
+                                          ),
+                                        ),
+                                        title: Text(
+                                          kelas['nama'] ?? 'Kelas',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            if (kelas['tingkat'] != null)
+                                              Text(
+                                                'Tingkat: ${kelas['tingkat']}',
+                                                style: TextStyle(fontSize: 12),
+                                              ),
+                                            if (kelas['wali_kelas_nama'] !=
+                                                null)
+                                              Text(
+                                                'Wali: ${kelas['wali_kelas_nama']}',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        trailing: Container(
+                                          decoration: BoxDecoration(
+                                            color: _getPrimaryColor(),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                          padding: EdgeInsets.all(6),
+                                          child: Icon(
+                                            Icons.add,
+                                            color: Colors.white,
+                                            size: 16,
+                                          ),
+                                        ),
+                                        onTap: () {
+                                          Navigator.pop(context);
+                                          _addClassToSubject(kelas);
+                                        },
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
                   ),
-                  SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+
+                  // Actions
+                  Container(
+                    padding: EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              side: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            child: Text(
+                              'Batal',
+                              style: TextStyle(color: Colors.grey.shade700),
                             ),
                           ),
-                          child: Text('Batal'),
                         ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            setState(() {});
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              setState(() {});
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _getPrimaryColor(),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text(
+                              'Lihat Semua',
+                              style: TextStyle(color: Colors.white),
                             ),
                           ),
-                          child: Text(
-                            'Lihat Semua',
-                            style: TextStyle(color: Colors.white),
-                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -854,7 +1403,8 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
     return _availableClasses.where((kelas) {
       final className = kelas['nama']?.toString().toLowerCase() ?? '';
       final classLevel = kelas['tingkat']?.toString().toLowerCase() ?? '';
-      final homeroomTeacher = kelas['wali_kelas_nama']?.toString().toLowerCase() ?? '';
+      final homeroomTeacher =
+          kelas['wali_kelas_nama']?.toString().toLowerCase() ?? '';
 
       final matchesSearch =
           searchTerm.isEmpty ||
@@ -863,7 +1413,7 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
           homeroomTeacher.contains(searchTerm);
 
       final isAssigned = _isClassAssigned(kelas['id']);
-      
+
       final matchesFilter =
           _selectedFilter == 'All' ||
           (_selectedFilter == 'Assigned' && isAssigned) ||
@@ -873,155 +1423,330 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
     }).toList();
   }
 
-  Widget _buildClassCard(Map<String, dynamic> kelas, bool isAssigned) {
-    return Card(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      elevation: 2,
-      child: ListTile(
-        leading: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: isAssigned ? Colors.green.shade50 : Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(8),
+  Widget _buildClassCard(
+    Map<String, dynamic> kelas,
+    int index,
+    bool isAssigned,
+  ) {
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        final delay = index * 0.1;
+        final animation = CurvedAnimation(
+          parent: _animationController,
+          curve: Interval(delay, 1.0, curve: Curves.easeOut),
+        );
+
+        return FadeTransition(
+          opacity: animation,
+          child: Transform.translate(
+            offset: Offset(0, 50 * (1 - animation.value)),
+            child: child,
           ),
-          child: Icon(
-            Icons.class_,
-            color: isAssigned ? Colors.green : Colors.blue,
-            size: 20,
+        );
+      },
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () {
+              if (isAssigned) {
+                _removeClassFromSubject(kelas);
+              } else {
+                _addClassToSubject(kelas);
+              }
+            },
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: isAssigned
+                    ? _getCardGradient()
+                    : LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Colors.grey.shade100, Colors.grey.shade50],
+                      ),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: (isAssigned ? _getPrimaryColor() : Colors.grey)
+                        .withOpacity(0.2),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+                border: Border.all(
+                  color: isAssigned
+                      ? _getPrimaryColor().withOpacity(0.3)
+                      : Colors.grey.shade300,
+                  width: 1,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  // Background pattern untuk kelas yang sudah ditetapkan
+                  if (isAssigned)
+                    Positioned(
+                      right: -10,
+                      top: -10,
+                      child: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        // Icon kelas
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: isAssigned
+                                ? Colors.white.withOpacity(0.2)
+                                : _getPrimaryColor().withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.class_,
+                            color: isAssigned
+                                ? Colors.white
+                                : _getPrimaryColor(),
+                            size: 20,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+
+                        // Informasi kelas
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                kelas['nama'] ?? 'Kelas',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isAssigned
+                                      ? Colors.white
+                                      : Colors.black87,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              if (kelas['tingkat'] != null)
+                                Text(
+                                  'Tingkat: ${kelas['tingkat']}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isAssigned
+                                        ? Colors.white.withOpacity(0.8)
+                                        : Colors.grey[600],
+                                  ),
+                                ),
+                              if (kelas['wali_kelas_nama'] != null)
+                                Text(
+                                  'Wali: ${kelas['wali_kelas_nama']}',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isAssigned
+                                        ? Colors.white.withOpacity(0.7)
+                                        : Colors.grey[500],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+
+                        // Status indicator
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isAssigned
+                                ? Colors.white.withOpacity(0.2)
+                                : Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isAssigned
+                                  ? Colors.white.withOpacity(0.3)
+                                  : Colors.grey.shade300,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isAssigned
+                                    ? Icons.check_circle
+                                    : Icons.add_circle,
+                                size: 12,
+                                color: isAssigned
+                                    ? Colors.white
+                                    : Colors.grey.shade600,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                isAssigned ? 'Terdaftar' : 'Tambahkan',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: isAssigned
+                                      ? Colors.white
+                                      : Colors.grey.shade600,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        title: Text(
-          kelas['nama'] ?? 'Kelas',
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (kelas['tingkat'] != null)
-              Text(
-                'Tingkat: ${kelas['tingkat']}',
-                style: TextStyle(fontSize: 12),
-              ),
-            if (kelas['wali_kelas_nama'] != null)
-              Text(
-                'Wali: ${kelas['wali_kelas_nama']}',
-                style: TextStyle(fontSize: 12),
-              ),
-            if (kelas['jumlah_siswa'] != null)
-              Text(
-                'Siswa: ${kelas['jumlah_siswa']}',
-                style: TextStyle(fontSize: 12),
-              ),
-          ],
-        ),
-        trailing: isAssigned
-            ? IconButton(
-                icon: Icon(Icons.remove_circle, color: Colors.red),
-                onPressed: () => _removeClassFromSubject(kelas),
-                tooltip: 'Hapus dari mata pelajaran',
-              )
-            : IconButton(
-                icon: Icon(Icons.add_circle, color: Colors.blue),
-                onPressed: () => _addClassToSubject(kelas),
-                tooltip: 'Tambahkan ke mata pelajaran',
-              ),
       ),
     );
   }
 
-  Widget _buildEmptyState(String message, {bool showAddButton = false}) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.class_, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            message,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          if (showAddButton) ...[
-            SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _showQuickAddClassDialog,
-              icon: Icon(Icons.add),
-              label: Text('Tambah Kelas Sekarang'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
+  Color _getPrimaryColor() {
+    return Color(0xFF4361EE); // Blue untuk admin
   }
 
-  // Cek apakah masih ada kelas yang bisa ditambahkan
-  bool _getCanAddMoreClasses() {
-    return _availableClasses.any((kelas) => !_isClassAssigned(kelas['id']));
+  LinearGradient _getCardGradient() {
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final canAddMoreClasses = _getCanAddMoreClasses();
     final filteredClasses = _getFilteredClasses();
-    
+    final assignedCount = _assignedClasses.length;
+
+    // Terjemahan filter options
+    final languageProvider = context.read<LanguageProvider>();
+    final translatedFilterOptions = [
+      languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
+      languageProvider.getTranslatedText({'en': 'Assigned', 'id': 'Terdaftar'}),
+      languageProvider.getTranslatedText({
+        'en': 'Unassigned',
+        'id': 'Belum Terdaftar',
+      }),
+    ];
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: Text(
-          'Kelola Kelas - ${widget.subject['nama']}',
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.subject['nama'] ?? 'Subject',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            Text(
+              'Kelas Management',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withOpacity(0.8),
+              ),
+            ),
+          ],
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: _getPrimaryColor(),
         elevation: 0,
-        centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.black),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+        iconTheme: IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh, color: Colors.black),
+            icon: Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadData,
             tooltip: 'Refresh',
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Container(height: 1, color: Colors.grey.shade300),
-        ),
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? LoadingScreen(message: 'Loading class data...')
           : Column(
               children: [
-                // Enhanced Search Bar dengan filter
+                // Quick stats
+                Container(
+                  margin: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: _getCardGradient(),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _getPrimaryColor().withOpacity(0.3),
+                        blurRadius: 12,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildStatItem(
+                        icon: Icons.class_,
+                        value: _availableClasses.length.toString(),
+                        label: 'Total Kelas',
+                        color: Colors.white,
+                      ),
+                      _buildStatItem(
+                        icon: Icons.check_circle,
+                        value: assignedCount.toString(),
+                        label: 'Terdaftar',
+                        color: Colors.white,
+                      ),
+                      _buildStatItem(
+                        icon: Icons.add_circle,
+                        value: (_availableClasses.length - assignedCount)
+                            .toString(),
+                        label: 'Belum Terdaftar',
+                        color: Colors.white,
+                      ),
+                    ],
+                  ),
+                ),
+
                 EnhancedSearchBar(
                   controller: _searchController,
                   hintText: 'Cari kelas...',
                   onChanged: (value) {
                     setState(() {});
                   },
-                  filterOptions: _filterOptions,
-                  selectedFilter: _selectedFilter,
+                  filterOptions: translatedFilterOptions,
+                  selectedFilter:
+                      translatedFilterOptions[_selectedFilter == 'All'
+                          ? 0
+                          : _selectedFilter == 'Assigned'
+                          ? 1
+                          : 2],
                   onFilterChanged: (filter) {
+                    final index = translatedFilterOptions.indexOf(filter);
                     setState(() {
-                      _selectedFilter = filter;
+                      _selectedFilter = index == 0
+                          ? 'All'
+                          : index == 1
+                          ? 'Assigned'
+                          : 'Unassigned';
                     });
                   },
                   showFilter: true,
@@ -1034,101 +1759,78 @@ class SubjectClassManagementPageState extends State<SubjectClassManagementPage> 
                       children: [
                         Text(
                           '${filteredClasses.length} kelas ditemukan',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-                SizedBox(height: 8),
-
-                // Info Mata Pelajaran (Card yang lebih sederhana)
-                Card(
-                  margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: Colors.blue.shade50,
-                  elevation: 1,
-                  child: Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(Icons.menu_book, color: Colors.blue, size: 20),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.subject['nama'],
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                '${_assignedClasses.length} kelas terdaftar',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              if (!canAddMoreClasses) ...[
-                                SizedBox(height: 2),
-                                Text(
-                                  'Semua kelas sudah ditambahkan',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.green,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ],
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
+                SizedBox(height: 4),
 
-                // Daftar Kelas
                 Expanded(
                   child: filteredClasses.isEmpty
-                      ? _buildEmptyState(
-                          _searchController.text.isEmpty && _selectedFilter == 'All'
-                              ? 'Belum ada kelas yang tersedia'
-                              : 'Tidak ada kelas yang cocok dengan pencarian',
-                          showAddButton: _searchController.text.isEmpty && _selectedFilter == 'All' && canAddMoreClasses,
+                      ? EmptyState(
+                          title: 'Tidak ada kelas',
+                          subtitle:
+                              _searchController.text.isEmpty &&
+                                  _selectedFilter == 'All'
+                              ? 'Semua kelas sudah ditampilkan'
+                              : 'Tidak ditemukan hasil pencarian',
+                          icon: Icons.class_outlined,
                         )
                       : ListView.builder(
                           itemCount: filteredClasses.length,
                           itemBuilder: (context, index) {
                             final kelas = filteredClasses[index];
                             final isAssigned = _isClassAssigned(kelas['id']);
-                            return _buildClassCard(kelas, isAssigned);
+                            return _buildClassCard(kelas, index, isAssigned);
                           },
                         ),
                 ),
               ],
             ),
-      // Floating Action Button untuk menambah kelas - SELALU MUNCUL selama masih ada kelas yang bisa ditambahkan
-      floatingActionButton: canAddMoreClasses
-          ? FloatingActionButton(
-              onPressed: _showQuickAddClassDialog,
-              backgroundColor: ColorUtils.primaryColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(Icons.add, color: Colors.white),
-            )
-          : null,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showQuickAddClassDialog,
+        backgroundColor: _getPrimaryColor(),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Icon(Icons.add, color: Colors.white, size: 20),
+      ),
+    );
+  }
+
+  Widget _buildStatItem({
+    required IconData icon,
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+        SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, color: color.withOpacity(0.8)),
+        ),
+      ],
     );
   }
 }

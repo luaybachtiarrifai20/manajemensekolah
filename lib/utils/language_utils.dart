@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 class LanguageProvider with ChangeNotifier {
   static const String ENGLISH = 'en';
@@ -48,6 +47,139 @@ class AppLocalizations {
   static Map<String, String> get appTitle => {
     'en': 'School Management',
     'id': 'Manajemen Sekolah',
+  };
+
+  // Tambahkan di class AppLocalizations
+
+  // Class Management
+  static Map<String, String> get editClass => {
+    'en': 'Edit Class',
+    'id': 'Edit Kelas',
+  };
+
+  static Map<String, String> get addClass => {
+    'en': 'Add Class',
+    'id': 'Tambah Kelas',
+  };
+
+  static Map<String, String> get className => {
+    'en': 'Class Name',
+    'id': 'Nama Kelas',
+  };
+
+  static Map<String, String> get classNameRequired => {
+    'en': 'Class name is required',
+    'id': 'Nama kelas harus diisi',
+  };
+
+  static Map<String, String> get gradeLevel => {
+    'en': 'Grade Level',
+    'id': 'Tingkat Kelas',
+  };
+
+  static Map<String, String> get gradeLevelRequired => {
+    'en': 'Grade level is required',
+    'id': 'Tingkat kelas harus dipilih',
+  };
+
+  static Map<String, String> get selectGradeLevel => {
+    'en': 'Select Grade Level',
+    'id': 'Pilih Tingkat Kelas',
+  };
+
+  static Map<String, String> get homeroomTeacher => {
+    'en': 'Homeroom Teacher',
+    'id': 'Wali Kelas',
+  };
+
+  static Map<String, String> get noTeacher => {
+    'en': 'No Teacher',
+    'id': 'Tidak Ada Guru',
+  };
+
+  static Map<String, String> get update => {'en': 'Update', 'id': 'Perbarui'};
+
+  static Map<String, String> get classDetails => {
+    'en': 'Class Details',
+    'id': 'Detail Kelas',
+  };
+
+  static Map<String, String> get numberOfStudents => {
+    'en': 'Number of Students',
+    'id': 'Jumlah Siswa',
+  };
+
+  static Map<String, String> get notAssigned => {
+    'en': 'Not assigned',
+    'id': 'Tidak ada',
+  };
+
+  static Map<String, String> get classesFound => {
+    'en': 'classes found',
+    'id': 'kelas ditemukan',
+  };
+
+  static Map<String, String> get noClasses => {
+    'en': 'No classes',
+    'id': 'Tidak ada kelas',
+  };
+
+  static Map<String, String> get tapToAddClass => {
+    'en': 'Tap + to add a class',
+    'id': 'Tap + untuk menambah kelas',
+  };
+
+  static Map<String, String> get searchClasses => {
+    'en': 'Search classes...',
+    'id': 'Cari kelas...',
+  };
+
+  static Map<String, String> get loadingClassData => {
+    'en': 'Loading class data...',
+    'id': 'Memuat data kelas...',
+  };
+
+  static Map<String, String> get classSuccessfullyUpdated => {
+    'en': 'Class successfully updated',
+    'id': 'Kelas berhasil diperbarui',
+  };
+
+  static Map<String, String> get classSuccessfullyAdded => {
+    'en': 'Class successfully added',
+    'id': 'Kelas berhasil ditambahkan',
+  };
+
+  static Map<String, String> get classSuccessfullyDeleted => {
+    'en': 'Class successfully deleted',
+    'id': 'Kelas berhasil dihapus',
+  };
+
+  static Map<String, String> get failedToSaveClass => {
+    'en': 'Failed to save class',
+    'id': 'Gagal menyimpan kelas',
+  };
+
+  static Map<String, String> get failedToDeleteClass => {
+    'en': 'Failed to delete class',
+    'id': 'Gagal menghapus kelas',
+  };
+
+  static Map<String, String> get areYouSureDeleteClass => {
+    'en': 'Are you sure you want to delete this class?',
+    'id': 'Apakah Anda yakin ingin menghapus kelas ini?',
+  };
+
+  // Filter Options
+  static Map<String, String> get all => {'en': 'All', 'id': 'Semua'};
+
+  static Map<String, String> get withHomeroomTeacher => {
+    'en': 'With Homeroom Teacher',
+    'id': 'Dengan Wali Kelas',
+  };
+
+  static Map<String, String> get withoutHomeroomTeacher => {
+    'en': 'Without Homeroom Teacher',
+    'id': 'Tanpa Wali Kelas',
   };
 
   static Map<String, String> get welcome => {
@@ -122,8 +254,8 @@ class AppLocalizations {
   };
 
   static Map<String, String> get manageTeachingSchedule => {
-    'en': 'Manage Teaching Schedule',
-    'id': 'Kelola Jadwal Mengajar',
+    'en': 'Manage Schedule',
+    'id': 'Kelola Jadwal',
   };
 
   static Map<String, String> get reports => {'en': 'Reports', 'id': 'Laporan'};
@@ -464,10 +596,10 @@ class AppLocalizations {
     'id': 'Nama Mata Pelajaran',
   };
 
-  static Map<String, String> get className => {
-    'en': 'Class Name',
-    'id': 'Nama Kelas',
-  };
+  // static Map<String, String> get className => {
+  //   'en': 'Class Name',
+  //   'id': 'Nama Kelas',
+  // };
 
   static Map<String, String> get creationDate => {
     'en': 'Creation Date',
@@ -572,4 +704,36 @@ class AppLocalizations {
     'en': 'Supported formats: .doc, .docx, .pdf',
     'id': 'Format yang didukung: .doc, .docx, .pdf',
   };
+}
+
+// Extension untuk memudahkan penggunaan terjemahan
+extension AppLocalizationsExtension on AppLocalizations {
+  // Class Management
+  static String get editClass => AppLocalizations.editClass.tr;
+  static String get addClass => AppLocalizations.addClass.tr;
+  static String get className => AppLocalizations.className.tr;
+  static String get classNameRequired => AppLocalizations.classNameRequired.tr;
+  static String get gradeLevel => AppLocalizations.gradeLevel.tr;
+  static String get gradeLevelRequired => AppLocalizations.gradeLevelRequired.tr;
+  static String get selectGradeLevel => AppLocalizations.selectGradeLevel.tr;
+  static String get homeroomTeacher => AppLocalizations.homeroomTeacher.tr;
+  static String get noTeacher => AppLocalizations.noTeacher.tr;
+  static String get update => AppLocalizations.update.tr;
+  static String get classDetails => AppLocalizations.classDetails.tr;
+  static String get numberOfStudents => AppLocalizations.numberOfStudents.tr;
+  static String get notAssigned => AppLocalizations.notAssigned.tr;
+  static String get classesFound => AppLocalizations.classesFound.tr;
+  static String get noClasses => AppLocalizations.noClasses.tr;
+  static String get tapToAddClass => AppLocalizations.tapToAddClass.tr;
+  static String get searchClasses => AppLocalizations.searchClasses.tr;
+  static String get loadingClassData => AppLocalizations.loadingClassData.tr;
+  static String get classSuccessfullyUpdated => AppLocalizations.classSuccessfullyUpdated.tr;
+  static String get classSuccessfullyAdded => AppLocalizations.classSuccessfullyAdded.tr;
+  static String get classSuccessfullyDeleted => AppLocalizations.classSuccessfullyDeleted.tr;
+  static String get failedToSaveClass => AppLocalizations.failedToSaveClass.tr;
+  static String get failedToDeleteClass => AppLocalizations.failedToDeleteClass.tr;
+  static String get areYouSureDeleteClass => AppLocalizations.areYouSureDeleteClass.tr;
+  static String get all => AppLocalizations.all.tr;
+  static String get withHomeroomTeacher => AppLocalizations.withHomeroomTeacher.tr;
+  static String get withoutHomeroomTeacher => AppLocalizations.withoutHomeroomTeacher.tr;
 }
