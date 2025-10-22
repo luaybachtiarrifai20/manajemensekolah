@@ -2,6 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 	<dict>
+		<!-- Image Picker Permissions -->
+		<key>NSCameraUsageDescription</key>
+		<string>This app needs access to camera to take pictures for payment proof</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>This app needs access to photos to select images for payment proof</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>This app needs access to save images to photos</string>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>

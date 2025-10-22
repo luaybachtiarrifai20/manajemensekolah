@@ -22,6 +22,8 @@ import 'package:manajemensekolah/screen/guru/rpp_screen.dart';
 import 'package:manajemensekolah/screen/walimurid/parent_class_activity.dart';
 import 'package:manajemensekolah/screen/walimurid/pengumuman_screen.dart';
 import 'package:manajemensekolah/screen/walimurid/presence_parent.dart';
+import 'package:manajemensekolah/screen/walimurid/tagihan_wali.dart';
+import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_student_services.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
 import 'package:provider/provider.dart';
@@ -41,6 +43,9 @@ class _DashboardState extends State<Dashboard>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
+  Map<String, dynamic> _userData = {};
+  List<dynamic> _accessibleSchools = [];
+  bool _isLoadingSchools = false;
 
   @override
   void initState() {
@@ -60,6 +65,76 @@ class _DashboardState extends State<Dashboard>
     );
 
     _animationController.forward();
+    _loadUserData();
+    _loadAccessibleSchools();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userString = prefs.getString('user');
+    if (userString != null) {
+      setState(() {
+        _userData = json.decode(userString);
+      });
+    }
+  }
+
+  Future<void> _loadAccessibleSchools() async {
+    setState(() {
+      _isLoadingSchools = true;
+    });
+
+    try {
+      final schools = await ApiService.getUserSchools();
+      setState(() {
+        _accessibleSchools = schools;
+        _isLoadingSchools = false;
+      });
+    } catch (e) {
+      print('Error loading schools: $e');
+      setState(() {
+        _isLoadingSchools = false;
+      });
+    }
+  }
+
+  Future<void> _switchSchool(Map<String, dynamic> school) async {
+    try {
+      final response = await ApiService.switchSchool(school['sekolah_id']);
+
+      // Update token dan user data
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', response['token']);
+
+      // Update user data dengan sekolah baru
+      final updatedUserData = Map<String, dynamic>.from(_userData);
+      updatedUserData['sekolah_id'] = school['sekolah_id'];
+      updatedUserData['nama_sekolah'] = school['nama_sekolah'];
+      updatedUserData['sekolah_alamat'] = school['alamat'];
+      updatedUserData['sekolah_telepon'] = school['telepon'];
+      updatedUserData['sekolah_email'] = school['email'];
+
+      await prefs.setString('user', json.encode(updatedUserData));
+
+      setState(() {
+        _userData = updatedUserData;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Berhasil pindah ke ${school['nama_sekolah']}'),
+          ),
+        );
+        Navigator.pop(context); // Close bottom sheet
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal pindah sekolah: $e')));
+      }
+    }
   }
 
   @override
@@ -146,19 +221,21 @@ class _DashboardState extends State<Dashboard>
           ),
           SizedBox(width: 12),
 
-          // App Title
+          // App Title dan Nama Sekolah
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  AppLocalizations.appTitle.tr,
+                  _userData['nama_sekolah'] ?? AppLocalizations.appTitle.tr,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     letterSpacing: -0.5,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 SizedBox(height: 2),
                 Text(
@@ -276,21 +353,25 @@ class _DashboardState extends State<Dashboard>
                 ),
                 SizedBox(height: 4),
                 Text(
-                  _getRoleTitle(),
+                  _userData['nama'] ?? _getRoleTitle(),
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     letterSpacing: -0.5,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 SizedBox(height: 6),
                 Text(
-                  AppLocalizations.appTitle.tr,
+                  _userData['nama_sekolah'] ?? AppLocalizations.appTitle.tr,
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withOpacity(0.7),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -570,6 +651,8 @@ class _DashboardState extends State<Dashboard>
                         ),
                       ),
                       SizedBox(height: 20),
+
+                      // User Info
                       Row(
                         children: [
                           Container(
@@ -586,30 +669,93 @@ class _DashboardState extends State<Dashboard>
                             ),
                           ),
                           SizedBox(width: 16),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _getRoleTitle(),
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.grey.shade800,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _userData['nama'] ?? _getRoleTitle(),
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.grey.shade800,
+                                  ),
                                 ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                AppLocalizations.activeAccount.tr,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade600,
+                                SizedBox(height: 4),
+                                Text(
+                                  _userData['email'] ?? '',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade600,
+                                  ),
                                 ),
-                              ),
-                            ],
+                                SizedBox(height: 2),
+                                Text(
+                                  _userData['nama_sekolah'] ?? '',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
+
                       SizedBox(height: 24),
+
+                      // Switch Sekolah Button (bukan langsung list)
+                      if (_accessibleSchools.length > 1) ...[
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.pop(context); // Tutup bottom sheet
+                              _showSchoolSelectionDialog(
+                                context,
+                              ); // Tampilkan dialog pilih sekolah
+                            },
+                            borderRadius: BorderRadius.circular(15),
+                            child: Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: _getPrimaryColor().withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(15),
+                                border: Border.all(
+                                  color: _getPrimaryColor().withOpacity(0.3),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.school_rounded,
+                                    color: _getPrimaryColor(),
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Ganti Sekolah',
+                                    style: TextStyle(
+                                      color: _getPrimaryColor(),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 16),
+                        Divider(),
+                        SizedBox(height: 16),
+                      ],
+
+                      // Logout Button
                       Material(
                         color: Colors.transparent,
                         child: InkWell(
@@ -663,6 +809,119 @@ class _DashboardState extends State<Dashboard>
           ),
         );
       },
+    );
+  }
+
+  // Method baru untuk menampilkan dialog pilihan sekolah
+  void _showSchoolSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.school_rounded, color: _getPrimaryColor()),
+            SizedBox(width: 8),
+            Text(
+              'Pilih Sekolah',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade800,
+              ),
+            ),
+          ],
+        ),
+        content: Container(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_isLoadingSchools)
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: CircularProgressIndicator(),
+                )
+              else
+                ..._accessibleSchools.map((school) {
+                  final isCurrent =
+                      school['sekolah_id'] == _userData['sekolah_id'];
+                  return Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: isCurrent ? null : () => _switchSchool(school),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: EdgeInsets.all(12),
+                        margin: EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: isCurrent
+                              ? _getPrimaryColor().withOpacity(0.1)
+                              : Colors.grey.shade50,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isCurrent
+                                ? _getPrimaryColor().withOpacity(0.3)
+                                : Colors.transparent,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.school,
+                              color: isCurrent
+                                  ? _getPrimaryColor()
+                                  : Colors.grey,
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    school['nama_sekolah'],
+                                    style: TextStyle(
+                                      fontWeight: isCurrent
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                      color: Colors.grey.shade800,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    school['alamat'] ?? '',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 12,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (isCurrent)
+                              Icon(
+                                Icons.check_circle,
+                                color: _getPrimaryColor(),
+                                size: 20,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Batal', style: TextStyle(color: Colors.grey.shade600)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -969,6 +1228,15 @@ class _DashboardState extends State<Dashboard>
         'roles': ['admin'],
       },
       {
+        'title': 'Keuangan',
+        'icon': Icons.event_note,
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => KeuanganScreen()),
+        ),
+        'roles': ['admin'],
+      },
+      {
         'title': 'Absensi Anak',
         'icon': Icons.calendar_today,
         'onTap': () async {
@@ -1033,6 +1301,15 @@ class _DashboardState extends State<Dashboard>
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => ParentClassActivityScreen()),
+        ),
+        'roles': ['wali'],
+      },
+      {
+        'title': 'Keunganan',
+        'icon': Icons.event_note,
+        'onTap': () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => TagihanWaliScreen()),
         ),
         'roles': ['wali'],
       },

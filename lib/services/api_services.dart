@@ -1,17 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
-
+import 'package:http_parser/http_parser.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // static const String baseUrl = 'http://10.0.2.2:3000/api'; // Android emulator
-  static const String baseUrl = 'http://localhost:3000/api'; // iOS simulator atau web
+  static const String baseUrl =
+      'http://localhost:3000/api'; // iOS simulator atau web
 
   // static const String baseUrl = 'https://backendmanajemensekolah2.vercel.app/api';
   // static const String baseUrl = 'https://libra.web.id/apimanajemen';
 
   // static const String baseUrl = 'http://aieasytech.id/api';
+  // static const String baseUrl = 'http://192.168.1.100:3000/api';
 
   Future<dynamic> get(String endpoint) async {
     final response = await http.get(
@@ -103,15 +105,22 @@ class ApiService {
     }
   }
 
-  // Login
+  // Login dengan sekolah
   static Future<Map<String, dynamic>> login(
     String email,
-    String password,
-  ) async {
+    String password, {
+    String? sekolahId,
+  }) async {
+    final Map<String, dynamic> body = {'email': email, 'password': password};
+
+    if (sekolahId != null) {
+      body['sekolah_id'] = sekolahId;
+    }
+
     final response = await http.post(
       Uri.parse('$baseUrl/login'),
       headers: {'Content-Type': 'application/json'},
-      body: json.encode({'email': email, 'password': password}),
+      body: json.encode(body),
     );
 
     if (response.statusCode == 200) {
@@ -119,6 +128,28 @@ class ApiService {
     } else {
       throw Exception(json.decode(response.body)['error'] ?? 'Login failed');
     }
+  }
+
+  // Get sekolah yang bisa diakses user
+  static Future<List<dynamic>> getUserSchools() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/user/schools'),
+      headers: await _getHeaders(),
+    );
+
+    final result = _handleResponse(response);
+    return result is List ? result : [];
+  }
+
+  // Switch sekolah
+  static Future<Map<String, dynamic>> switchSchool(String sekolahId) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/switch-school'),
+      headers: await _getHeaders(),
+      body: json.encode({'sekolah_id': sekolahId}),
+    );
+
+    return _handleResponse(response);
   }
 
   // Nilai
@@ -320,6 +351,31 @@ class ApiService {
     }
   }
 
+  Future<dynamic> createNilai(Map<String, dynamic> data) async {
+    // Sanitize data - ubah undefined menjadi null
+    final sanitizedData = _sanitizeData(data);
+    return await post('/nilai', sanitizedData);
+  }
+
+  Future<dynamic> updateNilai(String id, Map<String, dynamic> data) async {
+    // Sanitize data - ubah undefined menjadi null
+    final sanitizedData = _sanitizeData(data);
+    return await put('/nilai/$id', sanitizedData);
+  }
+
+  Map<String, dynamic> _sanitizeData(Map<String, dynamic> data) {
+    final sanitized = Map<String, dynamic>.from(data);
+    sanitized.removeWhere(
+      (key, value) => value == null || value == 'undefined',
+    );
+    sanitized.forEach((key, value) {
+      if (value == 'undefined') {
+        sanitized[key] = null;
+      }
+    });
+    return sanitized;
+  }
+
   // Get mata pelajaran with kelas data
   Future<List<dynamic>> getMataPelajaranWithKelas() async {
     try {
@@ -328,6 +384,87 @@ class ApiService {
     } catch (e) {
       print('Error getting mata pelajaran with kelas: $e');
       return [];
+    }
+  }
+
+  // api_service.dart - Tambahkan method ini
+  // Dalam api_services.dart - Perbaiki method uploadFile
+  Future<dynamic> uploadFile(
+    String endpoint,
+    File file, {
+    Map<String, dynamic>? data,
+  }) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl$endpoint'),
+      );
+
+      // Add headers dengan authorization
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+
+      // Deteksi MIME type yang benar
+      String? mimeType;
+      final extension = file.path.toLowerCase().split('.').last;
+
+      switch (extension) {
+        case 'jpg':
+        case 'jpeg':
+          mimeType = 'image/jpeg';
+          break;
+        case 'png':
+          mimeType = 'image/png';
+          break;
+        case 'pdf':
+          mimeType = 'application/pdf';
+          break;
+        default:
+          mimeType = 'image/jpeg'; // fallback
+      }
+
+      print('Uploading file: ${file.path}');
+      print('File extension: $extension');
+      print('MIME type: $mimeType');
+
+      // Add file dengan MIME type yang benar
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'bukti_bayar',
+          file.path,
+          contentType: mimeType != null ? MediaType.parse(mimeType) : null,
+        ),
+      );
+
+      // Add other data
+      if (data != null) {
+        data.forEach((key, value) {
+          request.fields[key] = value.toString();
+        });
+      }
+
+      print('Request fields: ${request.fields}');
+      print('Request files: ${request.files.length}');
+
+      var response = await request.send();
+      var responseData = await response.stream.bytesToString();
+
+      print('Upload Response Status: ${response.statusCode}');
+      print('Upload Response Body: $responseData');
+
+      if (response.statusCode == 200) {
+        return json.decode(responseData);
+      } else {
+        throw Exception(
+          'Upload failed: ${response.statusCode} - $responseData',
+        );
+      }
+    } catch (error) {
+      print('Upload error: $error');
+      throw Exception('Upload error: $error');
     }
   }
 

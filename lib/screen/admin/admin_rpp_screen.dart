@@ -784,6 +784,9 @@ class RppAdminDetailPage extends StatelessWidget {
   final Map<String, dynamic> rpp;
 
   const RppAdminDetailPage({super.key, required this.rpp});
+  Color _getPrimaryColor() {
+    return Color(0xFF4361EE); // Blue untuk admin
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -796,15 +799,15 @@ class RppAdminDetailPage extends StatelessWidget {
             fontFamily: 'Poppins',
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: Colors.white,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: _getPrimaryColor(),
         elevation: 0,
         centerTitle: true,
         iconTheme: IconThemeData(color: Colors.black),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [

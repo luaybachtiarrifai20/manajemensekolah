@@ -9,6 +9,7 @@ import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_student_services.dart';
 import 'package:manajemensekolah/services/api_subject_services.dart';
+import 'package:manajemensekolah/services/excel_presence_service.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
 import 'package:provider/provider.dart';
@@ -43,7 +44,8 @@ class AdminPresenceReportScreen extends StatefulWidget {
       _AdminPresenceReportScreenState();
 }
 
-class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen> {
+class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen>
+    with SingleTickerProviderStateMixin {
   // Data untuk mode View Results
   List<AbsensiSummary> _absensiSummaryList = [];
   bool _isLoadingSummary = false;
@@ -53,15 +55,35 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen> {
   final List<String> _filterOptions = ['All', 'Today', 'This Week'];
   String _selectedFilter = 'All';
 
+  // Animations
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
   @override
   void initState() {
     super.initState();
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 800),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
     _loadAbsensiSummary();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -117,6 +139,8 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen> {
         _isLoadingSummary = false;
       });
 
+      _animationController.forward();
+
       if (kDebugMode) {
         print(
           'Loaded ${_absensiSummaryList.length} absensi summaries for admin',
@@ -134,6 +158,8 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen> {
     }
   }
 
+  // Method untuk export detail absensi
+
   String _getMataPelajaranName(
     String mataPelajaranId,
     List<dynamic> mataPelajaranList,
@@ -147,6 +173,18 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen> {
     } catch (e) {
       return 'Unknown';
     }
+  }
+
+  Color _getPrimaryColor() {
+    return Color(0xFF4361EE); // Blue untuk admin
+  }
+
+  LinearGradient _getCardGradient() {
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
+    );
   }
 
   // ========== VIEW RESULTS ==========
@@ -213,12 +251,12 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen> {
                   children: [
                     Text(
                       '${filteredSummaries.length} ${languageProvider.getTranslatedText({'en': 'attendance records found', 'id': 'catatan absensi ditemukan'})}',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
                     ),
                   ],
                 ),
               ),
-            SizedBox(height: 8),
+            SizedBox(height: 4),
 
             Expanded(
               child: filteredSummaries.isEmpty
@@ -241,17 +279,295 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen> {
                       icon: Icons.list_alt,
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.all(16),
+                      padding: EdgeInsets.only(bottom: 16),
                       itemCount: filteredSummaries.length,
                       itemBuilder: (context, index) {
                         final summary = filteredSummaries[index];
-                        return _buildSummaryCard(summary, languageProvider);
+                        return _buildSummaryCard(
+                          summary,
+                          languageProvider,
+                          index,
+                        );
                       },
                     ),
             ),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildSummaryCard(
+    AbsensiSummary summary,
+    LanguageProvider languageProvider,
+    int index,
+  ) {
+    final presentaseHadir = summary.totalSiswa > 0
+        ? (summary.hadir / summary.totalSiswa * 100).round()
+        : 0;
+
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        final delay = index * 0.1;
+        final animation = CurvedAnimation(
+          parent: _animationController,
+          curve: Interval(delay, 1.0, curve: Curves.easeOut),
+        );
+
+        return FadeTransition(
+          opacity: animation,
+          child: Transform.translate(
+            offset: Offset(0, 50 * (1 - animation.value)),
+            child: child,
+          ),
+        );
+      },
+      child: GestureDetector(
+        onTap: () => _navigateToDetailAbsensi(summary),
+        child: Container(
+          margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _navigateToDetailAbsensi(summary),
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: _getCardGradient(),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getPrimaryColor().withOpacity(0.2),
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  children: [
+                    // Background pattern
+                    Positioned(
+                      right: -10,
+                      top: -10,
+                      child: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header dengan mata pelajaran dan tanggal
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      summary.mataPelajaranNama,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      DateFormat(
+                                        'EEEE, dd MMMM yyyy',
+                                        'id_ID',
+                                      ).format(summary.tanggal),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white.withOpacity(0.8),
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  '${summary.totalSiswa} Siswa',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          SizedBox(height: 12),
+
+                          // Informasi kehadiran
+                          Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(
+                                  Icons.people,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Kehadiran',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.white.withOpacity(0.8),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 1),
+                                    Text(
+                                      '${summary.hadir} Hadir • ${summary.tidakHadir} Tidak Hadir',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          SizedBox(height: 8),
+
+                          // Progress bar
+                          Container(
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Stack(
+                              children: [
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    return Container(
+                                      width:
+                                          constraints.maxWidth *
+                                          (summary.totalSiswa > 0
+                                              ? summary.hadir /
+                                                    summary.totalSiswa
+                                              : 0),
+                                      decoration: BoxDecoration(
+                                        color: presentaseHadir >= 80
+                                            ? Colors.green
+                                            : presentaseHadir >= 60
+                                            ? Colors.orange
+                                            : Colors.red,
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '$presentaseHadir% ${languageProvider.getTranslatedText({'en': 'Attendance', 'id': 'Kehadiran'})}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white.withOpacity(0.8),
+                                ),
+                              ),
+                              _buildActionButton(
+                                icon: Icons.visibility,
+                                label: 'Detail',
+                                color: Colors.white,
+                                onPressed: () =>
+                                    _navigateToDetailAbsensi(summary),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: color),
+            SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -285,127 +601,6 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen> {
         date1.day == date2.day;
   }
 
-  Widget _buildSummaryCard(
-    AbsensiSummary summary,
-    LanguageProvider languageProvider,
-  ) {
-    final presentaseHadir = summary.totalSiswa > 0
-        ? (summary.hadir / summary.totalSiswa * 100).round()
-        : 0;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      child: ListTile(
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: ColorUtils.primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(Icons.calendar_today, color: ColorUtils.primaryColor),
-        ),
-        title: Text(
-          summary.mataPelajaranNama,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(summary.tanggal),
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _buildStatusIndicator(
-                  languageProvider.getTranslatedText({
-                    'en': 'Present',
-                    'id': 'Hadir',
-                  }),
-                  summary.hadir,
-                  Colors.green,
-                  languageProvider,
-                ),
-                const SizedBox(width: 12),
-                _buildStatusIndicator(
-                  languageProvider.getTranslatedText({
-                    'en': 'Absent',
-                    'id': 'Tidak Hadir',
-                  }),
-                  summary.tidakHadir,
-                  Colors.red,
-                  languageProvider,
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            LinearProgressIndicator(
-              value: summary.totalSiswa > 0
-                  ? summary.hadir / summary.totalSiswa
-                  : 0,
-              backgroundColor: Colors.grey[200],
-              valueColor: AlwaysStoppedAnimation<Color>(
-                presentaseHadir >= 80
-                    ? Colors.green
-                    : presentaseHadir >= 60
-                    ? Colors.orange
-                    : Colors.red,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '$presentaseHadir% ${languageProvider.getTranslatedText({'en': 'Attendance', 'id': 'Kehadiran'})}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        trailing: const Icon(
-          Icons.arrow_forward_ios,
-          size: 16,
-          color: Colors.grey,
-        ),
-        onTap: () {
-          _navigateToDetailAbsensi(summary);
-        },
-      ),
-    );
-  }
-
-  Widget _buildStatusIndicator(
-    String label,
-    int count,
-    Color color,
-    LanguageProvider languageProvider,
-  ) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          '$count $label',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[700],
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
   void _navigateToDetailAbsensi(AbsensiSummary summary) {
     Navigator.push(
       context,
@@ -424,7 +619,8 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen> {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
         return Scaffold(
-          backgroundColor: Colors.grey.shade50,
+          backgroundColor: Color(0xFFF8F9FA),
+          // Dalam build method, update AppBar actions:
           appBar: AppBar(
             title: Text(
               languageProvider.getTranslatedText({
@@ -432,34 +628,48 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen> {
                 'id': 'Laporan Absensi',
               }),
               style: TextStyle(
-                fontFamily: 'Poppins',
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black,
+                color: Colors.white,
               ),
             ),
-            backgroundColor: Colors.white,
+            backgroundColor: _getPrimaryColor(),
             elevation: 0,
             centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.black),
+            iconTheme: IconThemeData(color: Colors.white),
             leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: Colors.black),
+              icon: Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () => Navigator.of(context).pop(),
             ),
             actions: [
-              IconButton(
-                icon: Icon(Icons.refresh, color: Colors.black),
-                onPressed: _loadAbsensiSummary,
-                tooltip: languageProvider.getTranslatedText({
-                  'en': 'Refresh',
-                  'id': 'Muat Ulang',
-                }),
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert, color: Colors.white),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'refresh':
+                      _loadAbsensiSummary();
+                      break;
+                  }
+                },
+                itemBuilder: (BuildContext context) => [
+                  PopupMenuItem<String>(
+                    value: 'refresh',
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh, color: _getPrimaryColor()),
+                        SizedBox(width: 8),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Refresh',
+                            'id': 'Refresh',
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
-            bottom: PreferredSize(
-              preferredSize: Size.fromHeight(1),
-              child: Container(height: 1, color: Colors.grey.shade300),
-            ),
           ),
           body: _buildResultsMode(),
         );
@@ -485,15 +695,41 @@ class AdminAbsensiDetailPage extends StatefulWidget {
   State<AdminAbsensiDetailPage> createState() => _AdminAbsensiDetailPageState();
 }
 
-class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage> {
+class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
+    with SingleTickerProviderStateMixin {
   List<dynamic> _absensiData = [];
   List<Siswa> _siswaList = [];
   bool _isLoading = true;
 
+  // Animations
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
   @override
   void initState() {
     super.initState();
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 800),
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -519,12 +755,54 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage> {
         _isLoading = false;
       });
 
+      _animationController.forward();
     } catch (e) {
       print('Error loading absensi detail for admin: $e');
       setState(() {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> exportDetail() async {
+    if (_absensiData.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Tidak ada data kegiatan untuk diexport'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await ExcelPresenceService.exportPresenceToExcel(
+        presenceData: _absensiData,
+        context: context,
+      );
+    } catch (e) {
+      print('Error exporting activities: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Color _getPrimaryColor() {
+    return Color(0xFF4361EE); // Blue untuk admin
+  }
+
+  LinearGradient _getCardGradient() {
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
+    );
   }
 
   // Method untuk mendapatkan status absensi siswa
@@ -540,82 +818,151 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage> {
     }
   }
 
-  Widget _buildStudentItem(Siswa siswa, LanguageProvider languageProvider) {
+  Widget _buildStudentCard(
+    Siswa siswa,
+    LanguageProvider languageProvider,
+    int index,
+  ) {
     final status = _getStudentStatus(siswa.id);
     final Color statusColor = _getStatusColor(status);
     final String statusText = _getStatusText(status, languageProvider);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+    return AnimatedBuilder(
+      animation: _animationController,
+      builder: (context, child) {
+        final delay = index * 0.1;
+        final animation = CurvedAnimation(
+          parent: _animationController,
+          curve: Interval(delay, 1.0, curve: Curves.easeOut),
+        );
+
+        return FadeTransition(
+          opacity: animation,
+          child: Transform.translate(
+            offset: Offset(0, 50 * (1 - animation.value)),
+            child: child,
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Avatar
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: _getAvatarColor(siswa.nama),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                siswa.nama.isNotEmpty ? siswa.nama[0].toUpperCase() : '?',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+        );
+      },
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {},
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: _getCardGradient(),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: _getPrimaryColor().withOpacity(0.2),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  // Background pattern
+                  Positioned(
+                    right: -10,
+                    top: -10,
+                    child: Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        // Avatar
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              siswa.nama.isNotEmpty
+                                  ? siswa.nama[0].toUpperCase()
+                                  : '?',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+
+                        // Student Info
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                siswa.nama,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'NIS: ${siswa.nis}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white.withOpacity(0.8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Status Badge
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Text(
+                            statusText,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(width: 12),
-
-          // Student Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  siswa.nama,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  '${languageProvider.getTranslatedText({'en': 'NIS:', 'id': 'NIS:'})} ${siswa.nis}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-
-          // Status Badge (Read-only)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: statusColor.withOpacity(0.3)),
-            ),
-            child: Text(
-              statusText,
-              style: TextStyle(
-                color: statusColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -673,12 +1020,6 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage> {
     }
   }
 
-  Color _getAvatarColor(String nama) {
-    final colors = [Colors.blue, Colors.green, Colors.orange, Colors.purple, Colors.red];
-    final index = nama.isNotEmpty ? nama.codeUnitAt(0) % colors.length : 0;
-    return colors[index];
-  }
-
   // Method untuk menghitung statistik
   Map<String, int> _calculateStatistics() {
     int hadir = 0;
@@ -718,15 +1059,72 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage> {
     };
   }
 
+  Widget _buildStatCard(String label, int count, Color color, IconData icon) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            width: 100,
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [color.withOpacity(0.8), color.withOpacity(0.6)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: Colors.white, size: 24),
+                SizedBox(height: 8),
+                Text(
+                  count.toString(),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
         final stats = _calculateStatistics();
-        final totalTidakHadir = stats['izin']! + stats['sakit']! + stats['alpha']!;
+        final totalTidakHadir =
+            stats['izin']! + stats['sakit']! + stats['alpha']!;
 
         return Scaffold(
-          backgroundColor: Colors.grey.shade50,
+          backgroundColor: Color(0xFFF8F9FA),
           appBar: AppBar(
             title: Text(
               languageProvider.getTranslatedText({
@@ -734,34 +1132,66 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage> {
                 'id': 'Detail Absensi',
               }),
               style: TextStyle(
-                fontFamily: 'Poppins',
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black,
+                color: Colors.white,
               ),
             ),
-            backgroundColor: Colors.white,
+            backgroundColor: _getPrimaryColor(),
             elevation: 0,
             centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.black),
+            iconTheme: IconThemeData(color: Colors.white),
             leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: Colors.black),
+              icon: Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () => Navigator.of(context).pop(),
             ),
             actions: [
-              IconButton(
-                icon: Icon(Icons.refresh, color: Colors.black),
-                onPressed: _loadData,
-                tooltip: languageProvider.getTranslatedText({
-                  'en': 'Refresh',
-                  'id': 'Muat Ulang',
-                }),
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert, color: Colors.white),
+                onSelected: (value) {
+                  switch (value) {
+                    case 'refresh':
+                      _loadData();
+                      break;
+                    case 'export':
+                      exportDetail();
+                      break;
+                  }
+                },
+                itemBuilder: (BuildContext context) => [
+                  PopupMenuItem<String>(
+                    value: 'export',
+                    child: Row(
+                      children: [
+                        Icon(Icons.file_download, color: _getPrimaryColor()),
+                        SizedBox(width: 8),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Export to Excel',
+                            'id': 'Export ke Excel',
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: 'refresh',
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh, color: _getPrimaryColor()),
+                        SizedBox(width: 8),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Refresh',
+                            'id': 'Refresh',
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
-            bottom: PreferredSize(
-              preferredSize: Size.fromHeight(1),
-              child: Container(height: 1, color: Colors.grey.shade300),
-            ),
           ),
           body: _isLoading
               ? LoadingScreen(
@@ -772,146 +1202,147 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage> {
                 )
               : Column(
                   children: [
-                    // Header Info
+                    // Header Info Card
                     Container(
-                      margin: const EdgeInsets.all(16),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            widget.mataPelajaranNama,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                      margin: EdgeInsets.all(16),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: _getCardGradient(),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _getPrimaryColor().withOpacity(0.2),
+                                  blurRadius: 12,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            DateFormat(
-                              'EEEE, dd MMMM yyyy',
-                              'id_ID',
-                            ).format(widget.tanggal),
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
+                            padding: EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                Text(
+                                  widget.mataPelajaranNama,
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  DateFormat(
+                                    'EEEE, dd MMMM yyyy',
+                                    'id_ID',
+                                  ).format(widget.tanggal),
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 14,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  '${stats['total']} ${languageProvider.getTranslatedText({'en': 'Students', 'id': 'Siswa'})}',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
-                            textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${stats['total']} ${languageProvider.getTranslatedText({'en': 'Students', 'id': 'Siswa'})}',
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
 
-                    // Summary Statistics
+                    // Statistics Cards
                     Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      height: 120,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: EdgeInsets.symmetric(horizontal: 16),
                         children: [
-                          _buildStatItem(
+                          _buildStatCard(
                             languageProvider.getTranslatedText({
                               'en': 'Present',
                               'id': 'Hadir',
                             }),
                             stats['hadir']!,
                             Colors.green,
+                            Icons.check_circle,
                           ),
-                          _buildStatItem(
+                          _buildStatCard(
                             languageProvider.getTranslatedText({
                               'en': 'Late',
                               'id': 'Terlambat',
                             }),
                             stats['terlambat']!,
                             Colors.orange,
+                            Icons.access_time,
                           ),
-                          _buildStatItem(
+                          _buildStatCard(
                             languageProvider.getTranslatedText({
                               'en': 'Absent',
                               'id': 'Tidak Hadir',
                             }),
                             totalTidakHadir,
                             Colors.red,
+                            Icons.cancel,
                           ),
-                        ],
-                      ),
-                    ),
-
-                    // Detailed Statistics (Optional - bisa dihapus jika tidak perlu)
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
                           if (stats['izin']! > 0)
-                            _buildSmallStatItem('Izin', stats['izin']!, Colors.blue),
+                            _buildStatCard(
+                              languageProvider.getTranslatedText({
+                                'en': 'Permission',
+                                'id': 'Izin',
+                              }),
+                              stats['izin']!,
+                              Colors.blue,
+                              Icons.event_note,
+                            ),
                           if (stats['sakit']! > 0)
-                            _buildSmallStatItem('Sakit', stats['sakit']!, Colors.orange),
-                          if (stats['alpha']! > 0)
-                            _buildSmallStatItem('Alpha', stats['alpha']!, Colors.red),
+                            _buildStatCard(
+                              languageProvider.getTranslatedText({
+                                'en': 'Sick',
+                                'id': 'Sakit',
+                              }),
+                              stats['sakit']!,
+                              Colors.purple,
+                              Icons.medical_services,
+                            ),
                         ],
                       ),
                     ),
 
                     // Student List Header
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             languageProvider.getTranslatedText({
                               'en': 'Student List',
                               'id': 'Daftar Siswa',
                             }),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade700,
                             ),
                           ),
+                          Spacer(),
                           Text(
-                            languageProvider.getTranslatedText({
-                              'en': 'Status',
-                              'id': 'Status',
-                            }),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                            '${_siswaList.length} ${languageProvider.getTranslatedText({'en': 'students', 'id': 'siswa'})}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
                             ),
                           ),
                         ],
@@ -921,11 +1352,12 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage> {
                     // Student List
                     Expanded(
                       child: ListView.builder(
-                        padding: const EdgeInsets.only(bottom: 16),
+                        padding: EdgeInsets.only(bottom: 16),
                         itemCount: _siswaList.length,
-                        itemBuilder: (context, index) => _buildStudentItem(
+                        itemBuilder: (context, index) => _buildStudentCard(
                           _siswaList[index],
                           languageProvider,
+                          index,
                         ),
                       ),
                     ),
@@ -933,63 +1365,6 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage> {
                 ),
         );
       },
-    );
-  }
-
-  Widget _buildStatItem(String label, int count, Color color) {
-    return Column(
-      children: [
-        Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: color.withOpacity(0.3)),
-          ),
-          child: Center(
-            child: Text(
-              count.toString(),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSmallStatItem(String label, int count, Color color) {
-    return Column(
-      children: [
-        Text(
-          count.toString(),
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 10,
-            color: Colors.grey,
-          ),
-        ),
-      ],
     );
   }
 }

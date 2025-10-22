@@ -135,6 +135,140 @@ class GradePageState extends State<GradePage> {
     );
   }
 
+  Color _getPrimaryColor() {
+    return Color(0xFF4361EE); // Blue untuk konsisten dengan subject management
+  }
+
+  LinearGradient _getCardGradient() {
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
+    );
+  }
+
+  Widget _buildSubjectCard(Map<String, dynamic> subject, LanguageProvider languageProvider, int index) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _navigateToClassSelection(subject),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: _getCardGradient(),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: _getPrimaryColor().withOpacity(0.2),
+                  blurRadius: 12,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                // Background pattern
+                Positioned(
+                  right: -10,
+                  top: -10,
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+
+                Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header dengan nama dan kode
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  subject['nama'] ?? languageProvider.getTranslatedText({
+                                    'en': 'Subject',
+                                    'id': 'Mata Pelajaran',
+                                  }),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  '${languageProvider.getTranslatedText({
+                                    'en': 'Code',
+                                    'id': 'Kode',
+                                  })}: ${subject['kode'] ?? '-'}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(height: 2),
+                      if (subject['deskripsi'] != null &&
+                          subject['deskripsi'].isNotEmpty) ...[
+                        SizedBox(height: 8),
+                        Text(
+                          subject['deskripsi'],
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
@@ -162,7 +296,7 @@ class GradePageState extends State<GradePage> {
         ];
 
         return Scaffold(
-          backgroundColor: Colors.grey.shade50,
+          backgroundColor: Color(0xFFF8F9FA),
           appBar: AppBar(
             title: Text(
               languageProvider.getTranslatedText({
@@ -173,16 +307,16 @@ class GradePageState extends State<GradePage> {
                 fontFamily: 'Poppins',
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black,
+                color: Colors.white,
               ),
             ),
-            backgroundColor: Colors.white,
+            backgroundColor: _getPrimaryColor(),
             elevation: 0,
             centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.black),
+            iconTheme: IconThemeData(color: Colors.white),
             actions: [
               IconButton(
-                icon: Icon(Icons.refresh, color: Colors.black),
+                icon: Icon(Icons.refresh, color: Colors.white),
                 onPressed: _loadData,
                 tooltip: languageProvider.getTranslatedText({
                   'en': 'Refresh',
@@ -190,15 +324,76 @@ class GradePageState extends State<GradePage> {
                 }),
               ),
             ],
-            bottom: PreferredSize(
-              preferredSize: Size.fromHeight(1),
-              child: Container(height: 1, color: Colors.grey.shade300),
-            ),
           ),
           body: Column(
             children: [
               // Header Info Guru
-              _buildHeaderInfo(languageProvider),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: _getCardGradient(),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getPrimaryColor().withOpacity(0.3),
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        widget.guru['role'] == 'guru' ? Icons.school : Icons.admin_panel_settings,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.guru['role'] == 'guru'
+                                ? '${languageProvider.getTranslatedText({
+                                    'en': 'Teacher',
+                                    'id': 'Guru',
+                                  })}: ${widget.guru['nama']}'
+                                : '${languageProvider.getTranslatedText({
+                                    'en': 'Admin',
+                                    'id': 'Admin',
+                                  })}: ${widget.guru['nama']}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            languageProvider.getTranslatedText({
+                              'en': 'Select subject to view/input grades',
+                              'id': 'Pilih mata pelajaran untuk melihat/menginput nilai',
+                            }),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               
               // Search Bar dengan Filter
               EnhancedSearchBar(
@@ -241,12 +436,12 @@ class GradePageState extends State<GradePage> {
                           'en': 'subjects found',
                           'id': 'mata pelajaran ditemukan',
                         })}',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),
                     ],
                   ),
                 ),
-              SizedBox(height: 8),
+              SizedBox(height: 4),
 
               Expanded(
                 child: _filteredMataPelajaranList.isEmpty
@@ -271,11 +466,10 @@ class GradePageState extends State<GradePage> {
                         icon: Icons.menu_book,
                       )
                     : ListView.builder(
-                        padding: EdgeInsets.all(16),
                         itemCount: _filteredMataPelajaranList.length,
                         itemBuilder: (context, index) {
                           final subject = _filteredMataPelajaranList[index];
-                          return _buildSubjectCard(subject, languageProvider);
+                          return _buildSubjectCard(subject, languageProvider, index);
                         },
                       ),
               ),
@@ -285,106 +479,9 @@ class GradePageState extends State<GradePage> {
       },
     );
   }
-
-  Widget _buildHeaderInfo(LanguageProvider languageProvider) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade200, width: 1),
-        ),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: ColorUtils.primaryColor.withOpacity(0.1),
-            child: Icon(
-              widget.guru['role'] == 'guru' ? Icons.school : Icons.admin_panel_settings,
-              color: ColorUtils.primaryColor,
-            ),
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.guru['role'] == 'guru'
-                      ? '${languageProvider.getTranslatedText({
-                          'en': 'Teacher',
-                          'id': 'Guru',
-                        })}: ${widget.guru['nama']}'
-                      : '${languageProvider.getTranslatedText({
-                          'en': 'Admin',
-                          'id': 'Admin',
-                        })}: ${widget.guru['nama']}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  languageProvider.getTranslatedText({
-                    'en': 'Select subject to view/input grades',
-                    'id': 'Pilih mata pelajaran untuk melihat/menginput nilai',
-                  }),
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSubjectCard(Map<String, dynamic> subject, LanguageProvider languageProvider) {
-    return Card(
-      margin: EdgeInsets.symmetric(vertical: 8),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: ColorUtils.primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(Icons.menu_book, color: ColorUtils.primaryColor, size: 30),
-        ),
-        title: Text(
-          subject['nama'] ?? languageProvider.getTranslatedText({
-            'en': 'Subject',
-            'id': 'Mata Pelajaran',
-          }),
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        subtitle: subject['kode'] != null
-            ? Text('${languageProvider.getTranslatedText({
-                'en': 'Code',
-                'id': 'Kode',
-              })}: ${subject['kode']}')
-            : null,
-        trailing: Icon(
-          Icons.arrow_forward_ios,
-          color: Colors.grey.shade600,
-          size: 16,
-        ),
-        onTap: () => _navigateToClassSelection(subject),
-      ),
-    );
-  }
 }
 
-// Halaman Pemilihan Kelas
+// Halaman Pemilihan Kelas - Diperbarui dengan UI yang konsisten
 class ClassSelectionPage extends StatefulWidget {
   final Map<String, dynamic> guru;
   final Map<String, dynamic> mataPelajaran;
@@ -487,40 +584,174 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
     );
   }
 
-  Widget _buildClassCard(Map<String, dynamic> kelas, LanguageProvider languageProvider) {
-    return Card(
-      margin: EdgeInsets.symmetric(vertical: 8),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: ColorUtils.primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+  Color _getPrimaryColor() {
+    return Color(0xFF4361EE);
+  }
+
+  LinearGradient _getCardGradient() {
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
+    );
+  }
+
+  Widget _buildClassCard(Map<String, dynamic> kelas, LanguageProvider languageProvider, int index) {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _navigateToGradeBook(kelas),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: _getCardGradient(),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: _getPrimaryColor().withOpacity(0.2),
+                  blurRadius: 12,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                // Background pattern
+                Positioned(
+                  right: -10,
+                  top: -10,
+                  child: Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+
+                Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header dengan nama kelas
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  kelas['nama'] ?? languageProvider.getTranslatedText({
+                                    'en': 'Class',
+                                    'id': 'Kelas',
+                                  }),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                SizedBox(height: 2),
+                                if (kelas['tingkat'] != null)
+                                  Text(
+                                    '${languageProvider.getTranslatedText({
+                                      'en': 'Level',
+                                      'id': 'Tingkat',
+                                    })}: ${kelas['tingkat']}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white.withOpacity(0.8),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(height: 12),
+
+                      // Informasi tambahan
+                      Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Icon(
+                              Icons.people,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  languageProvider.getTranslatedText({
+                                    'en': 'Tap to view students',
+                                    'id': 'Ketuk untuk melihat siswa',
+                                  }),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                SizedBox(height: 1),
+                                Text(
+                                  languageProvider.getTranslatedText({
+                                    'en': 'Manage Grades',
+                                    'id': 'Kelola Nilai',
+                                  }),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          child: Icon(Icons.class_, color: ColorUtils.primaryColor, size: 30),
         ),
-        title: Text(
-          kelas['nama'] ?? languageProvider.getTranslatedText({
-            'en': 'Class',
-            'id': 'Kelas',
-          }),
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        subtitle: kelas['tingkat'] != null
-            ? Text('${languageProvider.getTranslatedText({
-                'en': 'Level',
-                'id': 'Tingkat',
-              })}: ${kelas['tingkat']}')
-            : null,
-        trailing: Icon(
-          Icons.arrow_forward_ios,
-          color: Colors.grey.shade600,
-          size: 16,
-        ),
-        onTap: () => _navigateToGradeBook(kelas),
       ),
     );
   }
@@ -530,31 +761,42 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
         return Scaffold(
-          backgroundColor: Colors.grey.shade50,
+          backgroundColor: Color(0xFFF8F9FA),
           appBar: AppBar(
-            title: Text(
-              '${languageProvider.getTranslatedText({
-                'en': 'Select Class',
-                'id': 'Pilih Kelas',
-              })} - ${widget.mataPelajaran['nama']}',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${languageProvider.getTranslatedText({
+                    'en': 'Select Class',
+                    'id': 'Pilih Kelas',
+                  })}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  widget.mataPelajaran['nama'] ?? '',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+              ],
             ),
-            backgroundColor: Colors.white,
+            backgroundColor: _getPrimaryColor(),
             elevation: 0,
-            centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.black),
+            centerTitle: false,
+            iconTheme: IconThemeData(color: Colors.white),
             leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: Colors.black),
+              icon: Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () => Navigator.of(context).pop(),
             ),
             actions: [
               IconButton(
-                icon: Icon(Icons.refresh, color: Colors.black),
+                icon: Icon(Icons.refresh, color: Colors.white),
                 onPressed: _loadKelas,
                 tooltip: languageProvider.getTranslatedText({
                   'en': 'Refresh',
@@ -562,10 +804,6 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                 }),
               ),
             ],
-            bottom: PreferredSize(
-              preferredSize: Size.fromHeight(1),
-              child: Container(height: 1, color: Colors.grey.shade300),
-            ),
           ),
           body: _isLoading
               ? LoadingScreen(
@@ -579,20 +817,30 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                     // Header Info
                     Container(
                       width: double.infinity,
-                      padding: EdgeInsets.all(16),
+                      padding: EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border(
-                          bottom: BorderSide(color: Colors.grey.shade200, width: 1),
-                        ),
+                        gradient: _getCardGradient(),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _getPrimaryColor().withOpacity(0.3),
+                            blurRadius: 12,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Row(
                         children: [
-                          CircleAvatar(
-                            backgroundColor: ColorUtils.primaryColor.withOpacity(0.1),
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                             child: Icon(
                               Icons.menu_book,
-                              color: ColorUtils.primaryColor,
+                              color: Colors.white,
+                              size: 24,
                             ),
                           ),
                           SizedBox(width: 12),
@@ -608,10 +856,10 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
+                                    color: Colors.white,
                                   ),
                                 ),
-                                SizedBox(height: 2),
+                                SizedBox(height: 4),
                                 if (widget.mataPelajaran['kode'] != null)
                                   Text(
                                     '${languageProvider.getTranslatedText({
@@ -619,8 +867,8 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                                       'id': 'Kode',
                                     })}: ${widget.mataPelajaran['kode']}',
                                     style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 14,
+                                      color: Colors.white.withOpacity(0.8),
+                                      fontSize: 12,
                                     ),
                                   ),
                               ],
@@ -670,12 +918,12 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                                 'en': 'classes found',
                                 'id': 'kelas ditemukan',
                               })}',
-                              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
                             ),
                           ],
                         ),
                       ),
-                    SizedBox(height: 8),
+                    SizedBox(height: 4),
 
                     Expanded(
                       child: _filteredKelasList.isEmpty
@@ -696,11 +944,10 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                               icon: Icons.class_,
                             )
                           : ListView.builder(
-                              padding: EdgeInsets.all(16),
                               itemCount: _filteredKelasList.length,
                               itemBuilder: (context, index) {
                                 final kelas = _filteredKelasList[index];
-                                return _buildClassCard(kelas, languageProvider);
+                                return _buildClassCard(kelas, languageProvider, index);
                               },
                             ),
                     ),
@@ -711,7 +958,6 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
     );
   }
 }
-
 // Halaman Grade Book/Tabel Nilai
 class GradeBookPage extends StatefulWidget {
   final Map<String, dynamic> guru;

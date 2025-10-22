@@ -70,58 +70,6 @@ class ExcelRppService {
     }
   }
 
-  // Download template RPP melalui backend
-  static Future<void> downloadRppTemplate(BuildContext context) async {
-    final languageProvider = context.read<LanguageProvider>();
-
-    try {
-      // Kirim request ke backend
-      final response = await http.get(
-        Uri.parse('$baseUrl/download-rpp-template'),
-      );
-
-      if (response.statusCode == 200) {
-        // Get directory untuk menyimpan file
-        final Directory directory = await getApplicationDocumentsDirectory();
-        final String filePath = '${directory.path}/Template_RPP.xlsx';
-        
-        // Simpan file yang didownload
-        final File file = File(filePath);
-        await file.writeAsBytes(response.bodyBytes);
-
-        // Buka file
-        await OpenFile.open(filePath);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              languageProvider.getTranslatedText({
-                'en': 'RPP template downloaded successfully',
-                'id': 'Template RPP berhasil diunduh',
-              }),
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        final errorData = jsonDecode(response.body);
-        throw Exception(errorData['message'] ?? 'Failed to download RPP template');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            languageProvider.getTranslatedText({
-              'en': 'Failed to download RPP template: $e',
-              'id': 'Gagal mengunduh template RPP: $e',
-            }),
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   // Validasi data melalui backend
   static Future<List<Map<String, dynamic>>> validateRppDataBackend(
     List<dynamic> rppData,

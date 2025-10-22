@@ -379,6 +379,7 @@ class RPPDetailPageState extends State<RPPDetailPage> {
       _editedContent = newContent;
     });
   }
+  
 
   @override
   Widget build(BuildContext context) {

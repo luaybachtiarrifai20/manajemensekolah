@@ -796,6 +796,12 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
                 'en': 'Manage Subjects',
                 'id': 'Kelola Mata Pelajaran',
               }),
+               style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
             backgroundColor: _getPrimaryColor(),
             elevation: 0,

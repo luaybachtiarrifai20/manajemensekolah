@@ -12,11 +12,11 @@ class ApiClassActivityService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
-      
+
       if (token == null || token.isEmpty) {
         throw Exception('Token tidak tersedia. Silakan login kembali.');
       }
-      
+
       return {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -49,22 +49,34 @@ class ApiClassActivityService {
     }
   }
 
+  // Tambahkan di ApiService class
+  static Future<http.Response> exportClassActivities(
+    List<Map<String, dynamic>> activities,
+  ) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/export/class-activities'),
+      headers: await _getHeaders(),
+      body: json.encode({'activities': activities}),
+    );
+    return response;
+  }
+
   // Get kegiatan by guru - DIPERBAIKI
   static Future<List<dynamic>> getKegiatanByGuru(String guruId) async {
     try {
       final headers = await _getHeaders();
-      
+
       final response = await http.get(
         Uri.parse('$baseUrl/kegiatan/guru/$guruId'),
         headers: headers,
       );
 
       final result = _handleResponse(response);
-      
+
       // Handle jika response adalah array langsung
       if (result is List) {
         return result;
-      } 
+      }
       // Handle jika response adalah object dengan data property
       else if (result is Map && result.containsKey('data')) {
         return result['data'] ?? [];
@@ -82,21 +94,22 @@ class ApiClassActivityService {
   }
 
   // Get kegiatan by kelas (untuk siswa) - DIPERBAIKI
-  static Future<List<dynamic>> getKegiatanByKelas(String kelasId, {String? siswaId}) async {
+  static Future<List<dynamic>> getKegiatanByKelas(
+    String kelasId, {
+    String? siswaId,
+  }) async {
     try {
       final headers = await _getHeaders();
-      
-      final params = {
-        if (siswaId != null) 'siswa_id': siswaId,
-      };
 
-      final uri = Uri.parse('$baseUrl/kegiatan/kelas/$kelasId').replace(
-        queryParameters: params.isNotEmpty ? params : null,
-      );
+      final params = {if (siswaId != null) 'siswa_id': siswaId};
+
+      final uri = Uri.parse(
+        '$baseUrl/kegiatan/kelas/$kelasId',
+      ).replace(queryParameters: params.isNotEmpty ? params : null);
 
       final response = await http.get(uri, headers: headers);
       final result = _handleResponse(response);
-      
+
       if (result is List) {
         return result;
       } else if (result is Map && result.containsKey('data')) {
@@ -116,7 +129,7 @@ class ApiClassActivityService {
   static Future<dynamic> tambahKegiatan(Map<String, dynamic> data) async {
     try {
       final headers = await _getHeaders();
-      
+
       final response = await http.post(
         Uri.parse('$baseUrl/kegiatan'),
         headers: headers,
@@ -133,10 +146,13 @@ class ApiClassActivityService {
   }
 
   // Update kegiatan - DIPERBAIKI
-  static Future<dynamic> updateKegiatan(String id, Map<String, dynamic> data) async {
+  static Future<dynamic> updateKegiatan(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
     try {
       final headers = await _getHeaders();
-      
+
       final response = await http.put(
         Uri.parse('$baseUrl/kegiatan/$id'),
         headers: headers,
@@ -156,7 +172,7 @@ class ApiClassActivityService {
   static Future<dynamic> deleteKegiatan(String id) async {
     try {
       final headers = await _getHeaders();
-      
+
       final response = await http.delete(
         Uri.parse('$baseUrl/kegiatan/$id'),
         headers: headers,
@@ -179,19 +195,19 @@ class ApiClassActivityService {
   }) async {
     try {
       final headers = await _getHeaders();
-      
+
       final params = {
         if (hari != null && hari != 'Semua Hari') 'hari': hari,
         if (tahunAjaran != null) 'tahun_ajaran': tahunAjaran,
       };
 
-      final uri = Uri.parse('$baseUrl/jadwal/guru/$guruId').replace(
-        queryParameters: params.isNotEmpty ? params : null,
-      );
+      final uri = Uri.parse(
+        '$baseUrl/jadwal/guru/$guruId',
+      ).replace(queryParameters: params.isNotEmpty ? params : null);
 
       final response = await http.get(uri, headers: headers);
       final result = _handleResponse(response);
-      
+
       if (result is List) {
         return result;
       } else if (result is Map && result.containsKey('data')) {
@@ -211,14 +227,14 @@ class ApiClassActivityService {
   static Future<List<dynamic>> getSiswaByKelas(String kelasId) async {
     try {
       final headers = await _getHeaders();
-      
+
       final response = await http.get(
         Uri.parse('$baseUrl/siswa/kelas/$kelasId'),
         headers: headers,
       );
 
       final result = _handleResponse(response);
-      
+
       if (result is List) {
         return result;
       } else if (result is Map && result.containsKey('data')) {
@@ -238,7 +254,7 @@ class ApiClassActivityService {
   static Future<dynamic> testConnection() async {
     try {
       final headers = await _getHeaders();
-      
+
       final response = await http.get(
         Uri.parse('$baseUrl/health'),
         headers: headers,

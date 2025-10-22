@@ -24,7 +24,7 @@ class ExcelClassService {
 
       // Kirim request ke backend
       final response = await http.post(
-        Uri.parse('$baseUrl/export-classes'),
+        Uri.parse('$baseUrl/export/classes'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'classes': validatedData}),
       );
@@ -78,7 +78,7 @@ class ExcelClassService {
     try {
       // Kirim request ke backend
       final response = await http.get(
-        Uri.parse('$baseUrl/download-class-template'),
+        Uri.parse('$baseUrl/export/download-class-template'),
       );
 
       if (response.statusCode == 200) {
