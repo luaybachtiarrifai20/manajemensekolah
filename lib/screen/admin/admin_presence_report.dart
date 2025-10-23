@@ -15,6 +15,7 @@ import 'package:manajemensekolah/utils/language_utils.dart';
 import 'package:provider/provider.dart';
 
 // Model untuk Summary Absensi (sama seperti di teacher page)
+// Model untuk Summary Absensi (diperbarui)
 class AbsensiSummary {
   final String mataPelajaranId;
   final String mataPelajaranNama;
@@ -22,6 +23,8 @@ class AbsensiSummary {
   final int totalSiswa;
   final int hadir;
   final int tidakHadir;
+  final String kelasId; // Tambahkan
+  final String kelasNama; // Tambahkan
 
   AbsensiSummary({
     required this.mataPelajaranId,
@@ -30,10 +33,12 @@ class AbsensiSummary {
     required this.totalSiswa,
     required this.hadir,
     required this.tidakHadir,
+    required this.kelasId, // Tambahkan
+    required this.kelasNama, // Tambahkan
   });
 
   String get key =>
-      '$mataPelajaranId-${DateFormat('yyyy-MM-dd').format(tanggal)}';
+      '$mataPelajaranId-$kelasId-${DateFormat('yyyy-MM-dd').format(tanggal)}';
 }
 
 class AdminPresenceReportScreen extends StatefulWidget {
@@ -99,35 +104,58 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen>
 
       final Map<String, AbsensiSummary> summaryMap = {};
 
-      // Load data mata pelajaran untuk mendapatkan nama
-      final mataPelajaranList = await ApiSubjectService().getSubject();
+      // Load data mata pelajaran dan kelas
+      final [mataPelajaranList, kelasList] = await Future.wait([
+        ApiSubjectService().getSubject(),
+        ApiClassService().getClass(),
+      ]);
 
       for (var absen in absensiData) {
-        final key = '${absen['mata_pelajaran_id']}-${absen['tanggal']}';
+        final kelasId = absen['kelas_id']?.toString(); // Handle null
+        final mataPelajaranId = absen['mata_pelajaran_id']
+            ?.toString(); // Handle null
+        final tanggal = absen['tanggal']?.toString(); // Handle null
+
+        // Skip jika data essential tidak lengkap
+        if (mataPelajaranId == null || tanggal == null) {
+          continue;
+        }
+
+        final key = '$mataPelajaranId-${kelasId ?? 'no-class'}-$tanggal';
+
         final mataPelajaranNama = _getMataPelajaranName(
-          absen['mata_pelajaran_id'],
+          mataPelajaranId,
           mataPelajaranList,
         );
 
+        final kelasNama = _getKelasName(kelasId, kelasList);
+
         if (!summaryMap.containsKey(key)) {
           summaryMap[key] = AbsensiSummary(
-            mataPelajaranId: absen['mata_pelajaran_id'],
+            mataPelajaranId: mataPelajaranId,
             mataPelajaranNama: mataPelajaranNama,
-            tanggal: DateTime.parse(absen['tanggal']),
+            tanggal: DateTime.parse(tanggal),
             totalSiswa: 0,
             hadir: 0,
             tidakHadir: 0,
+            kelasId: kelasId ?? '', // Handle null
+            kelasNama: kelasNama,
           );
         }
 
         final summary = summaryMap[key]!;
+        final status =
+            absen['status']?.toString() ?? 'alpha'; // Default jika status null
+
         summaryMap[key] = AbsensiSummary(
           mataPelajaranId: summary.mataPelajaranId,
           mataPelajaranNama: summary.mataPelajaranNama,
           tanggal: summary.tanggal,
           totalSiswa: summary.totalSiswa + 1,
-          hadir: summary.hadir + (absen['status'] == 'hadir' ? 1 : 0),
-          tidakHadir: summary.tidakHadir + (absen['status'] != 'hadir' ? 1 : 0),
+          hadir: summary.hadir + (status == 'hadir' ? 1 : 0),
+          tidakHadir: summary.tidakHadir + (status != 'hadir' ? 1 : 0),
+          kelasId: summary.kelasId,
+          kelasNama: summary.kelasNama,
         );
       }
 
@@ -155,6 +183,24 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen>
           _isLoadingSummary = false;
         });
       }
+    }
+  }
+
+  // Method untuk mendapatkan nama kelas
+  String _getKelasName(String? kelasId, List<dynamic> kelasList) {
+    // Handle null kelasId
+    if (kelasId == null || kelasId.isEmpty) {
+      return 'Kelas Tidak Diketahui';
+    }
+
+    try {
+      final kelas = kelasList.firstWhere(
+        (k) => k['id']?.toString() == kelasId.toString(),
+        orElse: () => {'nama': 'Kelas Tidak Diketahui'},
+      );
+      return kelas['nama'] ?? 'Kelas Tidak Diketahui';
+    } catch (e) {
+      return 'Kelas Tidak Diketahui';
     }
   }
 
@@ -379,7 +425,7 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header dengan mata pelajaran dan tanggal
+                      // Header dengan mata pelajaran, kelas, dan tanggal
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -399,12 +445,23 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen>
                                 ),
                                 SizedBox(height: 2),
                                 Text(
+                                  summary.kelasNama, // Tampilkan nama kelas
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _getPrimaryColor(),
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                SizedBox(height: 2),
+                                Text(
                                   DateFormat(
                                     'EEEE, dd MMMM yyyy',
                                     'id_ID',
                                   ).format(summary.tanggal),
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 11,
                                     color: Colors.grey[600],
                                   ),
                                   maxLines: 1,
@@ -619,6 +676,8 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen>
           mataPelajaranId: summary.mataPelajaranId,
           mataPelajaranNama: summary.mataPelajaranNama,
           tanggal: summary.tanggal,
+          kelasId: summary.kelasId, // Kirim kelasId ke detail page
+          kelasNama: summary.kelasNama, // Kirim kelasNama ke detail page
         ),
       ),
     );
@@ -693,12 +752,16 @@ class AdminAbsensiDetailPage extends StatefulWidget {
   final String mataPelajaranId;
   final String mataPelajaranNama;
   final DateTime tanggal;
+  final String kelasId; // Tambahkan
+  final String kelasNama; // Tambahkan
 
   const AdminAbsensiDetailPage({
     super.key,
     required this.mataPelajaranId,
     required this.mataPelajaranNama,
     required this.tanggal,
+    required this.kelasId, // Tambahkan
+    required this.kelasNama, // Tambahkan
   });
 
   @override
@@ -710,6 +773,7 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
   List<dynamic> _absensiData = [];
   List<Siswa> _siswaList = [];
   bool _isLoading = true;
+  String? _kelasId;
 
   // Animations
   late AnimationController _animationController;
@@ -744,19 +808,32 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
 
   Future<void> _loadData() async {
     try {
-      // Load siswa dan absensi data secara parallel
-      final [siswaData, absensiData] = await Future.wait([
-        ApiStudentService.getStudent(),
-        ApiService.getAbsensi(
-          mataPelajaranId: widget.mataPelajaranId,
-          tanggal: DateFormat('yyyy-MM-dd').format(widget.tanggal),
-        ),
-      ]);
+      // 1. Pertama, ambil data absensi untuk mendapatkan kelas_id
+      final absensiData = await ApiService.getAbsensi(
+        mataPelajaranId: widget.mataPelajaranId,
+        tanggal: DateFormat('yyyy-MM-dd').format(widget.tanggal),
+      );
+
+      if (absensiData.isNotEmpty) {
+        // Ambil kelas_id dari record absensi pertama (asumsi semua record di kelas yang sama)
+        _kelasId = absensiData.first['kelas_id']?.toString();
+
+        if (kDebugMode) {
+          print('Kelas ID from attendance: $_kelasId');
+        }
+      }
+
+      // 2. Load siswa berdasarkan kelas_id jika tersedia, jika tidak load semua siswa
+      List<dynamic> siswaData;
+      if (_kelasId != null && _kelasId!.isNotEmpty) {
+        siswaData = await ApiStudentService.getStudentByClass(_kelasId!);
+      } else {
+        siswaData = await ApiStudentService.getStudent();
+      }
 
       if (kDebugMode) {
-        print('Loaded ${siswaData.length} students');
+        print('Loaded ${siswaData.length} students for class: $_kelasId');
         print('Loaded ${absensiData.length} attendance records');
-        print('Attendance data: $absensiData');
       }
 
       setState(() {
@@ -847,7 +924,7 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
             parent: _animationController,
             curve: Interval(delay, 1.0, curve: Curves.easeOut),
           );
-      
+
           return FadeTransition(
             opacity: animation,
             child: Transform.translate(
@@ -891,7 +968,7 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
                       ),
                     ),
                   ),
-      
+
                   // Background pattern effect
                   Positioned(
                     right: -8,
@@ -905,7 +982,7 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
                       ),
                     ),
                   ),
-      
+
                   Padding(
                     padding: EdgeInsets.all(16),
                     child: Row(
@@ -932,7 +1009,7 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
                           ),
                         ),
                         SizedBox(width: 12),
-      
+
                         // Student Info
                         Expanded(
                           child: Column(
@@ -959,7 +1036,7 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
                             ],
                           ),
                         ),
-      
+
                         // Status Badge
                         Container(
                           padding: EdgeInsets.symmetric(

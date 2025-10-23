@@ -176,6 +176,7 @@ class ApiService {
     return result is List ? result : [];
   }
 
+
   // Switch sekolah
   static Future<Map<String, dynamic>> switchSchool(String sekolahId) async {
     final response = await http.post(
@@ -422,8 +423,6 @@ class ApiService {
     }
   }
 
-  // api_service.dart - Tambahkan method ini
-  // Dalam api_services.dart - Perbaiki method uploadFile
   Future<dynamic> uploadFile(
     String endpoint,
     File file, {
