@@ -20,15 +20,16 @@ class FilterSection extends StatelessWidget {
   });
 
   String _getSemesterName(String semesterId, List<dynamic> semesterList) {
-    try {
-      final semester = semesterList.firstWhere(
-        (sem) => sem['id'] == semesterId,
-      );
-      return semester['nama'] ?? 'Ganjil';
-    } catch (e) {
-      return 'Ganjil';
-    }
+  try {
+    final semester = semesterList.firstWhere(
+      (sem) => sem['id'].toString() == semesterId.toString(),
+      orElse: () => {'nama': 'Ganjil'}, // Fallback if not found
+    );
+    return semester['nama'] ?? 'Ganjil';
+  } catch (e) {
+    return 'Ganjil';
   }
+}
 
   Future<void> _showAcademicYearDialog(BuildContext context) async {
     final TextEditingController controller = TextEditingController(

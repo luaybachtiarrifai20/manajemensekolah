@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/screen/admin/admin_class_activity.dart';
 import 'package:manajemensekolah/screen/admin/admin_presence_report.dart';
@@ -23,8 +24,12 @@ import 'package:manajemensekolah/screen/walimurid/parent_class_activity.dart';
 import 'package:manajemensekolah/screen/walimurid/pengumuman_screen.dart';
 import 'package:manajemensekolah/screen/walimurid/presence_parent.dart';
 import 'package:manajemensekolah/screen/walimurid/tagihan_wali.dart';
+import 'package:manajemensekolah/services/api_class_services.dart';
+import 'package:manajemensekolah/services/api_schedule_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_student_services.dart';
+import 'package:manajemensekolah/services/api_subject_services.dart';
+import 'package:manajemensekolah/services/api_teacher_services.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -47,6 +52,19 @@ class _DashboardState extends State<Dashboard>
   List<dynamic> _accessibleSchools = [];
   bool _isLoadingSchools = false;
 
+  // Data statistik
+  Map<String, dynamic> _stats = {
+    'total_siswa': 0,
+    'total_guru': 0,
+    'total_kelas': 0,
+    'total_mapel': 0,
+    'kelas_hari_ini': 0,
+    'total_materi': 0,
+    'total_rpp': 0,
+    'anak_terdaftar': 0,
+    'pengumuman_terbaru': 0,
+  };
+
   @override
   void initState() {
     super.initState();
@@ -65,14 +83,20 @@ class _DashboardState extends State<Dashboard>
     );
 
     _animationController.forward();
-    _loadUserData();
-    _loadAccessibleSchools();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    await _loadUserData();
+    await _loadAccessibleSchools();
+    await _loadStats(); // Pastikan dipanggil setelah user data dimuat
   }
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
     final userString = prefs.getString('user');
     if (userString != null) {
+      if (!mounted) return;
       setState(() {
         _userData = json.decode(userString);
       });
@@ -80,21 +104,387 @@ class _DashboardState extends State<Dashboard>
   }
 
   Future<void> _loadAccessibleSchools() async {
+    if (!mounted) return;
     setState(() {
       _isLoadingSchools = true;
     });
 
     try {
       final schools = await ApiService.getUserSchools();
+      if (!mounted) return;
       setState(() {
         _accessibleSchools = schools;
         _isLoadingSchools = false;
       });
     } catch (e) {
-      print('Error loading schools: $e');
+      if (kDebugMode) {
+        print('Error loading schools: $e');
+      }
+      if (!mounted) return;
       setState(() {
         _isLoadingSchools = false;
       });
+    }
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      if (widget.role == 'guru') {
+        // Load data untuk guru
+        final userData = _userData;
+        if (userData['id'] == null) {
+          if (kDebugMode) {
+            print('❌ Guru ID tidak ditemukan');
+          }
+          return;
+        }
+
+        if (kDebugMode) {
+          print('👤 Loading stats untuk guru: ${userData['id']}');
+        }
+
+        final schedule = await ApiScheduleService.getCurrentUserSchedule();
+        if (kDebugMode) {
+          print('📅 Jadwal ditemukan: ${schedule.length}');
+        }
+
+        final materi = await ApiSubjectService.getMateri(
+          guruId: userData['id'],
+        );
+        if (kDebugMode) {
+          print('📚 Materi ditemukan: ${materi.length}');
+        }
+
+        final rpp = await ApiService.getRPP(guruId: userData['id']);
+        if (kDebugMode) {
+          print('📋 RPP ditemukan: ${rpp.length}');
+        }
+
+        final totalSiswa = await _getTotalSiswaDiampu();
+        final totalKelas = await _getTotalKelasDiampu();
+        final kelasHariIni = _getKelasHariIni(schedule);
+
+        if (kDebugMode) {
+          print(
+            '📊 Stats Guru - Siswa: $totalSiswa, Kelas: $totalKelas, Hari Ini: $kelasHariIni',
+          );
+        }
+
+        if (!mounted) return;
+
+        setState(() {
+          _stats = {
+            'total_siswa': totalSiswa,
+            'total_kelas': totalKelas,
+            'kelas_hari_ini': kelasHariIni,
+            'total_materi': materi.length,
+            'total_rpp': rpp.length,
+          };
+        });
+      } else if (widget.role == 'admin') {
+        // Load data untuk admin
+        if (kDebugMode) {
+          print('👤 Loading stats untuk admin');
+        }
+
+        final siswa = await ApiStudentService.getStudent();
+        if (kDebugMode) {
+          print('🎒 Siswa ditemukan: ${siswa.length}');
+        }
+
+        final guru = await ApiTeacherService().getTeacher();
+        if (kDebugMode) {
+          print('👨‍🏫 Guru ditemukan: ${guru.length}');
+        }
+
+        final kelas = await ApiClassService().getClass();
+        if (kDebugMode) {
+          print('🏫 Kelas ditemukan: ${kelas.length}');
+        }
+
+        final mapel = await ApiSubjectService().getSubject();
+        if (kDebugMode) {
+          print('📖 Mata Pelajaran ditemukan: ${mapel.length}');
+        }
+
+        if (!mounted) return;
+        setState(() {
+          _stats = {
+            'total_siswa': siswa.length,
+            'total_guru': guru.length,
+            'total_kelas': kelas.length,
+            'total_mapel': mapel.length,
+          };
+        });
+      } else if (widget.role == 'wali') {
+        // Load data untuk wali murid
+        final userData = _userData;
+        if (kDebugMode) {
+          print('👤 Loading stats untuk wali: ${userData['id']}');
+        }
+
+        final siswaData = await _getSiswaDataForParent(userData['id'] ?? '');
+        if (kDebugMode) {
+          print('👶 Data siswa untuk wali: ${siswaData.length}');
+        }
+
+        // Untuk pengumuman, kita gunakan fallback dulu
+        final pengumuman = []; // await _getPengumumanTerbaru();
+
+        if (!mounted) return;
+        setState(() {
+          _stats = {
+            'anak_terdaftar': siswaData.length,
+            'pengumuman_terbaru': pengumuman.length,
+          };
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error loading stats: $e');
+      }
+      // Fallback data dengan logging
+      if (kDebugMode) {
+        print('🔄 Menggunakan fallback data');
+      }
+      if (!mounted) return;
+      setState(() {
+        if (widget.role == 'guru') {
+          _stats = {
+            'total_siswa': 24,
+            'total_kelas': 1,
+            'kelas_hari_ini': 2,
+            'total_materi': 5,
+            'total_rpp': 3,
+          };
+        } else if (widget.role == 'admin') {
+          _stats = {
+            'total_siswa': 150,
+            'total_guru': 25,
+            'total_kelas': 12,
+            'total_mapel': 15,
+          };
+        } else if (widget.role == 'wali') {
+          _stats = {'anak_terdaftar': 2, 'pengumuman_terbaru': 3};
+        }
+      });
+    }
+  }
+
+  Future<int> _getTotalSiswaDiampu() async {
+    try {
+      final kelasDiampu = await _getKelasDiampu();
+      if (kelasDiampu.isEmpty) {
+        return 0;
+      }
+
+      int total = 0;
+      for (var kelas in kelasDiampu) {
+        try {
+          final siswa = await ApiClassService().getStudentsByClassId(
+            kelas['id']?.toString() ?? '',
+          );
+          total += siswa.length;
+          if (kDebugMode) {
+            print('`Siswa di kelas ${kelas['nama']}: ${siswa.length}`');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('❌ Error getting students for class ${kelas['id']}: $e');
+          }
+        }
+      }
+
+      if (kDebugMode) {
+        print('`📊 Total siswa diampu: $total`');
+      }
+      return total;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error in _getTotalSiswaDiampu: $e');
+      }
+      return 0;
+    }
+  }
+
+  Future<int> _getTotalKelasDiampu() async {
+    try {
+      final kelasDiampu = await _getKelasDiampu();
+      return kelasDiampu.length;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error in _getTotalKelasDiampu: $e');
+      }
+      return 0;
+    }
+  }
+
+  Future<List<dynamic>> _getKelasDiampu() async {
+    try {
+      final schedule = await ApiScheduleService.getCurrentUserSchedule();
+      if (kDebugMode) {
+        print('📅 Total jadwal: ${schedule.length}');
+      }
+
+      if (schedule.isEmpty) {
+        if (kDebugMode) {
+          print('⚠️ Tidak ada jadwal ditemukan');
+        }
+        return [];
+      }
+
+      final kelasIds = schedule
+          .map((s) => s['kelas_id']?.toString())
+          .where((id) => id != null)
+          .toSet()
+          .toList();
+      if (kDebugMode) {
+        print('🎯 Kelas IDs unik: $kelasIds');
+      }
+
+      List<dynamic> kelas = [];
+      for (var kelasId in kelasIds) {
+        try {
+          final kelasData = await ApiClassService().getClassById(kelasId!);
+          if (kelasData != null) {
+            kelas.add(kelasData);
+            if (kDebugMode) {
+              print('✅ Kelas $kelasId ditemukan');
+            }
+          } else {
+            if (kDebugMode) {
+              print('❌ Kelas $kelasId tidak ditemukan');
+            }
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('❌ Error getting class $kelasId: $e');
+          }
+        }
+      }
+
+      if (kDebugMode) {
+        print('🏫 Total kelas diampu: ${kelas.length}');
+      }
+      return kelas;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error in _getKelasDiampu: $e');
+      }
+      return [];
+    }
+  }
+
+  int _getKelasHariIni(List<dynamic> schedule) {
+    try {
+      if (schedule.isEmpty) return 0;
+
+      final today = DateTime.now();
+      final dayNames = [
+        'Minggu',
+        'Senin',
+        'Selasa',
+        'Rabu',
+        'Kamis',
+        'Jumat',
+        'Sabatu',
+      ];
+      final todayName = dayNames[today.weekday];
+
+      if (kDebugMode) {
+        print('📅 Hari ini: $todayName');
+      }
+
+      final kelasHariIni = schedule.where((s) {
+        final hariNama = s['hari_nama']?.toString() ?? '';
+        return hariNama == todayName;
+      }).toList();
+
+      if (kDebugMode) {
+        print('`🎯 Kelas hari ini: ${kelasHariIni.length}`');
+      }
+      return kelasHariIni.length;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error in _getKelasHariIni: $e');
+      }
+      return 0;
+    }
+  }
+
+  // Method untuk mendapatkan data siswa untuk parent/wali murid
+  Future<List<dynamic>> _getSiswaDataForParent(String parentId) async {
+    try {
+      if (kDebugMode) {
+        print('👤 Mencari data siswa untuk parent: $parentId');
+      }
+
+      final allStudents = await ApiStudentService.getStudent();
+      if (kDebugMode) {
+        print('🎒 Total siswa di sistem: ${allStudents.length}');
+      }
+
+      final userData = _userData;
+      if (kDebugMode) {
+        print(
+          '📧 Email wali: ${userData['email']}, Nama wali: ${userData['nama']}',
+        );
+      }
+
+      // Cek berdasarkan siswa_id di user data
+      if (userData['siswa_id'] != null && userData['siswa_id'].isNotEmpty) {
+        if (kDebugMode) {
+          print('🔍 Mencari siswa dengan ID: ${userData['siswa_id']}');
+        }
+        final siswa = allStudents.firstWhere(
+          (student) => student['id'] == userData['siswa_id'],
+          orElse: () => null,
+        );
+        if (siswa != null) {
+          if (kDebugMode) {
+            print('✅ Siswa ditemukan via siswa_id: ${siswa['nama']}');
+          }
+          return [siswa];
+        }
+      }
+
+      // Cek berdasarkan email atau nama wali
+      final siswaWithThisParent = allStudents.where((student) {
+        final emailMatch = student['email_wali'] == userData['email'];
+        final namaMatch = student['nama_wali'] == userData['nama'];
+
+        if (emailMatch || namaMatch) {
+          if (kDebugMode) {
+            print('✅ Siswa cocok: ${student['nama']}');
+          }
+        }
+
+        return emailMatch || namaMatch;
+      }).toList();
+
+      if (siswaWithThisParent.isNotEmpty) {
+        return siswaWithThisParent;
+      }
+
+      if (kDebugMode) {
+        print('⚠️ Tidak ada data siswa ditemukan untuk parent ini');
+      }
+      return allStudents;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error getting student data for parent: $e');
+      }
+      return [];
+    }
+  }
+
+  Future<List<dynamic>> _getPengumumanTerbaru() async {
+    try {
+      // Implementasi untuk mendapatkan pengumuman terbaru
+      // Anda perlu menyesuaikan dengan API yang tersedia
+      return [];
+    } catch (e) {
+      return [];
     }
   }
 
@@ -116,6 +506,7 @@ class _DashboardState extends State<Dashboard>
 
       await prefs.setString('user', json.encode(updatedUserData));
 
+      if (!mounted) return;
       setState(() {
         _userData = updatedUserData;
       });
@@ -165,6 +556,10 @@ class _DashboardState extends State<Dashboard>
                     child: _buildWelcomeSection(),
                   ),
                 ),
+                SizedBox(height: 20),
+
+                // Dashboard Stats Cards
+                _buildStatsSection(),
                 SizedBox(height: 20),
 
                 // Search Bar dengan design modern
@@ -268,6 +663,222 @@ class _DashboardState extends State<Dashboard>
                 onPressed: () => _showAccountBottomSheet(context),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsSection() {
+    if (widget.role == 'guru') {
+      return _buildGuruStats();
+    } else if (widget.role == 'admin') {
+      return _buildAdminStats();
+    } else if (widget.role == 'wali') {
+      return _buildWaliStats();
+    }
+    return SizedBox.shrink();
+  }
+
+  Widget _buildGuruStats() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          _buildStatCard(
+            title: "Total Siswa\nDiampu",
+            value: _stats['total_siswa'].toString(),
+            subtitle: "Semua kelas",
+            icon: Icons.people_alt_outlined,
+            iconColor: Color(0xFF4361EE),
+            backgroundColor: Color(0xFF4361EE).withOpacity(0.1),
+          ),
+          SizedBox(width: 12),
+          _buildStatCard(
+            title: "Total Kelas",
+            value: _stats['total_kelas'].toString(),
+            subtitle: "✓ Aktif",
+            icon: Icons.class_outlined,
+            iconColor: Color(0xFF2EC4B6),
+            backgroundColor: Color(0xFF2EC4B6).withOpacity(0.1),
+          ),
+          SizedBox(width: 12),
+          _buildStatCard(
+            title: "Kelas Hari\nIni",
+            value: _stats['kelas_hari_ini'].toString(),
+            subtitle: "Sedang berlangsung",
+            icon: Icons.schedule_outlined,
+            iconColor: Color(0xFFFF9F1C),
+            backgroundColor: Color(0xFFFF9F1C).withOpacity(0.1),
+          ),
+          SizedBox(width: 12),
+          _buildStatCard(
+            title: "Materi & RPP",
+            value:
+                "${_stats['total_materi']} Materi • ${_stats['total_rpp']} RPP",
+            valueStyle: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
+            ),
+            subtitle: "",
+            icon: Icons.description_outlined,
+            iconColor: Color(0xFF7209B7),
+            backgroundColor: Color(0xFF7209B7).withOpacity(0.1),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdminStats() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          _buildStatCard(
+            title: "Total Siswa",
+            value: _stats['total_siswa'].toString(),
+            subtitle: "✓ Terdaftar",
+            icon: "👨‍🎓",
+            iconColor: Color(0xFF4361EE),
+            backgroundColor: Color(0xFF4361EE).withOpacity(0.1),
+          ),
+          SizedBox(width: 12),
+          _buildStatCard(
+            title: "Total Guru",
+            value: _stats['total_guru'].toString(),
+            subtitle: "✓ Aktif",
+            icon: "👨‍🏫",
+            iconColor: Color(0xFF2EC4B6),
+            backgroundColor: Color(0xFF2EC4B6).withOpacity(0.1),
+          ),
+          SizedBox(width: 12),
+          _buildStatCard(
+            title: "Total Kelas",
+            value: _stats['total_kelas'].toString(),
+            subtitle: "Tersedia",
+            icon: "🏫",
+            iconColor: Color(0xFFFF9F1C),
+            backgroundColor: Color(0xFFFF9F1C).withValues(alpha: 0.1),
+          ),
+          SizedBox(width: 12),
+          _buildStatCard(
+            title: "Mata Pelajaran",
+            value: _stats['total_mapel'].toString(),
+            subtitle: "✓ Tersedia",
+            icon: "📚",
+            iconColor: Color(0xFF7209B7),
+            backgroundColor: Color(0xFF7209B7).withOpacity(0.1),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWaliStats() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          _buildStatCard(
+            title: "Pengumuman",
+            value: _stats['pengumuman_terbaru'].toString(),
+            subtitle: "Info terbaru",
+            icon: Icons.announcement_outlined,
+            iconColor: Color(0xFF4361EE),
+            backgroundColor: Color(0xFF4361EE).withOpacity(0.1),
+          ),
+          SizedBox(width: 12),
+          _buildStatCard(
+            title: "Data Anak",
+            value: _stats['anak_terdaftar'].toString(),
+            subtitle: "Anak terdaftar",
+            icon: Icons.child_care_outlined,
+            iconColor: Color(0xFF2EC4B6),
+            backgroundColor: Color(0xFF2EC4B6).withOpacity(0.1),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required dynamic icon,
+    required Color iconColor,
+    required Color backgroundColor,
+    TextStyle? valueStyle,
+  }) {
+    return Container(
+      width: 140,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: icon is IconData
+                    ? Icon(icon, color: iconColor, size: 18)
+                    : Center(
+                        child: Text(
+                          icon is String ? icon : "👨‍🎓",
+                          style: TextStyle(fontSize: 16),
+                        ),
+                      ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          Text(
+            value,
+            style:
+                valueStyle ??
+                TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade800,
+                ),
+          ),
+          SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade600,
+              height: 1.3,
+            ),
+          ),
+          SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
           ),
         ],
       ),
@@ -422,9 +1033,9 @@ class _DashboardState extends State<Dashboard>
       child: GridView.builder(
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          crossAxisSpacing: 14, // Sedikit lebih kecil
-          mainAxisSpacing: 14, // Sedikit lebih kecil
-          childAspectRatio: 1.1, // Lebih pendek - sebelumnya 0.85
+          crossAxisSpacing: 14,
+          mainAxisSpacing: 14,
+          childAspectRatio: 1.1,
         ),
         itemCount: cards.length,
         itemBuilder: (context, index) {
@@ -452,75 +1063,91 @@ class _DashboardState extends State<Dashboard>
     );
   }
 
-  Widget _buildDashboardCard(String title, IconData icon, VoidCallback onTap) {
+  Widget _buildDashboardCard(String title, dynamic icon, VoidCallback onTap) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16), // Sedikit lebih kecil
+        borderRadius: BorderRadius.circular(16),
         child: Container(
           decoration: BoxDecoration(
-            gradient: _getCardGradient(),
-            borderRadius: BorderRadius.circular(16), // Sedikit lebih kecil
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: _getPrimaryColor().withOpacity(0.2),
-                blurRadius: 12, // Sedikit lebih kecil
-                offset: Offset(0, 4), // Sedikit lebih kecil
+                color: Colors.grey.withOpacity(0.3),
+                blurRadius: 5,
+                offset: Offset(0, 4),
               ),
             ],
           ),
           child: Stack(
             children: [
-              // Background pattern effect - lebih kecil
+              // Strip biru di pinggir kiri
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: 6,
+                  decoration: BoxDecoration(
+                    color: _getPrimaryColor(), // Warna biru sesuai role
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      bottomLeft: Radius.circular(16),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Background pattern effect
               Positioned(
                 right: -8,
                 top: -8,
                 child: Container(
-                  width: 40, // Lebih kecil
-                  height: 40, // Lebih kecil
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.grey.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                 ),
               ),
 
-              // Content dengan padding lebih kecil
+              // Content - di tengah dengan icon di atas text
               Padding(
-                padding: const EdgeInsets.all(12), // Lebih kecil dari 16
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Icon Container lebih kecil
-                    Container(
-                      width: 42, // Lebih kecil
-                      height: 42, // Lebih kecil
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(10), // Lebih kecil
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Icon Container
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: _getPrimaryColor().withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: _buildIconWidget(icon),
                       ),
-                      child: Icon(
-                        icon,
-                        color: Colors.white,
-                        size: 20, // Lebih kecil
+                      SizedBox(height: 12),
+                      // Title - di bawah icon
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                          height: 1.3,
+                        ),
+                        textAlign: TextAlign.center, // Text di tengah
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    SizedBox(height: 8), // Lebih kecil
-                    // Title dengan font lebih kecil
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 12, // Lebih kecil dari 14
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                        height: 1.3,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -528,6 +1155,31 @@ class _DashboardState extends State<Dashboard>
         ),
       ),
     );
+  }
+
+  // Helper method untuk render icon dynamic
+  Widget _buildIconWidget(dynamic icon) {
+    if (icon is IconData) {
+      return Icon(
+        icon,
+        color: _getPrimaryColor(), // Warna icon sesuai dengan primary color
+        size: 24, // Sedikit lebih besar
+      );
+    } else if (icon is String) {
+      // Untuk emoji - tetap gunakan emoji asli tanpa warna
+      return Center(
+        child: Text(
+          icon,
+          style: TextStyle(fontSize: 20), // Sedikit lebih besar untuk emoji
+        ),
+      );
+    } else if (icon is Widget) {
+      // Jika langsung passing Widget
+      return icon;
+    } else {
+      // Fallback default icon
+      return Icon(Icons.error, color: _getPrimaryColor(), size: 24);
+    }
   }
 
   void _showLanguageDialog(
@@ -707,16 +1359,14 @@ class _DashboardState extends State<Dashboard>
 
                       SizedBox(height: 24),
 
-                      // Switch Sekolah Button (bukan langsung list)
+                      // Switch Sekolah Button
                       if (_accessibleSchools.length > 1) ...[
                         Material(
                           color: Colors.transparent,
                           child: InkWell(
                             onTap: () {
-                              Navigator.pop(context); // Tutup bottom sheet
-                              _showSchoolSelectionDialog(
-                                context,
-                              ); // Tampilkan dialog pilih sekolah
+                              Navigator.pop(context);
+                              _showSchoolSelectionDialog(context);
                             },
                             borderRadius: BorderRadius.circular(15),
                             child: Container(
@@ -812,7 +1462,6 @@ class _DashboardState extends State<Dashboard>
     );
   }
 
-  // Method baru untuk menampilkan dialog pilihan sekolah
   void _showSchoolSelectionDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -929,15 +1578,15 @@ class _DashboardState extends State<Dashboard>
   Color _getPrimaryColor() {
     switch (widget.role) {
       case 'admin':
-        return Color(0xFF4361EE); // Blue
+        return Color(0xFF2563EB); // Blue
       case 'guru':
-        return Color(0xFF2EC4B6); // Teal
+        return Color(0xFF16A34A); // Teal
       case 'staff':
         return Color(0xFFFF9F1C); // Orange
       case 'wali':
-        return Color(0xFF7209B7); // Purple
+        return Color(0xFF9333EA); // Purple
       default:
-        return Color(0xFF4361EE);
+        return Color.fromARGB(255, 17, 19, 29);
     }
   }
 
@@ -981,7 +1630,7 @@ class _DashboardState extends State<Dashboard>
     List<Map<String, dynamic>> allCards = [
       {
         'title': AppLocalizations.manageStudents.tr,
-        'icon': Icons.people,
+        'icon': "👨‍🎓",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => StudentManagementScreen()),
@@ -990,7 +1639,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': AppLocalizations.manageTeachers.tr,
-        'icon': Icons.person,
+        'icon': "👨‍🏫",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => TeacherAdminScreen()),
@@ -999,7 +1648,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': AppLocalizations.manageClasses.tr,
-        'icon': Icons.class_,
+        'icon': "🏫",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => ClassManagementScreen()),
@@ -1008,7 +1657,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': AppLocalizations.manageSubjects.tr,
-        'icon': Icons.menu_book,
+        'icon': "📚",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => SubjectManagementScreen()),
@@ -1017,7 +1666,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': AppLocalizations.announcements.tr,
-        'icon': Icons.announcement,
+        'icon': "📢",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => PengumumanManagementScreen()),
@@ -1027,7 +1676,7 @@ class _DashboardState extends State<Dashboard>
       // Dalam file dashboard atau menu configuration
       {
         'title': AppLocalizations.announcements.tr,
-        'icon': Icons.announcement,
+        'icon': "📢",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => PengumumanScreen()),
@@ -1036,7 +1685,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': AppLocalizations.studentAttendance.tr,
-        'icon': Icons.how_to_reg,
+        'icon': "📝",
         'onTap': () async {
           final prefs = await SharedPreferences.getInstance();
           final userData = json.decode(prefs.getString('user') ?? '{}');
@@ -1071,7 +1720,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': AppLocalizations.inputGrades.tr,
-        'icon': Icons.grade,
+        'icon': "✍️",
         'onTap': () async {
           final prefs = await SharedPreferences.getInstance();
           final userData = json.decode(prefs.getString('user') ?? '{}');
@@ -1104,7 +1753,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': AppLocalizations.teachingSchedule.tr,
-        'icon': Icons.schedule,
+        'icon': "📅",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => TeachingScheduleScreen()),
@@ -1113,7 +1762,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': AppLocalizations.classActivities.tr,
-        'icon': Icons.event,
+        'icon': "🗓️",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => ClassActifityScreen()),
@@ -1122,7 +1771,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': 'Kegiatan Kelas',
-        'icon': Icons.event_available,
+        'icon': "🗓️",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => AdminClassActivityScreen()),
@@ -1162,7 +1811,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': AppLocalizations.manageTeachingSchedule.tr,
-        'icon': Icons.schedule,
+        'icon': "📆",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(
@@ -1173,7 +1822,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': AppLocalizations.myRpp.tr,
-        'icon': Icons.description,
+        'icon': "📄",
         'onTap': () async {
           final prefs = await SharedPreferences.getInstance();
           final userData = json.decode(prefs.getString('user') ?? '{}');
@@ -1211,7 +1860,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': AppLocalizations.manageRpp.tr,
-        'icon': Icons.assignment,
+        'icon': "📄",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => AdminRppScreen()),
@@ -1220,7 +1869,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': 'Laporan Presensi',
-        'icon': Icons.assignment,
+        'icon': "📊",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => AdminPresenceReportScreen()),
@@ -1229,7 +1878,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': 'Keuangan',
-        'icon': Icons.event_note,
+        'icon': "💰",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => KeuanganScreen()),
@@ -1238,7 +1887,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': 'Absensi Anak',
-        'icon': Icons.calendar_today,
+        'icon': "📝",
         'onTap': () async {
           final prefs = await SharedPreferences.getInstance();
           final userData = json.decode(prefs.getString('user') ?? '{}');
@@ -1297,7 +1946,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': 'Aktivitas Kelas Anak',
-        'icon': Icons.event_note,
+        'icon': "🗓️",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => ParentClassActivityScreen()),
@@ -1306,7 +1955,7 @@ class _DashboardState extends State<Dashboard>
       },
       {
         'title': 'Keunganan',
-        'icon': Icons.event_note,
+        'icon': "💰",
         'onTap': () => Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => TagihanWaliScreen()),
@@ -1322,38 +1971,6 @@ class _DashboardState extends State<Dashboard>
               _buildDashboardCard(card['title'], card['icon'], card['onTap']),
         )
         .toList();
-  }
-}
-
-// Keep your existing helper functions
-Future<List<dynamic>> _getSiswaDataForParent(String parentId) async {
-  try {
-    final allStudents = await ApiStudentService.getStudent();
-    final prefs = await SharedPreferences.getInstance();
-    final userData = json.decode(prefs.getString('user') ?? '{}');
-
-    if (userData['siswa_id'] != null && userData['siswa_id'].isNotEmpty) {
-      final siswa = allStudents.firstWhere(
-        (student) => student['id'] == userData['siswa_id'],
-        orElse: () => null,
-      );
-      return siswa != null ? [siswa] : [];
-    }
-
-    final siswaWithThisParent = allStudents.where((student) {
-      return student['email_wali'] == userData['email'] ||
-          student['nama_wali'] == userData['nama'];
-    }).toList();
-
-    if (siswaWithThisParent.isNotEmpty) {
-      return siswaWithThisParent;
-    }
-
-    print('⚠️  Using fallback - showing all students for parent');
-    return allStudents;
-  } catch (e) {
-    print('Error getting student data for parent: $e');
-    return [];
   }
 }
 

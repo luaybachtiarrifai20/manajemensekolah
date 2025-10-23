@@ -113,7 +113,7 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
 
       if (result != null && result.files.single.path != null) {
         await ApiSubjectService.importSubjectFromExcel(
-          File(result.files.single.path!)
+          File(result.files.single.path!),
         );
 
         // Refresh data setelah import
@@ -517,27 +517,44 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 decoration: BoxDecoration(
-                  gradient: _getCardGradient(),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: _getPrimaryColor().withOpacity(0.2),
-                      blurRadius: 12,
+                      color: Colors.grey.withOpacity(0.3),
+                      blurRadius: 5,
                       offset: Offset(0, 4),
                     ),
                   ],
                 ),
                 child: Stack(
                   children: [
-                    // Background pattern
+                    // Strip biru di pinggir kiri
                     Positioned(
-                      right: -10,
-                      top: -10,
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
                       child: Container(
-                        width: 60,
-                        height: 60,
+                        width: 6,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: _getPrimaryColor(),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            bottomLeft: Radius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Background pattern effect
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -561,7 +578,7 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                        color: Colors.black,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -571,7 +588,7 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
                                       'Kode: ${subject['kode'] ?? 'No Code'}',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.white.withOpacity(0.8),
+                                        color: Colors.grey.shade600,
                                       ),
                                     ),
                                   ],
@@ -583,16 +600,20 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: _getPrimaryColor().withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
+                                    color: _getPrimaryColor().withOpacity(0.3),
                                   ),
                                 ),
                                 child: Text(
-                                  '$kelasCount Kelas',
+                                  '$kelasCount ' +
+                                      languageProvider.getTranslatedText({
+                                        'en': 'Classes',
+                                        'id': 'Kelas',
+                                      }),
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: _getPrimaryColor(),
                                     fontSize: 10,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -611,12 +632,12 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
                                   width: 32,
                                   height: 32,
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
+                                    color: _getPrimaryColor().withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Icon(
                                     Icons.class_,
-                                    color: Colors.white,
+                                    color: _getPrimaryColor(),
                                     size: 16,
                                   ),
                                 ),
@@ -627,10 +648,13 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Kelas Terdaftar',
+                                        languageProvider.getTranslatedText({
+                                          'en': 'Registered Classes',
+                                          'id': 'Kelas Terdaftar',
+                                        }),
                                         style: TextStyle(
                                           fontSize: 10,
-                                          color: Colors.white.withOpacity(0.8),
+                                          color: Colors.grey.shade600,
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -643,7 +667,7 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
                                         style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
-                                          color: Colors.white,
+                                          color: Colors.black,
                                         ),
                                       ),
                                     ],
@@ -652,17 +676,56 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
                               ],
                             ),
 
+                          // Informasi deskripsi
                           if (subject['deskripsi'] != null &&
                               subject['deskripsi'].isNotEmpty) ...[
                             SizedBox(height: 8),
-                            Text(
-                              subject['deskripsi'],
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withOpacity(0.8),
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                            Row(
+                              children: [
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: _getPrimaryColor().withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    Icons.description,
+                                    color: _getPrimaryColor(),
+                                    size: 16,
+                                  ),
+                                ),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        languageProvider.getTranslatedText({
+                                          'en': 'Description',
+                                          'id': 'Deskripsi',
+                                        }),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey.shade600,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      SizedBox(height: 1),
+                                      Text(
+                                        subject['deskripsi'],
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
 
@@ -678,7 +741,9 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
                                   'en': 'Edit',
                                   'id': 'Edit',
                                 }),
-                                color: Colors.white,
+                                color: _getPrimaryColor(),
+                                backgroundColor: Colors.white,
+                                borderColor: _getPrimaryColor(),
                                 onPressed: () =>
                                     _showAddEditDialog(subject: subject),
                               ),
@@ -689,7 +754,9 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
                                   'en': 'Delete',
                                   'id': 'Hapus',
                                 }),
-                                color: Colors.white,
+                                color: Colors.red,
+                                backgroundColor: Colors.white,
+                                borderColor: Colors.red,
                                 onPressed: () => _deleteSubject(subject),
                               ),
                             ],
@@ -711,6 +778,8 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
     required IconData icon,
     required String label,
     required Color color,
+    Color? backgroundColor,
+    Color? borderColor,
     required VoidCallback onPressed,
   }) {
     return GestureDetector(
@@ -718,9 +787,12 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
+          color: backgroundColor ?? Colors.white.withOpacity(0.2),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withOpacity(0.3)),
+          border: Border.all(
+            color: borderColor ?? Colors.white.withOpacity(0.3),
+            width: 1,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -796,7 +868,7 @@ class SubjectManagementScreenState extends State<SubjectManagementScreen>
                 'en': 'Manage Subjects',
                 'id': 'Kelola Mata Pelajaran',
               }),
-               style: TextStyle(
+              style: TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 18,
                 fontWeight: FontWeight.bold,

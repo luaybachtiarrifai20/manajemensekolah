@@ -35,7 +35,11 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
   final TextEditingController _searchController = TextEditingController();
 
   // Filter options untuk EnhancedSearchBar
-  final List<String> _filterOptions = ['All', 'With Homeroom', 'Without Homeroom'];
+  final List<String> _filterOptions = [
+    'All',
+    'With Homeroom',
+    'Without Homeroom',
+  ];
   String _selectedFilter = 'All';
 
   @override
@@ -99,7 +103,6 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
     }
   }
 
-
   // Export classes to Excel
   Future<void> _exportToExcel() async {
     await ExcelClassService.exportClassesToExcel(
@@ -121,7 +124,7 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
 
       if (result != null && result.files.single.path != null) {
         await ApiClassService.importClassesFromExcel(
-          File(result.files.single.path!)
+          File(result.files.single.path!),
         );
 
         // Refresh data setelah import
@@ -149,7 +152,9 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
   }
 
   void _showAddEditDialog({Map<String, dynamic>? classData}) {
-    final nameController = TextEditingController(text: classData?['nama'] ?? '');
+    final nameController = TextEditingController(
+      text: classData?['nama'] ?? '',
+    );
     String? selectedGradeLevel = classData?['grade_level']?.toString();
     String? selectedHomeroomTeacher = classData?['wali_kelas_id']?.toString();
 
@@ -276,8 +281,10 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                                   SnackBar(
                                     content: Text(
                                       languageProvider.getTranslatedText({
-                                        'en': 'Class name and grade level must be filled',
-                                        'id': 'Nama kelas dan grade level harus diisi',
+                                        'en':
+                                            'Class name and grade level must be filled',
+                                        'id':
+                                            'Nama kelas dan grade level harus diisi',
                                       }),
                                     ),
                                     backgroundColor: Colors.orange,
@@ -293,7 +300,10 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                                 };
 
                                 if (isEdit) {
-                                  await _classService.updateClass(classData!['id'], data);
+                                  await _classService.updateClass(
+                                    classData!['id'],
+                                    data,
+                                  );
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
@@ -427,7 +437,7 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
           } else {
             gradeText = 'Kelas ${grade - 9} SMA';
           }
-          
+
           return DropdownMenuItem<String>(
             value: grade.toString(),
             child: Text(gradeText),
@@ -516,7 +526,6 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
       },
       child: GestureDetector(
         onTap: () {
-          // Show class details
           _showClassDetail(classData);
         },
         child: Container(
@@ -528,27 +537,44 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 decoration: BoxDecoration(
-                  gradient: _getCardGradient(),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: _getPrimaryColor().withOpacity(0.2),
-                      blurRadius: 12,
+                      color: Colors.grey.withOpacity(0.3),
+                      blurRadius: 5,
                       offset: Offset(0, 4),
                     ),
                   ],
                 ),
                 child: Stack(
                   children: [
-                    // Background pattern
+                    // Strip biru di pinggir kiri
                     Positioned(
-                      right: -10,
-                      top: -10,
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
                       child: Container(
-                        width: 60,
-                        height: 60,
+                        width: 6,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: _getPrimaryColor(),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            bottomLeft: Radius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Background pattern effect
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -572,17 +598,20 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                        color: Colors.black,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     SizedBox(height: 2),
                                     Text(
-                                      _getGradeLevelText(classData['grade_level'], languageProvider),
+                                      _getGradeLevelText(
+                                        classData['grade_level'],
+                                        languageProvider,
+                                      ),
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.white.withOpacity(0.8),
+                                        color: Colors.grey.shade600,
                                       ),
                                     ),
                                   ],
@@ -594,10 +623,10 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: _getPrimaryColor().withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
+                                    color: _getPrimaryColor().withOpacity(0.3),
                                   ),
                                 ),
                                 child: Text(
@@ -607,7 +636,7 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                                         'id': 'siswa',
                                       }),
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: _getPrimaryColor(),
                                     fontSize: 10,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -625,12 +654,12 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                                 width: 32,
                                 height: 32,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: _getPrimaryColor().withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Icon(
                                   Icons.person,
-                                  color: Colors.white,
+                                  color: _getPrimaryColor(),
                                   size: 16,
                                 ),
                               ),
@@ -646,21 +675,21 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                                       }),
                                       style: TextStyle(
                                         fontSize: 10,
-                                        color: Colors.white.withOpacity(0.8),
+                                        color: Colors.grey.shade600,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                     SizedBox(height: 1),
                                     Text(
-                                      classData['wali_kelas_nama'] ?? 
-                                      languageProvider.getTranslatedText({
-                                        'en': 'Not Assigned',
-                                        'id': 'Belum Ditugaskan',
-                                      }),
+                                      classData['wali_kelas_nama'] ??
+                                          languageProvider.getTranslatedText({
+                                            'en': 'Not Assigned',
+                                            'id': 'Belum Ditugaskan',
+                                          }),
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                        color: Colors.black,
                                       ),
                                     ),
                                   ],
@@ -681,8 +710,11 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                                   'en': 'Edit',
                                   'id': 'Edit',
                                 }),
-                                color: Colors.white,
-                                onPressed: () => _showAddEditDialog(classData: classData),
+                                color: _getPrimaryColor(),
+                                backgroundColor: Colors.white,
+                                borderColor: _getPrimaryColor(),
+                                onPressed: () =>
+                                    _showAddEditDialog(classData: classData),
                               ),
                               SizedBox(width: 8),
                               _buildActionButton(
@@ -691,7 +723,9 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                                   'en': 'Delete',
                                   'id': 'Hapus',
                                 }),
-                                color: Colors.white,
+                                color: Colors.red,
+                                backgroundColor: Colors.white,
+                                borderColor: Colors.red,
                                 onPressed: () => _deleteClass(classData),
                               ),
                             ],
@@ -713,6 +747,8 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
     required IconData icon,
     required String label,
     required Color color,
+    Color? backgroundColor,
+    Color? borderColor,
     required VoidCallback onPressed,
   }) {
     return GestureDetector(
@@ -720,9 +756,12 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
+          color: backgroundColor ?? Colors.white.withOpacity(0.2),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withOpacity(0.3)),
+          border: Border.all(
+            color: borderColor ?? Colors.white.withOpacity(0.3),
+            width: 1,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -775,11 +814,7 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      child: Icon(
-                        Icons.school,
-                        size: 30,
-                        color: Colors.white,
-                      ),
+                      child: Icon(Icons.school, size: 30, color: Colors.white),
                     ),
                     SizedBox(height: 12),
                     Text(
@@ -793,7 +828,10 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                     ),
                     SizedBox(height: 4),
                     Text(
-                      _getGradeLevelText(classData['grade_level'], languageProvider),
+                      _getGradeLevelText(
+                        classData['grade_level'],
+                        languageProvider,
+                      ),
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.white.withOpacity(0.9),
@@ -815,7 +853,8 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                         'en': 'Total Students',
                         'id': 'Jumlah Siswa',
                       }),
-                      value: '${classData['jumlah_siswa'] ?? 0} ' +
+                      value:
+                          '${classData['jumlah_siswa'] ?? 0} ' +
                           languageProvider.getTranslatedText({
                             'en': 'students',
                             'id': 'siswa',
@@ -827,11 +866,12 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                         'en': 'Homeroom Teacher',
                         'id': 'Wali Kelas',
                       }),
-                      value: classData['wali_kelas_nama'] ?? 
-                      languageProvider.getTranslatedText({
-                        'en': 'Not Assigned',
-                        'id': 'Belum Ditugaskan',
-                      }),
+                      value:
+                          classData['wali_kelas_nama'] ??
+                          languageProvider.getTranslatedText({
+                            'en': 'Not Assigned',
+                            'id': 'Belum Ditugaskan',
+                          }),
                     ),
 
                     SizedBox(height: 20),
@@ -940,12 +980,15 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
     );
   }
 
-  String _getGradeLevelText(dynamic gradeLevel, LanguageProvider languageProvider) {
+  String _getGradeLevelText(
+    dynamic gradeLevel,
+    LanguageProvider languageProvider,
+  ) {
     if (gradeLevel == null) return '-';
-    
+
     final level = int.tryParse(gradeLevel.toString());
     if (level == null) return '-';
-    
+
     if (level <= 6) {
       return '${languageProvider.getTranslatedText({'en': 'Grade', 'id': 'Kelas'})} $level SD';
     } else if (level <= 9) {
@@ -987,7 +1030,8 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
         final filteredClasses = _classes.where((classItem) {
           final searchTerm = _searchController.text.toLowerCase();
           final nama = classItem['nama']?.toString().toLowerCase() ?? '';
-          final waliKelas = classItem['wali_kelas_nama']?.toString().toLowerCase() ?? '';
+          final waliKelas =
+              classItem['wali_kelas_nama']?.toString().toLowerCase() ?? '';
 
           final matchesSearch =
               searchTerm.isEmpty ||
@@ -1134,10 +1178,7 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                               'en': 'classes found',
                               'id': 'kelas ditemukan',
                             }),
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
                       ),
                     ],
                   ),

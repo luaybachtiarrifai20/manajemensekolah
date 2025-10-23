@@ -323,213 +323,223 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen>
           ),
         );
       },
-      child: GestureDetector(
-        onTap: () => _navigateToDetailAbsensi(summary),
-        child: Container(
-          margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _navigateToDetailAbsensi(summary),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _navigateToDetailAbsensi(summary),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: _getCardGradient(),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _getPrimaryColor().withOpacity(0.2),
-                      blurRadius: 12,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.3),
+                  blurRadius: 5,
+                  offset: Offset(0, 4),
                 ),
-                child: Stack(
-                  children: [
-                    // Background pattern
-                    Positioned(
-                      right: -10,
-                      top: -10,
-                      child: Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                // Strip biru di pinggir kiri
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 6,
+                    decoration: BoxDecoration(
+                      color: _getPrimaryColor(),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        bottomLeft: Radius.circular(16),
                       ),
                     ),
+                  ),
+                ),
 
-                    Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                // Background pattern effect
+                Positioned(
+                  right: -8,
+                  top: -8,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+
+                Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header dengan mata pelajaran dan tanggal
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Header dengan mata pelajaran dan tanggal
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      summary.mataPelajaranNama,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    SizedBox(height: 2),
-                                    Text(
-                                      DateFormat(
-                                        'EEEE, dd MMMM yyyy',
-                                        'id_ID',
-                                      ).format(summary.tanggal),
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.white.withOpacity(0.8),
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
-                                  ),
-                                ),
-                                child: Text(
-                                  '${summary.totalSiswa} Siswa',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          SizedBox(height: 12),
-
-                          // Informasi kehadiran
-                          Row(
-                            children: [
-                              Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Icon(
-                                  Icons.people,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Kehadiran',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.white.withOpacity(0.8),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    SizedBox(height: 1),
-                                    Text(
-                                      '${summary.hadir} Hadir • ${summary.tidakHadir} Tidak Hadir',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          SizedBox(height: 8),
-
-                          // Progress bar
-                          Container(
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Stack(
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    return Container(
-                                      width:
-                                          constraints.maxWidth *
-                                          (summary.totalSiswa > 0
-                                              ? summary.hadir /
-                                                    summary.totalSiswa
-                                              : 0),
-                                      decoration: BoxDecoration(
-                                        color: presentaseHadir >= 80
-                                            ? Colors.green
-                                            : presentaseHadir >= 60
-                                            ? Colors.orange
-                                            : Colors.red,
-                                        borderRadius: BorderRadius.circular(3),
-                                      ),
-                                    );
-                                  },
+                                Text(
+                                  summary.mataPelajaranNama,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  DateFormat(
+                                    'EEEE, dd MMMM yyyy',
+                                    'id_ID',
+                                  ).format(summary.tanggal),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
                           ),
-
-                          SizedBox(height: 4),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '$presentaseHadir% ${languageProvider.getTranslatedText({'en': 'Attendance', 'id': 'Kehadiran'})}',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.white.withOpacity(0.8),
-                                ),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getPrimaryColor().withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: _getPrimaryColor().withOpacity(0.3),
                               ),
-                              _buildActionButton(
-                                icon: Icons.visibility,
-                                label: 'Detail',
-                                color: Colors.white,
-                                onPressed: () =>
-                                    _navigateToDetailAbsensi(summary),
+                            ),
+                            child: Text(
+                              '${summary.totalSiswa} Siswa',
+                              style: TextStyle(
+                                color: _getPrimaryColor(),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
                               ),
-                            ],
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+
+                      SizedBox(height: 12),
+
+                      // Informasi kehadiran
+                      Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: _getPrimaryColor().withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Icon(
+                              Icons.people,
+                              color: _getPrimaryColor(),
+                              size: 16,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Kehadiran',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                SizedBox(height: 1),
+                                Text(
+                                  '${summary.hadir} Hadir • ${summary.tidakHadir} Tidak Hadir',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(height: 8),
+
+                      // Progress bar
+                      Container(
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Stack(
+                          children: [
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                return Container(
+                                  width:
+                                      constraints.maxWidth *
+                                      (summary.totalSiswa > 0
+                                          ? summary.hadir / summary.totalSiswa
+                                          : 0),
+                                  decoration: BoxDecoration(
+                                    color: presentaseHadir >= 80
+                                        ? Colors.green
+                                        : presentaseHadir >= 60
+                                        ? Colors.orange
+                                        : Colors.red,
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '$presentaseHadir% ${languageProvider.getTranslatedText({'en': 'Attendance', 'id': 'Kehadiran'})}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          _buildActionButton(
+                            icon: Icons.visibility,
+                            label: 'Detail',
+                            color: _getPrimaryColor(),
+                            onPressed: () => _navigateToDetailAbsensi(summary),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
@@ -809,11 +819,11 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
   String _getStudentStatus(String siswaId) {
     try {
       final absenRecord = _absensiData.firstWhere(
-        (a) => a['siswa_id'] == siswaId,
+        (a) => a['siswa_id']?.toString() == siswaId.toString(),
+        orElse: () => {'status': 'alpha'}, // Fallback if not found
       );
       return absenRecord['status'] ?? 'alpha';
     } catch (e) {
-      // Jika tidak ada record, kembalikan 'alpha'
       return 'alpha';
     }
   }
@@ -827,25 +837,25 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
     final Color statusColor = _getStatusColor(status);
     final String statusText = _getStatusText(status, languageProvider);
 
-    return AnimatedBuilder(
-      animation: _animationController,
-      builder: (context, child) {
-        final delay = index * 0.1;
-        final animation = CurvedAnimation(
-          parent: _animationController,
-          curve: Interval(delay, 1.0, curve: Curves.easeOut),
-        );
-
-        return FadeTransition(
-          opacity: animation,
-          child: Transform.translate(
-            offset: Offset(0, 50 * (1 - animation.value)),
-            child: child,
-          ),
-        );
-      },
-      child: Container(
-        margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: AnimatedBuilder(
+        animation: _animationController,
+        builder: (context, child) {
+          final delay = index * 0.1;
+          final animation = CurvedAnimation(
+            parent: _animationController,
+            curve: Interval(delay, 1.0, curve: Curves.easeOut),
+          );
+      
+          return FadeTransition(
+            opacity: animation,
+            child: Transform.translate(
+              offset: Offset(0, 50 * (1 - animation.value)),
+              child: child,
+            ),
+          );
+        },
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -853,32 +863,49 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
             borderRadius: BorderRadius.circular(16),
             child: Container(
               decoration: BoxDecoration(
-                gradient: _getCardGradient(),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: _getPrimaryColor().withOpacity(0.2),
-                    blurRadius: 12,
+                    color: Colors.grey.withOpacity(0.3),
+                    blurRadius: 5,
                     offset: Offset(0, 4),
                   ),
                 ],
               ),
               child: Stack(
                 children: [
-                  // Background pattern
+                  // Strip biru di pinggir kiri
                   Positioned(
-                    right: -10,
-                    top: -10,
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
                     child: Container(
-                      width: 60,
-                      height: 60,
+                      width: 6,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: _getPrimaryColor(),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          bottomLeft: Radius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+      
+                  // Background pattern effect
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
                     ),
                   ),
-
+      
                   Padding(
                     padding: EdgeInsets.all(16),
                     child: Row(
@@ -888,7 +915,7 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: _getPrimaryColor().withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Center(
@@ -897,7 +924,7 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
                                   ? siswa.nama[0].toUpperCase()
                                   : '?',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: _getPrimaryColor(),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
@@ -905,7 +932,7 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
                           ),
                         ),
                         SizedBox(width: 12),
-
+      
                         // Student Info
                         Expanded(
                           child: Column(
@@ -916,7 +943,7 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
+                                  color: Colors.black,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -926,13 +953,13 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
                                 'NIS: ${siswa.nis}',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: Colors.grey[600],
                                 ),
                               ),
                             ],
                           ),
                         ),
-
+      
                         // Status Badge
                         Container(
                           padding: EdgeInsets.symmetric(
@@ -940,16 +967,16 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: statusColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.3),
+                              color: statusColor.withOpacity(0.3),
                             ),
                           ),
                           child: Text(
                             statusText,
                             style: TextStyle(
-                              color: Colors.white,
+                              color: statusColor,
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
                             ),

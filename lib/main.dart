@@ -88,6 +88,14 @@ class SchoolManagementApp extends StatelessWidget {
     final token = prefs.getString('token');
     final userData = prefs.getString('user');
     
+    // Check if force logout flag is set
+    final forceLogout = prefs.getBool('force_logout') ?? false;
+    if (forceLogout) {
+      // Clear the flag
+      await prefs.setBool('force_logout', false);
+      return false;
+    }
+    
     // Check if both token and user data exist
     return token != null && userData != null && userData.isNotEmpty;
   }

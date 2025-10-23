@@ -1,10 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:http/http.dart' as http;
+import 'package:manajemensekolah/screen/login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
+  static String? _cachedToken;
+  static bool _isRefreshing = false;
   // static const String baseUrl = 'http://10.0.2.2:3000/api'; // Android emulator
   static const String baseUrl =
       'http://localhost:3000/api'; // iOS simulator atau web
@@ -71,10 +75,28 @@ class ApiService {
   static Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
+
+    // Validate token exists
+    if (token == null || token.isEmpty) {
+      _redirectToLogin();
+      return {'Content-Type': 'application/json'};
+    }
+
     return {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $token',
     };
+  }
+
+  static Future<void> _redirectToLogin() async {
+    // Clear all stored data
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    // Redirect to login page using Navigator
+    // Since this is a static method, we need to use a different approach
+    // We'll set a flag that the app should redirect to login
+    prefs.setBool('force_logout', true);
   }
 
   static dynamic _handleResponse(http.Response response) {
@@ -83,11 +105,24 @@ class ApiService {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return responseBody;
     } else {
-      throw Exception(
-        responseBody['error'] ??
-            'Request failed with status: ${response.statusCode}',
-      );
+      final errorMessage =
+          responseBody['error'] ??
+          'Request failed with status: ${response.statusCode}';
+
+      // Handle specific authentication errors
+      if (response.statusCode == 401) {
+        _handleAuthenticationError();
+      }
+
+      throw Exception(errorMessage);
     }
+  }
+
+  static void _handleAuthenticationError() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token'); // Clear invalid token
+    // You can also navigate to login page here
+    // Navigator.of(context).pushReplacementNamed('/login');
   }
 
   Future<List<dynamic>> getData(String endpoint) async {

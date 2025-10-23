@@ -23,11 +23,24 @@ class ApiStudentService {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return responseBody;
     } else {
-      throw Exception(
-        responseBody['error'] ??
-            'Request failed with status: ${response.statusCode}',
-      );
+      final errorMessage =
+          responseBody['error'] ??
+          'Request failed with status: ${response.statusCode}';
+
+      // Handle specific authentication errors
+      if (response.statusCode == 401) {
+        _handleAuthenticationError();
+      }
+
+      throw Exception(errorMessage);
     }
+  }
+
+  static void _handleAuthenticationError() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token'); // Clear invalid token
+    // You can also navigate to login page here
+    // Navigator.of(context).pushReplacementNamed('/login');
   }
 
   // Import siswa dari Excel
@@ -85,9 +98,9 @@ class ApiStudentService {
         final directory = await getExternalStorageDirectory();
         final filePath = '${directory?.path}/template_import_siswa.xlsx';
         final file = File(filePath);
-        
+
         await file.writeAsBytes(response.bodyBytes);
-        
+
         print('Template downloaded to: $filePath');
         return filePath;
       } else {
@@ -111,9 +124,9 @@ class ApiStudentService {
         final directory = await getExternalStorageDirectory();
         final filePath = '${directory?.path}/template_import_guru.xlsx';
         final file = File(filePath);
-        
+
         await file.writeAsBytes(response.bodyBytes);
-        
+
         print('Template downloaded to: $filePath');
         return filePath;
       } else {

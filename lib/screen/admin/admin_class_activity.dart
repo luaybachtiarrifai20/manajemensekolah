@@ -240,8 +240,8 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
   Widget _buildTeacherCard(Map<String, dynamic> teacher, int index) {
     final teacherName = teacher['nama']?.toString() ?? 'Nama tidak tersedia';
     final teacherEmail = teacher['email']?.toString() ?? '';
-    final teacherSubject = teacher['mata_pelajaran_nama']?.toString() ??
-        'Mata Pelajaran';
+    final teacherSubject =
+        teacher['mata_pelajaran_nama']?.toString() ?? 'Mata Pelajaran';
 
     return AnimatedBuilder(
       animation: _animationController,
@@ -261,10 +261,8 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
         );
       },
       child: GestureDetector(
-        onTap: () => _loadActivitiesByTeacher(
-          teacher['id'].toString(),
-          teacherName,
-        ),
+        onTap: () =>
+            _loadActivitiesByTeacher(teacher['id'].toString(), teacherName),
         child: Container(
           margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
           child: Material(
@@ -277,27 +275,44 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 decoration: BoxDecoration(
-                  gradient: _getCardGradient(),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: _getPrimaryColor().withOpacity(0.2),
-                      blurRadius: 12,
+                      color: Colors.grey.withOpacity(0.3),
+                      blurRadius: 5,
                       offset: Offset(0, 4),
                     ),
                   ],
                 ),
                 child: Stack(
                   children: [
-                    // Background pattern
+                    // Strip biru di pinggir kiri
                     Positioned(
-                      right: -10,
-                      top: -10,
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
                       child: Container(
-                        width: 60,
-                        height: 60,
+                        width: 6,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: _getPrimaryColor(),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            bottomLeft: Radius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Background pattern effect
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -321,7 +336,7 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                        color: Colors.black,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -331,7 +346,7 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                       teacherEmail,
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.white.withOpacity(0.8),
+                                        color: Colors.grey.shade600,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -345,16 +360,16 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: _getPrimaryColor().withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
+                                    color: _getPrimaryColor().withOpacity(0.3),
                                   ),
                                 ),
                                 child: Text(
                                   'Guru',
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: _getPrimaryColor(),
                                     fontSize: 10,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -372,12 +387,12 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                 width: 32,
                                 height: 32,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: _getPrimaryColor().withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Icon(
                                   Icons.menu_book,
-                                  color: Colors.white,
+                                  color: _getPrimaryColor(),
                                   size: 16,
                                 ),
                               ),
@@ -390,7 +405,7 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                       'Mata Pelajaran',
                                       style: TextStyle(
                                         fontSize: 10,
-                                        color: Colors.white.withOpacity(0.8),
+                                        color: Colors.grey.shade600,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
@@ -400,7 +415,7 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                        color: Colors.black,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -420,7 +435,9 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                               _buildActionButton(
                                 icon: Icons.visibility,
                                 label: 'Lihat Kegiatan',
-                                color: Colors.white,
+                                color: _getPrimaryColor(),
+                                backgroundColor: Colors.white,
+                                borderColor: _getPrimaryColor(),
                                 onPressed: () => _loadActivitiesByTeacher(
                                   teacher['id'].toString(),
                                   teacherName,
@@ -442,8 +459,6 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
   }
 
   Widget _buildActivityCard(Map<String, dynamic> activity, int index) {
-    final day = activity['hari']?.toString() ?? 'Unknown';
-    final cardColor = _getDayColor(day);
     final isAssignment = activity['jenis'] == 'tugas';
     final isSpecificTarget = activity['target'] == 'khusus';
 
@@ -473,27 +488,44 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
             borderRadius: BorderRadius.circular(16),
             child: Container(
               decoration: BoxDecoration(
-                gradient: _getCardGradient(),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: _getPrimaryColor().withOpacity(0.2),
-                    blurRadius: 12,
+                    color: Colors.grey.withOpacity(0.3),
+                    blurRadius: 5,
                     offset: Offset(0, 4),
                   ),
                 ],
               ),
               child: Stack(
                 children: [
-                  // Background pattern
+                  // Strip biru di pinggir kiri
                   Positioned(
-                    right: -10,
-                    top: -10,
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
                     child: Container(
-                      width: 60,
-                      height: 60,
+                      width: 6,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: _getPrimaryColor(),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          bottomLeft: Radius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Background pattern effect
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -517,7 +549,7 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                      color: Colors.black,
                                     ),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
@@ -527,7 +559,7 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                     '${activity['mata_pelajaran_nama']} • ${activity['kelas_nama']}',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.white.withOpacity(0.8),
+                                      color: Colors.grey.shade600,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -541,16 +573,16 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                 vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: _getPrimaryColor().withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.3),
+                                  color: _getPrimaryColor().withOpacity(0.3),
                                 ),
                               ),
                               child: Text(
                                 isAssignment ? 'TUGAS' : 'MATERI',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: _getPrimaryColor(),
                                   fontSize: 10,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -568,12 +600,12 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                               width: 32,
                               height: 32,
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: _getPrimaryColor().withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Icon(
                                 Icons.calendar_today,
-                                color: Colors.white,
+                                color: _getPrimaryColor(),
                                 size: 16,
                               ),
                             ),
@@ -586,7 +618,7 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                     'Tanggal',
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: Colors.white.withOpacity(0.8),
+                                      color: Colors.grey.shade600,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -596,7 +628,7 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.white,
+                                      color: Colors.black,
                                     ),
                                   ),
                                 ],
@@ -605,24 +637,97 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                           ],
                         ),
 
+                        // Informasi guru
+                        SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: _getPrimaryColor().withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                Icons.person,
+                                color: _getPrimaryColor(),
+                                size: 16,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Guru Pengajar',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(height: 1),
+                                  Text(
+                                    activity['guru_nama'] ?? 'Tidak Diketahui',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // Informasi deskripsi
                         if (activity['deskripsi'] != null &&
                             activity['deskripsi'].isNotEmpty) ...[
                           SizedBox(height: 8),
-                          Container(
-                            padding: EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              activity['deskripsi'],
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withOpacity(0.9),
+                          Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: _getPrimaryColor().withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(
+                                  Icons.description,
+                                  color: _getPrimaryColor(),
+                                  size: 16,
+                                ),
                               ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Deskripsi',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 1),
+                                    Text(
+                                      activity['deskripsi'],
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.black,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
                         ],
 
@@ -639,8 +744,8 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                               ),
                               decoration: BoxDecoration(
                                 color: isSpecificTarget
-                                    ? Colors.purple.withOpacity(0.3)
-                                    : Colors.green.withOpacity(0.3),
+                                    ? Colors.purple.withOpacity(0.1)
+                                    : Colors.green.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
                                   color: isSpecificTarget
@@ -657,7 +762,9 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                         ? Icons.person
                                         : Icons.group,
                                     size: 12,
-                                    color: Colors.white,
+                                    color: isSpecificTarget
+                                        ? Colors.purple
+                                        : Colors.green,
                                   ),
                                   SizedBox(width: 4),
                                   Text(
@@ -666,7 +773,9 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                         : 'Semua Siswa',
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: Colors.white,
+                                      color: isSpecificTarget
+                                          ? Colors.purple
+                                          : Colors.green,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -676,7 +785,9 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                             _buildActionButton(
                               icon: Icons.visibility,
                               label: 'Detail',
-                              color: Colors.white,
+                              color: _getPrimaryColor(),
+                              backgroundColor: Colors.white,
+                              borderColor: _getPrimaryColor(),
                               onPressed: () => _showActivityDetail(activity),
                             ),
                           ],
@@ -697,6 +808,8 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
     required IconData icon,
     required String label,
     required Color color,
+    Color? backgroundColor,
+    Color? borderColor,
     required VoidCallback onPressed,
   }) {
     return GestureDetector(
@@ -704,9 +817,12 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
+          color: backgroundColor ?? Colors.white.withOpacity(0.2),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withOpacity(0.3)),
+          border: Border.all(
+            color: borderColor ?? Colors.white.withOpacity(0.3),
+            width: 1,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -966,7 +1082,7 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
   }
 
   Color _getPrimaryColor() {
-    return Color(0xFF4361EE); // Blue untuk admin
+    return Color(0xFF2563EB); // Blue untuk admin
   }
 
   LinearGradient _getCardGradient() {
@@ -1171,14 +1287,16 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                               }),
                         subtitle: _searchController.text.isEmpty
                             ? _showTeacherList
-                                ? languageProvider.getTranslatedText({
-                                    'en': 'No teacher data available',
-                                    'id': 'Data guru tidak tersedia',
-                                  })
-                                : languageProvider.getTranslatedText({
-                                    'en': 'Teacher $_selectedTeacherName has not created class activities',
-                                    'id': 'Guru $_selectedTeacherName belum membuat kegiatan kelas',
-                                  })
+                                  ? languageProvider.getTranslatedText({
+                                      'en': 'No teacher data available',
+                                      'id': 'Data guru tidak tersedia',
+                                    })
+                                  : languageProvider.getTranslatedText({
+                                      'en':
+                                          'Teacher $_selectedTeacherName has not created class activities',
+                                      'id':
+                                          'Guru $_selectedTeacherName belum membuat kegiatan kelas',
+                                    })
                             : languageProvider.getTranslatedText({
                                 'en': 'No search results found',
                                 'id': 'Tidak ditemukan hasil pencarian',

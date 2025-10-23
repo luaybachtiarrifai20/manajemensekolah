@@ -14,7 +14,8 @@ class PengumumanManagementScreen extends StatefulWidget {
   const PengumumanManagementScreen({super.key});
 
   @override
-  PengumumanManagementScreenState createState() => PengumumanManagementScreenState();
+  PengumumanManagementScreenState createState() =>
+      PengumumanManagementScreenState();
 }
 
 class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
@@ -94,16 +95,20 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
   }
 
   void _showAddEditDialog({Map<String, dynamic>? pengumumanData}) {
-    final judulController = TextEditingController(text: pengumumanData?['judul'] ?? '');
-    final kontenController = TextEditingController(text: pengumumanData?['konten'] ?? '');
+    final judulController = TextEditingController(
+      text: pengumumanData?['judul'] ?? '',
+    );
+    final kontenController = TextEditingController(
+      text: pengumumanData?['konten'] ?? '',
+    );
     String? selectedKelas = pengumumanData?['kelas_id'];
     String? selectedRole = pengumumanData?['role_target'] ?? 'all';
     String? selectedPrioritas = pengumumanData?['prioritas'] ?? 'biasa';
-    DateTime? tanggalAwal = pengumumanData?['tanggal_awal'] != null 
-        ? DateTime.parse(pengumumanData!['tanggal_awal']) 
+    DateTime? tanggalAwal = pengumumanData?['tanggal_awal'] != null
+        ? DateTime.parse(pengumumanData!['tanggal_awal'])
         : null;
-    DateTime? tanggalAkhir = pengumumanData?['tanggal_akhir'] != null 
-        ? DateTime.parse(pengumumanData!['tanggal_akhir']) 
+    DateTime? tanggalAkhir = pengumumanData?['tanggal_akhir'] != null
+        ? DateTime.parse(pengumumanData!['tanggal_akhir'])
         : null;
 
     final isEdit = pengumumanData != null;
@@ -238,11 +243,12 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                                   'id': 'Tanggal Berakhir',
                                 }),
                                 value: tanggalAkhir,
-                                onTap: () => _selectDate(context, false, (date) {
-                                  setState(() {
-                                    tanggalAkhir = date;
-                                  });
-                                }),
+                                onTap: () =>
+                                    _selectDate(context, false, (date) {
+                                      setState(() {
+                                        tanggalAkhir = date;
+                                      });
+                                    }),
                               ),
                             ),
                           ],
@@ -287,7 +293,8 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                                   SnackBar(
                                     content: Text(
                                       languageProvider.getTranslatedText({
-                                        'en': 'Title and content must be filled',
+                                        'en':
+                                            'Title and content must be filled',
                                         'id': 'Judul dan konten harus diisi',
                                       }),
                                     ),
@@ -303,19 +310,28 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                                   'konten': konten,
                                   'role_target': selectedRole,
                                   'prioritas': selectedPrioritas,
-                                  'tanggal_awal': tanggalAwal?.toIso8601String().split('T')[0],
-                                  'tanggal_akhir': tanggalAkhir?.toIso8601String().split('T')[0],
+                                  'tanggal_awal': tanggalAwal
+                                      ?.toIso8601String()
+                                      .split('T')[0],
+                                  'tanggal_akhir': tanggalAkhir
+                                      ?.toIso8601String()
+                                      .split('T')[0],
                                 };
 
                                 if (isEdit) {
-                                  await _apiService.put('/pengumuman/${pengumumanData!['id']}', data);
+                                  await _apiService.put(
+                                    '/pengumuman/${pengumumanData!['id']}',
+                                    data,
+                                  );
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
                                           languageProvider.getTranslatedText({
-                                            'en': 'Announcement successfully updated',
-                                            'id': 'Pengumuman berhasil diperbarui',
+                                            'en':
+                                                'Announcement successfully updated',
+                                            'id':
+                                                'Pengumuman berhasil diperbarui',
                                           }),
                                         ),
                                         backgroundColor: Colors.green,
@@ -330,8 +346,10 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                                       SnackBar(
                                         content: Text(
                                           languageProvider.getTranslatedText({
-                                            'en': 'Announcement successfully added',
-                                            'id': 'Pengumuman berhasil ditambahkan',
+                                            'en':
+                                                'Announcement successfully added',
+                                            'id':
+                                                'Pengumuman berhasil ditambahkan',
                                           }),
                                         ),
                                         backgroundColor: Colors.green,
@@ -347,8 +365,10 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                                     SnackBar(
                                       content: Text(
                                         languageProvider.getTranslatedText({
-                                          'en': 'Failed to save announcement: $e',
-                                          'id': 'Gagal menyimpan pengumuman: $e',
+                                          'en':
+                                              'Failed to save announcement: $e',
+                                          'id':
+                                              'Gagal menyimpan pengumuman: $e',
                                         }),
                                       ),
                                       backgroundColor: Colors.red,
@@ -433,7 +453,11 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
             'en': 'Priority',
             'id': 'Prioritas',
           }),
-          prefixIcon: Icon(Icons.priority_high, color: _getPrimaryColor(), size: 20),
+          prefixIcon: Icon(
+            Icons.priority_high,
+            color: _getPrimaryColor(),
+            size: 20,
+          ),
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(horizontal: 12),
         ),
@@ -444,10 +468,12 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
               children: [
                 Icon(Icons.circle, color: Colors.grey, size: 16),
                 SizedBox(width: 8),
-                Text(languageProvider.getTranslatedText({
-                  'en': 'Normal',
-                  'id': 'Biasa',
-                })),
+                Text(
+                  languageProvider.getTranslatedText({
+                    'en': 'Normal',
+                    'id': 'Biasa',
+                  }),
+                ),
               ],
             ),
           ),
@@ -457,10 +483,12 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
               children: [
                 Icon(Icons.warning, color: Colors.orange, size: 16),
                 SizedBox(width: 8),
-                Text(languageProvider.getTranslatedText({
-                  'en': 'Important',
-                  'id': 'Penting',
-                })),
+                Text(
+                  languageProvider.getTranslatedText({
+                    'en': 'Important',
+                    'id': 'Penting',
+                  }),
+                ),
               ],
             ),
           ),
@@ -496,27 +524,17 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
         items: [
           DropdownMenuItem(
             value: 'all',
-            child: Text(languageProvider.getTranslatedText({
-              'en': 'All Users',
-              'id': 'Semua Pengguna',
-            })),
+            child: Text(
+              languageProvider.getTranslatedText({
+                'en': 'All Users',
+                'id': 'Semua Pengguna',
+              }),
+            ),
           ),
-          DropdownMenuItem(
-            value: 'admin',
-            child: Text('Admin'),
-          ),
-          DropdownMenuItem(
-            value: 'guru',
-            child: Text('Guru'),
-          ),
-          DropdownMenuItem(
-            value: 'siswa',
-            child: Text('Siswa'),
-          ),
-          DropdownMenuItem(
-            value: 'wali',
-            child: Text('Wali'),
-          ),
+          DropdownMenuItem(value: 'admin', child: Text('Admin')),
+          DropdownMenuItem(value: 'guru', child: Text('Guru')),
+          DropdownMenuItem(value: 'siswa', child: Text('Siswa')),
+          DropdownMenuItem(value: 'wali', child: Text('Wali')),
         ],
         onChanged: onChanged,
         style: TextStyle(fontSize: 14, color: Colors.grey.shade800),
@@ -544,11 +562,13 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
             SizedBox(width: 12),
             Expanded(
               child: Text(
-                value != null 
-                  ? '${value.day}/${value.month}/${value.year}'
-                  : label,
+                value != null
+                    ? '${value.day}/${value.month}/${value.year}'
+                    : label,
                 style: TextStyle(
-                  color: value != null ? Colors.grey.shade800 : Colors.grey.shade500,
+                  color: value != null
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade500,
                 ),
               ),
             ),
@@ -558,14 +578,18 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
     );
   }
 
-  Future<void> _selectDate(BuildContext context, bool isStartDate, Function(DateTime) onDateSelected) async {
+  Future<void> _selectDate(
+    BuildContext context,
+    bool isStartDate,
+    Function(DateTime) onDateSelected,
+  ) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
-    
+
     if (picked != null) {
       onDateSelected(picked);
     }
@@ -659,27 +683,44 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 decoration: BoxDecoration(
-                  gradient: _getCardGradient(),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: _getPrimaryColor().withOpacity(0.2),
-                      blurRadius: 12,
+                      color: Colors.grey.withOpacity(0.3),
+                      blurRadius: 5,
                       offset: Offset(0, 4),
                     ),
                   ],
                 ),
                 child: Stack(
                   children: [
-                    // Background pattern
+                    // Strip biru di pinggir kiri
                     Positioned(
-                      right: -10,
-                      top: -10,
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
                       child: Container(
-                        width: 60,
-                        height: 60,
+                        width: 6,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: _getPrimaryColor(),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            bottomLeft: Radius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Background pattern effect
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -687,35 +728,42 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
 
                     // Priority badge
                     if (pengumumanData['prioritas'] == 'penting')
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.orange,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.warning, size: 12, color: Colors.white),
-                            SizedBox(width: 4),
-                            Text(
-                              languageProvider.getTranslatedText({
-                                'en': 'IMPORTANT',
-                                'id': 'PENTING',
-                              }),
-                              style: TextStyle(
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.warning,
+                                size: 12,
                                 color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
                               ),
-                            ),
-                          ],
+                              SizedBox(width: 4),
+                              Text(
+                                languageProvider.getTranslatedText({
+                                  'en': 'IMPORTANT',
+                                  'id': 'PENTING',
+                                }),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
 
                     Padding(
                       padding: EdgeInsets.all(16),
@@ -735,17 +783,17 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                        color: Colors.black,
                                       ),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    SizedBox(height: 4),
+                                    SizedBox(height: 2),
                                     Text(
                                       _formatDate(pengumumanData['created_at']),
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.white.withOpacity(0.8),
+                                        color: Colors.grey.shade600,
                                       ),
                                     ),
                                   ],
@@ -757,31 +805,69 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                           SizedBox(height: 12),
 
                           // Konten preview
-                          Text(
-                            pengumumanData['konten'] ?? '',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white.withOpacity(0.9),
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-
-                          SizedBox(height: 12),
-
-                          // Informasi tambahan
                           Row(
                             children: [
                               Container(
                                 width: 32,
                                 height: 32,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: _getPrimaryColor().withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(
+                                  Icons.description,
+                                  color: _getPrimaryColor(),
+                                  size: 16,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      languageProvider.getTranslatedText({
+                                        'en': 'Content',
+                                        'id': 'Konten',
+                                      }),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 1),
+                                    Text(
+                                      pengumumanData['konten'] ?? '',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          SizedBox(height: 12),
+
+                          // Informasi pembuat
+                          Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: _getPrimaryColor().withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Icon(
                                   Icons.person,
-                                  color: Colors.white,
+                                  color: _getPrimaryColor(),
                                   size: 16,
                                 ),
                               ),
@@ -797,17 +883,18 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                                       }),
                                       style: TextStyle(
                                         fontSize: 10,
-                                        color: Colors.white.withOpacity(0.8),
+                                        color: Colors.grey.shade600,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                     SizedBox(height: 1),
                                     Text(
-                                      pengumumanData['pembuat_nama'] ?? 'Unknown',
+                                      pengumumanData['pembuat_nama'] ??
+                                          'Unknown',
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                        color: Colors.black,
                                       ),
                                     ),
                                   ],
@@ -816,18 +903,53 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                             ],
                           ),
 
-                          SizedBox(height: 8),
+                          SizedBox(height: 12),
 
                           // Target informasi
                           Row(
                             children: [
-                              Icon(Icons.people_outline, size: 14, color: Colors.white.withOpacity(0.8)),
-                              SizedBox(width: 4),
-                              Text(
-                                _getTargetText(pengumumanData, languageProvider),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white.withOpacity(0.8),
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: _getPrimaryColor().withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(
+                                  Icons.people,
+                                  color: _getPrimaryColor(),
+                                  size: 16,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      languageProvider.getTranslatedText({
+                                        'en': 'Target Audience',
+                                        'id': 'Target Pengguna',
+                                      }),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 1),
+                                    Text(
+                                      _getTargetText(
+                                        pengumumanData,
+                                        languageProvider,
+                                      ),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -845,8 +967,12 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                                   'en': 'Edit',
                                   'id': 'Edit',
                                 }),
-                                color: Colors.white,
-                                onPressed: () => _showAddEditDialog(pengumumanData: pengumumanData),
+                                color: _getPrimaryColor(),
+                                backgroundColor: Colors.white,
+                                borderColor: _getPrimaryColor(),
+                                onPressed: () => _showAddEditDialog(
+                                  pengumumanData: pengumumanData,
+                                ),
                               ),
                               SizedBox(width: 8),
                               _buildActionButton(
@@ -855,8 +981,11 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                                   'en': 'Delete',
                                   'id': 'Hapus',
                                 }),
-                                color: Colors.white,
-                                onPressed: () => _deletePengumuman(pengumumanData),
+                                color: Colors.red,
+                                backgroundColor: Colors.white,
+                                borderColor: Colors.red,
+                                onPressed: () =>
+                                    _deletePengumuman(pengumumanData),
                               ),
                             ],
                           ),
@@ -877,6 +1006,8 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
     required IconData icon,
     required String label,
     required Color color,
+    Color? backgroundColor,
+    Color? borderColor,
     required VoidCallback onPressed,
   }) {
     return GestureDetector(
@@ -884,9 +1015,12 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
+          color: backgroundColor ?? Colors.white.withOpacity(0.2),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withOpacity(0.3)),
+          border: Border.all(
+            color: borderColor ?? Colors.white.withOpacity(0.3),
+            width: 1,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -981,32 +1115,35 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                   children: [
                     // Priority badge
                     if (pengumumanData['prioritas'] == 'penting')
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.warning, size: 14, color: Colors.orange),
-                          SizedBox(width: 6),
-                          Text(
-                            languageProvider.getTranslatedText({
-                              'en': 'Important Announcement',
-                              'id': 'Pengumuman Penting',
-                            }),
-                            style: TextStyle(
-                              color: Colors.orange,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.warning, size: 14, color: Colors.orange),
+                            SizedBox(width: 6),
+                            Text(
+                              languageProvider.getTranslatedText({
+                                'en': 'Important Announcement',
+                                'id': 'Pengumuman Penting',
+                              }),
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
 
                     SizedBox(height: 16),
 
@@ -1046,30 +1183,37 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                               'en': 'Target Role',
                               'id': 'Role Target',
                             }),
-                            value: _getTargetText(pengumumanData, languageProvider),
+                            value: _getTargetText(
+                              pengumumanData,
+                              languageProvider,
+                            ),
                           ),
                           if (pengumumanData['tanggal_awal'] != null)
-                          SizedBox(height: 8),
+                            SizedBox(height: 8),
                           if (pengumumanData['tanggal_awal'] != null)
-                          _buildDetailRow(
-                            icon: Icons.calendar_today,
-                            label: languageProvider.getTranslatedText({
-                              'en': 'Start Date',
-                              'id': 'Tanggal Mulai',
-                            }),
-                            value: _formatDate(pengumumanData['tanggal_awal']),
-                          ),
+                            _buildDetailRow(
+                              icon: Icons.calendar_today,
+                              label: languageProvider.getTranslatedText({
+                                'en': 'Start Date',
+                                'id': 'Tanggal Mulai',
+                              }),
+                              value: _formatDate(
+                                pengumumanData['tanggal_awal'],
+                              ),
+                            ),
                           if (pengumumanData['tanggal_akhir'] != null)
-                          SizedBox(height: 8),
+                            SizedBox(height: 8),
                           if (pengumumanData['tanggal_akhir'] != null)
-                          _buildDetailRow(
-                            icon: Icons.event_busy,
-                            label: languageProvider.getTranslatedText({
-                              'en': 'End Date',
-                              'id': 'Tanggal Berakhir',
-                            }),
-                            value: _formatDate(pengumumanData['tanggal_akhir']),
-                          ),
+                            _buildDetailRow(
+                              icon: Icons.event_busy,
+                              label: languageProvider.getTranslatedText({
+                                'en': 'End Date',
+                                'id': 'Tanggal Berakhir',
+                              }),
+                              value: _formatDate(
+                                pengumumanData['tanggal_akhir'],
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -1126,10 +1270,7 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
               SizedBox(height: 2),
               Text(
@@ -1147,7 +1288,10 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
     );
   }
 
-  String _getTargetText(Map<String, dynamic> pengumumanData, LanguageProvider languageProvider) {
+  String _getTargetText(
+    Map<String, dynamic> pengumumanData,
+    LanguageProvider languageProvider,
+  ) {
     final roleTarget = pengumumanData['role_target'] ?? 'all';
     final kelasNama = pengumumanData['kelas_nama'];
 
@@ -1182,10 +1326,7 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [
-        primaryColor,
-        ColorUtils.primaryColor,
-      ],
+      colors: [primaryColor, ColorUtils.primaryColor],
     );
   }
 
@@ -1199,9 +1340,9 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
         final judul = p['judul']?.toString().toLowerCase() ?? '';
         final konten = p['konten']?.toString().toLowerCase() ?? '';
         final pembuat = p['pembuat_nama']?.toString().toLowerCase() ?? '';
-        return judul.contains(searchLower) || 
-               konten.contains(searchLower) || 
-               pembuat.contains(searchLower);
+        return judul.contains(searchLower) ||
+            konten.contains(searchLower) ||
+            pembuat.contains(searchLower);
       }).toList();
     }
 
@@ -1328,12 +1469,12 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                             padding: EdgeInsets.only(right: 8),
                             child: FilterChip(
                               label: Text(
-                                filter == 'All' 
-                                  ? languageProvider.getTranslatedText({
-                                      'en': 'All',
-                                      'id': 'Semua',
-                                    })
-                                  : filter == 'Penting'
+                                filter == 'All'
+                                    ? languageProvider.getTranslatedText({
+                                        'en': 'All',
+                                        'id': 'Semua',
+                                      })
+                                    : filter == 'Penting'
                                     ? languageProvider.getTranslatedText({
                                         'en': 'Important',
                                         'id': 'Penting',
@@ -1343,9 +1484,9 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                                         'id': 'Biasa',
                                       }),
                                 style: TextStyle(
-                                  color: _selectedFilter == filter 
-                                    ? Colors.white 
-                                    : _getPrimaryColor(),
+                                  color: _selectedFilter == filter
+                                      ? Colors.white
+                                      : _getPrimaryColor(),
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -1361,9 +1502,9 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                               checkmarkColor: Colors.white,
                               shape: StadiumBorder(
                                 side: BorderSide(
-                                  color: _selectedFilter == filter 
-                                    ? Colors.transparent 
-                                    : Colors.white.withOpacity(0.3),
+                                  color: _selectedFilter == filter
+                                      ? Colors.transparent
+                                      : Colors.white.withOpacity(0.3),
                                 ),
                               ),
                             ),
@@ -1385,45 +1526,46 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                         }),
                       )
                     : _errorMessage != null
-                        ? ErrorScreen(
-                            errorMessage: _errorMessage!, onRetry: _loadData,
-                          )
-                        : _filteredPengumuman.isEmpty
-                            ? EmptyState(
-                                icon: Icons.announcement_outlined,
-                                title: languageProvider.getTranslatedText({
-                                  'en': 'No Announcements',
-                                  'id': 'Tidak Ada Pengumuman',
-                                }),
-                                subtitle: languageProvider.getTranslatedText({
-                                  'en': _searchController.text.isNotEmpty
-                                      ? 'No announcements found for your search'
-                                      : 'Start creating announcements to share information',
-                                  'id': _searchController.text.isNotEmpty
-                                      ? 'Tidak ada pengumuman yang sesuai dengan pencarian'
-                                      : 'Mulai buat pengumuman untuk berbagi informasi',
-                                }),
-                                buttonText: languageProvider.getTranslatedText({
-                                  'en': 'Create Announcement',
-                                  'id': 'Buat Pengumuman',
-                                }),
-                                onPressed: () => _showAddEditDialog(),
-                              )
-                            : RefreshIndicator(
-                                onRefresh: _loadData,
-                                color: _getPrimaryColor(),
-                                backgroundColor: Colors.white,
-                                child: ListView.builder(
-                                  padding: EdgeInsets.only(top: 8, bottom: 16),
-                                  itemCount: _filteredPengumuman.length,
-                                  itemBuilder: (context, index) {
-                                    return _buildPengumumanCard(
-                                      _filteredPengumuman[index],
-                                      index,
-                                    );
-                                  },
-                                ),
-                              ),
+                    ? ErrorScreen(
+                        errorMessage: _errorMessage!,
+                        onRetry: _loadData,
+                      )
+                    : _filteredPengumuman.isEmpty
+                    ? EmptyState(
+                        icon: Icons.announcement_outlined,
+                        title: languageProvider.getTranslatedText({
+                          'en': 'No Announcements',
+                          'id': 'Tidak Ada Pengumuman',
+                        }),
+                        subtitle: languageProvider.getTranslatedText({
+                          'en': _searchController.text.isNotEmpty
+                              ? 'No announcements found for your search'
+                              : 'Start creating announcements to share information',
+                          'id': _searchController.text.isNotEmpty
+                              ? 'Tidak ada pengumuman yang sesuai dengan pencarian'
+                              : 'Mulai buat pengumuman untuk berbagi informasi',
+                        }),
+                        buttonText: languageProvider.getTranslatedText({
+                          'en': 'Create Announcement',
+                          'id': 'Buat Pengumuman',
+                        }),
+                        onPressed: () => _showAddEditDialog(),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _loadData,
+                        color: _getPrimaryColor(),
+                        backgroundColor: Colors.white,
+                        child: ListView.builder(
+                          padding: EdgeInsets.only(top: 8, bottom: 16),
+                          itemCount: _filteredPengumuman.length,
+                          itemBuilder: (context, index) {
+                            return _buildPengumumanCard(
+                              _filteredPengumuman[index],
+                              index,
+                            );
+                          },
+                        ),
+                      ),
               ),
             ],
           ),

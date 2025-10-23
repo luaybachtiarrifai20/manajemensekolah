@@ -86,7 +86,7 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
 
       if (result != null && result.files.single.path != null) {
         await ApiStudentService.importStudentsFromExcel(
-          File(result.files.single.path!)
+          File(result.files.single.path!),
         );
 
         // Refresh data setelah import
@@ -172,7 +172,7 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
     );
 
     final emailWaliController = TextEditingController(
-      text: student?['parent_email'] ?? '',
+      text: student?['email_wali'] ?? '',
     );
 
     String? selectedClassId = student?['kelas_id'];
@@ -388,7 +388,7 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               padding: EdgeInsets.symmetric(vertical: 12),
-                              side: BorderSide(color: Colors.grey.shade300),
+                              side: BorderSide(color: Colors.blue.shade600),
                             ),
                             child: Text(
                               AppLocalizations.cancel.tr,
@@ -991,27 +991,44 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 decoration: BoxDecoration(
-                  gradient: _getCardGradient(),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: _getPrimaryColor().withOpacity(0.2),
-                      blurRadius: 12,
+                      color: Colors.grey.withOpacity(0.3),
+                      blurRadius: 5,
                       offset: Offset(0, 4),
                     ),
                   ],
                 ),
                 child: Stack(
                   children: [
-                    // Background pattern
+                    // Strip biru di pinggir kiri
                     Positioned(
-                      right: -10,
-                      top: -10,
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
                       child: Container(
-                        width: 60,
-                        height: 60,
+                        width: 6,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: _getPrimaryColor(),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            bottomLeft: Radius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Background pattern effect
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -1022,7 +1039,7 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Header dengan nama dan status
+                          // Header dengan nama dan NIS
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -1035,7 +1052,7 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.white,
+                                        color: Colors.black,
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -1045,7 +1062,7 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
                                       'NIS: ${student['nis'] ?? 'No NIS'}',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.white.withOpacity(0.8),
+                                        color: Colors.grey.shade600,
                                       ),
                                     ),
                                   ],
@@ -1057,16 +1074,16 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: _getPrimaryColor().withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
+                                    color: _getPrimaryColor().withOpacity(0.3),
                                   ),
                                 ),
                                 child: Text(
                                   'Active',
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: _getPrimaryColor(),
                                     fontSize: 10,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -1084,12 +1101,12 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
                                 width: 32,
                                 height: 32,
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: _getPrimaryColor().withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Icon(
                                   Icons.school,
-                                  color: Colors.white,
+                                  color: _getPrimaryColor(),
                                   size: 16,
                                 ),
                               ),
@@ -1099,20 +1116,79 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'Class',
+                                      languageProvider.getTranslatedText({
+                                        'en': 'Class',
+                                        'id': 'Kelas',
+                                      }),
                                       style: TextStyle(
                                         fontSize: 10,
-                                        color: Colors.white.withOpacity(0.8),
+                                        color: Colors.grey.shade600,
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                     SizedBox(height: 1),
                                     Text(
-                                      student['kelas_nama'] ?? 'No Class',
+                                      student['kelas_nama'] ??
+                                          languageProvider.getTranslatedText({
+                                            'en': 'No Class',
+                                            'id': 'Tidak Ada Kelas',
+                                          }),
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
-                                        color: Colors.white,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          SizedBox(height: 12),
+
+                          // Informasi gender
+                          Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: _getPrimaryColor().withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(
+                                  Icons.transgender,
+                                  color: _getPrimaryColor(),
+                                  size: 16,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      languageProvider.getTranslatedText({
+                                        'en': 'Gender',
+                                        'id': 'Jenis Kelamin',
+                                      }),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 1),
+                                    Text(
+                                      _getGenderText(
+                                        student['jenis_kelamin'],
+                                        languageProvider,
+                                      ),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
                                       ),
                                     ),
                                   ],
@@ -1129,16 +1205,26 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
                             children: [
                               _buildActionButton(
                                 icon: Icons.edit,
-                                label: 'Edit',
-                                color: Colors.white,
+                                label: languageProvider.getTranslatedText({
+                                  'en': 'Edit',
+                                  'id': 'Edit',
+                                }),
+                                color: _getPrimaryColor(),
+                                backgroundColor: Colors.white,
+                                borderColor: _getPrimaryColor(),
                                 onPressed: () =>
                                     _showStudentDialog(student: student),
                               ),
                               SizedBox(width: 8),
                               _buildActionButton(
                                 icon: Icons.delete,
-                                label: 'Delete',
-                                color: Colors.white,
+                                label: languageProvider.getTranslatedText({
+                                  'en': 'Delete',
+                                  'id': 'Hapus',
+                                }),
+                                color: Colors.red,
+                                backgroundColor: Colors.white,
+                                borderColor: Colors.red,
                                 onPressed: () => _deleteStudent(student),
                               ),
                             ],
@@ -1160,6 +1246,8 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
     required IconData icon,
     required String label,
     required Color color,
+    Color? backgroundColor,
+    Color? borderColor,
     required VoidCallback onPressed,
   }) {
     return GestureDetector(
@@ -1167,9 +1255,12 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
+          color: backgroundColor ?? Colors.white.withOpacity(0.2),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withOpacity(0.3)),
+          border: Border.all(
+            color: borderColor ?? Colors.white.withOpacity(0.3),
+            width: 1,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1191,7 +1282,7 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
   }
 
   Color _getPrimaryColor() {
-    return Color(0xFF4361EE); // Blue untuk admin
+    return Color(0xFF2563EB); // Blue untuk admin
   }
 
   LinearGradient _getCardGradient() {

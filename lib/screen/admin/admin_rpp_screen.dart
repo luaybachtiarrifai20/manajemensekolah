@@ -29,8 +29,13 @@ class _AdminRppScreenState extends State<AdminRppScreen>
   final TextEditingController _searchController = TextEditingController();
 
   // Filter options untuk EnhancedSearchBar
-  final List<String> _filterOptions = ['Semua', 'Menunggu', 'Disetujui', 'Ditolak'];
-  
+  final List<String> _filterOptions = [
+    'Semua',
+    'Menunggu',
+    'Disetujui',
+    'Ditolak',
+  ];
+
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
@@ -62,12 +67,8 @@ class _AdminRppScreenState extends State<AdminRppScreen>
   }
 
   Future<void> _exportToExcel() async {
-    await ExcelRppService.exportRppToExcel(
-      rppList: _rppList,
-      context: context,
-    );
+    await ExcelRppService.exportRppToExcel(rppList: _rppList, context: context);
   }
-
 
   Future<void> _loadRppByTeacher() async {
     try {
@@ -155,9 +156,7 @@ class _AdminRppScreenState extends State<AdminRppScreen>
   void _lihatDetailRpp(Map<String, dynamic> rpp) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => RppAdminDetailPage(rpp: rpp),
-      ),
+      MaterialPageRoute(builder: (context) => RppAdminDetailPage(rpp: rpp)),
     );
   }
 
@@ -202,238 +201,260 @@ class _AdminRppScreenState extends State<AdminRppScreen>
   Widget _buildRppCard(Map<String, dynamic> rpp, int index) {
     final languageProvider = context.read<LanguageProvider>();
 
-    return AnimatedBuilder(
-      animation: _animationController,
-      builder: (context, child) {
-        final delay = index * 0.1;
-        final animation = CurvedAnimation(
-          parent: _animationController,
-          curve: Interval(delay, 1.0, curve: Curves.easeOut),
-        );
-
-        return FadeTransition(
-          opacity: animation,
-          child: Transform.translate(
-            offset: Offset(0, 50 * (1 - animation.value)),
-            child: child,
-          ),
-        );
-      },
-      child: GestureDetector(
-        onTap: () => _lihatDetailRpp(rpp),
-        child: Container(
-          margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => _lihatDetailRpp(rpp),
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: _getCardGradient(),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _getPrimaryColor().withOpacity(0.2),
-                      blurRadius: 12,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    // Background pattern
-                    Positioned(
-                      right: -10,
-                      top: -10,
-                      child: Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          shape: BoxShape.circle,
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: AnimatedBuilder(
+        animation: _animationController,
+        builder: (context, child) {
+          final delay = index * 0.1;
+          final animation = CurvedAnimation(
+            parent: _animationController,
+            curve: Interval(delay, 1.0, curve: Curves.easeOut),
+          );
+      
+          return FadeTransition(
+            opacity: animation,
+            child: Transform.translate(
+              offset: Offset(0, 50 * (1 - animation.value)),
+              child: child,
+            ),
+          );
+        },
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _lihatDetailRpp(rpp),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.3),
+                    blurRadius: 5,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  // Strip biru di pinggir kiri
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 6,
+                      decoration: BoxDecoration(
+                        color: _getPrimaryColor(),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          bottomLeft: Radius.circular(16),
                         ),
                       ),
                     ),
-
-                    Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Header dengan judul dan status
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      rpp['judul'] ?? 'No Title',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    SizedBox(height: 2),
-                                    Text(
-                                      '${rpp['mata_pelajaran_nama'] ?? 'No Subject'}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.white.withOpacity(0.8),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
-                                  ),
-                                ),
-                                child: Text(
-                                  rpp['status'] == 'Menunggu' ? 'Menunggu' :
-                                  rpp['status'] == 'Disetujui' ? 'Disetujui' : 'Ditolak',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          SizedBox(height: 12),
-
-                          // Informasi kelas dan guru
-                          Row(
-                            children: [
-                              Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Icon(
-                                  Icons.school,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Kelas',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.white.withOpacity(0.8),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    SizedBox(height: 1),
-                                    Text(
-                                      rpp['kelas_nama'] ?? 'No Class',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          SizedBox(height: 8),
-
-                          Row(
-                            children: [
-                              Container(
-                                width: 32,
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                  size: 16,
-                                ),
-                              ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Guru',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.white.withOpacity(0.8),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    SizedBox(height: 1),
-                                    Text(
-                                      rpp['guru_nama'] ?? 'No Teacher',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          SizedBox(height: 12),
-
-                          // Action buttons
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              _buildActionButton(
-                                icon: Icons.visibility,
-                                label: 'Detail',
-                                color: Colors.white,
-                                onPressed: () => _lihatDetailRpp(rpp),
-                              ),
-                              SizedBox(width: 8),
-                              _buildActionButton(
-                                icon: Icons.edit,
-                                label: 'Status',
-                                color: Colors.white,
-                                onPressed: () => _updateStatus(rpp['id'], rpp['status']),
-                              ),
-                            ],
-                          ),
-                        ],
+                  ),
+      
+                  // Background pattern effect
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.1),
+                        shape: BoxShape.circle,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+      
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header dengan judul dan status
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    rpp['judul'] ?? 'No Title',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    '${rpp['mata_pelajaran_nama'] ?? 'No Subject'}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _getStatusColor(
+                                  rpp['status'],
+                                ).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: _getStatusColor(
+                                    rpp['status'],
+                                  ).withOpacity(0.3),
+                                ),
+                              ),
+                              child: Text(
+                                rpp['status'] == 'Menunggu'
+                                    ? 'Menunggu'
+                                    : rpp['status'] == 'Disetujui'
+                                    ? 'Disetujui'
+                                    : 'Ditolak',
+                                style: TextStyle(
+                                  color: _getStatusColor(rpp['status']),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+      
+                        SizedBox(height: 12),
+      
+                        // Informasi kelas dan guru
+                        Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: _getPrimaryColor().withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                Icons.school,
+                                color: _getPrimaryColor(),
+                                size: 16,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Kelas',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(height: 1),
+                                  Text(
+                                    rpp['kelas_nama'] ?? 'No Class',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+      
+                        SizedBox(height: 8),
+      
+                        Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: _getPrimaryColor().withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                Icons.person,
+                                color: _getPrimaryColor(),
+                                size: 16,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Guru',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(height: 1),
+                                  Text(
+                                    rpp['guru_nama'] ?? 'No Teacher',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+      
+                        SizedBox(height: 12),
+      
+                        // Action buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            _buildActionButton(
+                              icon: Icons.visibility,
+                              label: 'Detail',
+                              color: _getPrimaryColor(),
+                              onPressed: () => _lihatDetailRpp(rpp),
+                            ),
+                            SizedBox(width: 8),
+                            _buildActionButton(
+                              icon: Icons.edit,
+                              label: 'Status',
+                              color: _getPrimaryColor(),
+                              onPressed: () =>
+                                  _updateStatus(rpp['id'], rpp['status']),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -490,14 +511,18 @@ class _AdminRppScreenState extends State<AdminRppScreen>
         }
 
         if (_errorMessage != null) {
-          return ErrorScreen(errorMessage: _errorMessage!, onRetry: _loadAllRpp);
+          return ErrorScreen(
+            errorMessage: _errorMessage!,
+            onRetry: _loadAllRpp,
+          );
         }
 
         final filteredRpp = _filteredRppList.where((rpp) {
           final searchTerm = _searchController.text.toLowerCase();
           return searchTerm.isEmpty ||
               (rpp['judul']?.toLowerCase().contains(searchTerm) ?? false) ||
-              (rpp['mata_pelajaran_nama']?.toLowerCase().contains(searchTerm) ?? false) ||
+              (rpp['mata_pelajaran_nama']?.toLowerCase().contains(searchTerm) ??
+                  false) ||
               (rpp['guru_nama']?.toLowerCase().contains(searchTerm) ?? false) ||
               (rpp['kelas_nama']?.toLowerCase().contains(searchTerm) ?? false);
         }).toList();
@@ -726,10 +751,7 @@ class _UpdateStatusDialogState extends State<UpdateStatusDialog> {
                 border: OutlineInputBorder(),
               ),
               items: ['Menunggu', 'Disetujui', 'Ditolak'].map((status) {
-                return DropdownMenuItem(
-                  value: status, 
-                  child: Text(status),
-                );
+                return DropdownMenuItem(value: status, child: Text(status));
               }).toList(),
               onChanged: (value) {
                 setState(() {
@@ -769,10 +791,7 @@ class _UpdateStatusDialogState extends State<UpdateStatusDialog> {
                     color: Colors.white,
                   ),
                 )
-              : Text(
-                  'Update',
-                  style: TextStyle(color: Colors.white),
-                ),
+              : Text('Update', style: TextStyle(color: Colors.white)),
         ),
       ],
     );
@@ -845,10 +864,7 @@ class RppAdminDetailPage extends StatelessWidget {
         ],
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(1),
-          child: Container(
-            height: 1,
-            color: Colors.grey.shade300,
-          ),
+          child: Container(height: 1, color: Colors.grey.shade300),
         ),
       ),
       body: SingleChildScrollView(
@@ -876,10 +892,7 @@ class RppAdminDetailPage extends StatelessWidget {
                 children: [
                   Text(
                     rpp['judul'] ?? '-',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 8),
                   Container(
@@ -889,8 +902,11 @@ class RppAdminDetailPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
-                      rpp['status'] == 'Menunggu' ? 'Menunggu' :
-                      rpp['status'] == 'Disetujui' ? 'Disetujui' : 'Ditolak',
+                      rpp['status'] == 'Menunggu'
+                          ? 'Menunggu'
+                          : rpp['status'] == 'Disetujui'
+                          ? 'Disetujui'
+                          : 'Ditolak',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -901,9 +917,9 @@ class RppAdminDetailPage extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             SizedBox(height: 16),
-            
+
             // Informasi Detail
             Container(
               width: double.infinity,
@@ -932,12 +948,18 @@ class RppAdminDetailPage extends StatelessWidget {
                   ),
                   SizedBox(height: 12),
                   _buildDetailItem('Guru Pengajar', rpp['guru_nama'] ?? '-'),
-                  _buildDetailItem('Mata Pelajaran', rpp['mata_pelajaran_nama'] ?? '-'),
+                  _buildDetailItem(
+                    'Mata Pelajaran',
+                    rpp['mata_pelajaran_nama'] ?? '-',
+                  ),
                   _buildDetailItem('Kelas', rpp['kelas_nama'] ?? '-'),
                   _buildDetailItem('Semester', rpp['semester'] ?? '-'),
                   _buildDetailItem('Tahun Ajaran', rpp['tahun_ajaran'] ?? '-'),
-                  _buildDetailItem('Tanggal Dibuat', rpp['created_at']?.toString().substring(0, 10) ?? '-'),
-                  
+                  _buildDetailItem(
+                    'Tanggal Dibuat',
+                    rpp['created_at']?.toString().substring(0, 10) ?? '-',
+                  ),
+
                   if (rpp['catatan_admin'] != null) ...[
                     SizedBox(height: 8),
                     Divider(),
@@ -963,7 +985,7 @@ class RppAdminDetailPage extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // File Attachment
             if (rpp['file_path'] != null) ...[
               SizedBox(height: 16),
@@ -996,7 +1018,9 @@ class RppAdminDetailPage extends StatelessWidget {
                     ElevatedButton.icon(
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Fitur download akan datang...')),
+                          SnackBar(
+                            content: Text('Fitur download akan datang...'),
+                          ),
                         );
                       },
                       icon: Icon(Icons.download),
@@ -1049,12 +1073,7 @@ class RppAdminDetailPage extends StatelessWidget {
           ),
           SizedBox(width: 8),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                color: Colors.grey[800],
-              ),
-            ),
+            child: Text(value, style: TextStyle(color: Colors.grey[800])),
           ),
         ],
       ),
