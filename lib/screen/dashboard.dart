@@ -51,6 +51,8 @@ class _DashboardState extends State<Dashboard>
   Map<String, dynamic> _userData = {};
   List<dynamic> _accessibleSchools = [];
   bool _isLoadingSchools = false;
+  List<dynamic> _availableRoles = [];
+  bool _isLoadingRoles = false;
 
   // Data statistik
   Map<String, dynamic> _stats = {
@@ -89,7 +91,65 @@ class _DashboardState extends State<Dashboard>
   Future<void> _initializeData() async {
     await _loadUserData();
     await _loadAccessibleSchools();
+    await _loadAvailableRoles();
     await _loadStats(); // Pastikan dipanggil setelah user data dimuat
+  }
+
+  Future<void> _loadAvailableRoles() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingRoles = true;
+    });
+
+    try {
+      final roles = await ApiService.getUserRoles();
+      if (!mounted) return;
+      setState(() {
+        _availableRoles = roles;
+        _isLoadingRoles = false;
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading roles: $e');
+      }
+      if (!mounted) return;
+      setState(() {
+        _isLoadingRoles = false;
+      });
+    }
+  }
+
+  Future<void> _switchRole(String role) async {
+    try {
+      final response = await ApiService.switchRole(role);
+
+      // Update token dan user data
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', response['token']);
+
+      // Update user data dengan role baru
+      final updatedUserData = Map<String, dynamic>.from(_userData);
+      updatedUserData['role'] = role;
+
+      await prefs.setString('user', json.encode(updatedUserData));
+
+      if (!mounted) return;
+
+      // Navigate ke dashboard dengan role baru
+      Navigator.pushReplacementNamed(context, '/$role');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Berhasil pindah ke role ${_getRoleDisplayName(role)}'),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal pindah role: $e')));
+      }
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -387,12 +447,18 @@ class _DashboardState extends State<Dashboard>
         'Rabu',
         'Kamis',
         'Jumat',
-        'Sabatu',
+        'Sabtu',
       ];
-      final todayName = dayNames[today.weekday];
+
+      // Adjust index: DateTime.weekday returns 1-7, but our list is 0-6
+      // So we need to subtract 1, but also handle Sunday (7 -> 0)
+      final todayIndex = today.weekday % 7; // This will convert 7 (Sunday) to 0
+      final todayName = dayNames[todayIndex];
 
       if (kDebugMode) {
-        print('📅 Hari ini: $todayName');
+        print(
+          '📅 Hari ini: $todayName (index: $todayIndex, weekday: ${today.weekday})',
+        );
       }
 
       final kelasHariIni = schedule.where((s) {
@@ -401,7 +467,7 @@ class _DashboardState extends State<Dashboard>
       }).toList();
 
       if (kDebugMode) {
-        print('`🎯 Kelas hari ini: ${kelasHariIni.length}`');
+        print('🎯 Kelas hari ini: ${kelasHariIni.length}');
       }
       return kelasHariIni.length;
     } catch (e) {
@@ -705,7 +771,7 @@ class _DashboardState extends State<Dashboard>
           ),
           SizedBox(width: 12),
           _buildStatCard(
-            title: "Kelas Hari\nIni",
+            title: "Kelas Hari Ini",
             value: _stats['kelas_hari_ini'].toString(),
             subtitle: "Sedang berlangsung",
             icon: Icons.schedule_outlined,
@@ -714,15 +780,15 @@ class _DashboardState extends State<Dashboard>
           ),
           SizedBox(width: 12),
           _buildStatCard(
-            title: "Materi & RPP",
+            title: "RPP",
             value:
-                "${_stats['total_materi']} Materi • ${_stats['total_rpp']} RPP",
-            valueStyle: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade700,
-            ),
-            subtitle: "",
+                "${_stats['total_rpp']}",
+            // valueStyle: TextStyle(
+            //   fontSize: 12,
+            //   fontWeight: FontWeight.w600,
+            //   color: Colors.grey.shade700,
+            // ),
+            subtitle: "Terkirim",
             icon: Icons.description_outlined,
             iconColor: Color(0xFF7209B7),
             backgroundColor: Color(0xFF7209B7).withOpacity(0.1),
@@ -1359,6 +1425,76 @@ class _DashboardState extends State<Dashboard>
 
                       SizedBox(height: 24),
 
+                      if (_availableRoles.length > 1) ...[
+                        SizedBox(height: 16),
+                        Text(
+                          'Ganti Role',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        ..._availableRoles.map((role) {
+                          final isCurrent = role == widget.role;
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: isCurrent
+                                  ? null
+                                  : () {
+                                      Navigator.pop(context);
+                                      _switchRole(role);
+                                    },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                width: double.infinity,
+                                padding: EdgeInsets.all(12),
+                                margin: EdgeInsets.only(bottom: 8),
+                                decoration: BoxDecoration(
+                                  color: isCurrent
+                                      ? _getPrimaryColor().withOpacity(0.1)
+                                      : Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isCurrent
+                                        ? _getPrimaryColor().withOpacity(0.3)
+                                        : Colors.transparent,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    _buildRoleIcon(role),
+                                    SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        _getRoleDisplayName(role),
+                                        style: TextStyle(
+                                          fontWeight: isCurrent
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
+                                          color: Colors.grey.shade800,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isCurrent)
+                                      Icon(
+                                        Icons.check_circle,
+                                        color: _getPrimaryColor(),
+                                        size: 20,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                        SizedBox(height: 16),
+                        Divider(),
+                        SizedBox(height: 16),
+                      ],
+
                       // Switch Sekolah Button
                       if (_accessibleSchools.length > 1) ...[
                         Material(
@@ -1460,6 +1596,40 @@ class _DashboardState extends State<Dashboard>
         );
       },
     );
+  }
+
+  Widget _buildRoleIcon(String role) {
+    switch (role) {
+      case 'admin':
+        return Icon(
+          Icons.admin_panel_settings,
+          color: _getPrimaryColor(),
+          size: 20,
+        );
+      case 'guru':
+        return Icon(Icons.school, color: _getPrimaryColor(), size: 20);
+      case 'wali':
+        return Icon(Icons.family_restroom, color: _getPrimaryColor(), size: 20);
+      case 'staff':
+        return Icon(Icons.work, color: _getPrimaryColor(), size: 20);
+      default:
+        return Icon(Icons.person, color: _getPrimaryColor(), size: 20);
+    }
+  }
+
+  String _getRoleDisplayName(String role) {
+    switch (role) {
+      case 'admin':
+        return 'Administrator';
+      case 'guru':
+        return 'Guru';
+      case 'wali':
+        return 'Wali Murid';
+      case 'staff':
+        return 'Staff';
+      default:
+        return role;
+    }
   }
 
   void _showSchoolSelectionDialog(BuildContext context) {

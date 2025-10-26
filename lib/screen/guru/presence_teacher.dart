@@ -9,6 +9,7 @@ import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_student_services.dart';
 import 'package:manajemensekolah/services/api_subject_services.dart';
+import 'package:manajemensekolah/services/api_teacher_services.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
 import 'package:provider/provider.dart';
@@ -21,6 +22,7 @@ class AbsensiSummary {
   final int totalSiswa;
   final int hadir;
   final int tidakHadir;
+  final String? kelasId;
 
   AbsensiSummary({
     required this.mataPelajaranId,
@@ -29,6 +31,7 @@ class AbsensiSummary {
     required this.totalSiswa,
     required this.hadir,
     required this.tidakHadir,
+    this.kelasId,
   });
 
   String get key =>
@@ -57,6 +60,7 @@ class PresencePageState extends State<PresencePage> {
   String? _selectedMataPelajaran;
   String? _selectedKelas;
   List<dynamic> _mataPelajaranList = [];
+  List<dynamic> _mataPelajaranDiampu = [];
   List<dynamic> _kelasList = [];
   List<Siswa> _siswaList = [];
   List<Siswa> _filteredSiswaList = [];
@@ -84,14 +88,16 @@ class PresencePageState extends State<PresencePage> {
   Future<void> _loadInitialData() async {
     try {
       final apiServiceClass = ApiClassService();
-      final [mataPelajaran, kelas, siswa] = await Future.wait([
-        ApiSubjectService().getSubject(),
+      final [mataPelajaranDiampu, kelas, siswa] = await Future.wait([
+        // Ambil mata pelajaran yang diampu oleh guru
+        _getMataPelajaranByGuru(widget.guru['id']),
         apiServiceClass.getClass(),
         ApiStudentService.getStudent(),
       ]);
 
       setState(() {
-        _mataPelajaranList = mataPelajaran;
+        _mataPelajaranDiampu = mataPelajaranDiampu;
+        _mataPelajaranList = mataPelajaranDiampu; // Gunakan yang diampu saja
         _kelasList = kelas;
         _siswaList = siswa.map((s) => Siswa.fromJson(s)).toList();
         _filteredSiswaList = _siswaList;
@@ -124,6 +130,17 @@ class PresencePageState extends State<PresencePage> {
           _isSubmitting = false;
         });
       }
+    }
+  }
+
+  Future<List<dynamic>> _getMataPelajaranByGuru(String guruId) async {
+    try {
+      final apiTeacherService = ApiTeacherService();
+      final result = await apiTeacherService.getSubjectByTeacher(guruId);
+      return result;
+    } catch (e) {
+      print('Error getting mata pelajaran by guru: $e');
+      return [];
     }
   }
 
@@ -593,7 +610,7 @@ class PresencePageState extends State<PresencePage> {
               ),
               child: Column(
                 children: [
-                  // Date Picker
+                  // Date Picker (tetap sama)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -631,7 +648,7 @@ class PresencePageState extends State<PresencePage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Class Filter
+                  // Class Filter (tetap sama)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -672,7 +689,7 @@ class PresencePageState extends State<PresencePage> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Subject Selector
+                  // Subject Selector - HANYA MATA PELAJARAN YANG DIAMPU
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -701,10 +718,14 @@ class PresencePageState extends State<PresencePage> {
                             }),
                           ),
                         ),
-                        ..._mataPelajaranList.map(
+                        ..._mataPelajaranDiampu.map(
                           (mp) => DropdownMenuItem(
                             value: mp['id'],
-                            child: Text(mp['nama']),
+                            child: Text(
+                              mp['nama'] ??
+                                  mp['mata_pelajaran_nama'] ??
+                                  'Unknown',
+                            ),
                           ),
                         ),
                       ],
@@ -715,6 +736,42 @@ class PresencePageState extends State<PresencePage> {
                       },
                     ),
                   ),
+
+                  // Tampilkan pesan jika tidak ada mata pelajaran yang diampu
+                  if (_mataPelajaranDiampu.isEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(top: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning,
+                            color: Colors.orange[800],
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              languageProvider.getTranslatedText({
+                                'en':
+                                    'You are not assigned to any subjects. Please contact administrator.',
+                                'id':
+                                    'Anda tidak mengampu mata pelajaran apapun. Silakan hubungi administrator.',
+                              }),
+                              style: TextStyle(
+                                color: Colors.orange[800],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),

@@ -25,7 +25,7 @@ class ColorUtils {
       'Kamis': Color(0xFFEF4444),
       'Jumat': Color(0xFF8B5CF6),
       'Sabtu': Color(0xFF06B6D4),
-      
+
       // English days
       'Monday': Color(0xFF6366F1),
       'Tuesday': Color(0xFF10B981),
@@ -33,14 +33,14 @@ class ColorUtils {
       'Thursday': Color(0xFFEF4444),
       'Friday': Color(0xFF8B5CF6),
       'Saturday': Color(0xFF06B6D4),
-      
+
       // Semester names
       'Ganjil': Color(0xFF6366F1),
       'Genap': Color(0xFF10B981),
       'Odd': Color(0xFF6366F1),
       'Even': Color(0xFF10B981),
     };
-    
+
     return dayColorMap[day] ?? _getFallbackColor(day);
   }
 
@@ -50,7 +50,7 @@ class ColorUtils {
     for (int i = 0; i < text.length; i++) {
       hash = text.codeUnitAt(i) + ((hash << 5) - hash);
     }
-    
+
     final colors = [
       Color(0xFF6366F1),
       Color(0xFF10B981),
@@ -61,7 +61,7 @@ class ColorUtils {
       Color(0xFFEC4899),
       Color(0xFF84CC16),
     ];
-    
+
     return colors[hash.abs() % colors.length];
   }
 
@@ -75,7 +75,7 @@ class ColorUtils {
       case 'completed':
       case 'selesai':
         return Color(0xFF10B981);
-      
+
       case 'inactive':
       case 'nonaktif':
       case 'absent':
@@ -83,13 +83,13 @@ class ColorUtils {
       case 'pending':
       case 'menunggu':
         return Color(0xFFEF4444);
-      
+
       case 'warning':
       case 'peringatan':
       case 'late':
       case 'terlambat':
         return Color(0xFFF59E0B);
-      
+
       default:
         return Color(0xFF6B7280);
     }
@@ -108,20 +108,15 @@ class ColorUtils {
   static Color getRoleColor(String role) {
     switch (role.toLowerCase()) {
       case 'admin':
-        return Color(0xFF6366F1);
+        return Color(0xFF2563EB); // Blue
       case 'guru':
-      case 'teacher':
-        return Color(0xFF10B981);
+        return Color(0xFF16A34A); // Teal
       case 'staff':
-        return Color(0xFFF59E0B);
+        return Color(0xFFFF9F1C); // Orange
       case 'wali':
-      case 'parent':
-        return Color(0xFF8B5CF6);
-      case 'siswa':
-      case 'student':
-        return Color(0xFF06B6D4);
+        return Color(0xFF9333EA); // Purple
       default:
-        return Color(0xFF6B7280);
+        return Color.fromARGB(255, 17, 19, 29);
     }
   }
 
@@ -134,7 +129,7 @@ class ColorUtils {
       'inggris': Color(0xFF3B82F6),
       'english': Color(0xFF3B82F6),
       'language': Color(0xFFEF4444),
-      
+
       // Sciences
       'matematika': Color(0xFF6366F1),
       'mathematics': Color(0xFF6366F1),
@@ -144,7 +139,7 @@ class ColorUtils {
       'chemistry': Color(0xFFEC4899),
       'biologi': Color(0xFF10B981),
       'biology': Color(0xFF10B981),
-      
+
       // Social Sciences
       'sejarah': Color(0xFFF59E0B),
       'history': Color(0xFFF59E0B),
@@ -152,7 +147,7 @@ class ColorUtils {
       'geography': Color(0xFF84CC16),
       'ekonomi': Color(0xFF06B6D4),
       'economy': Color(0xFF06B6D4),
-      
+
       // Others
       'seni': Color(0xFFEC4899),
       'art': Color(0xFFEC4899),
@@ -163,13 +158,13 @@ class ColorUtils {
     };
 
     final lowerSubject = subjectName.toLowerCase();
-    
+
     for (var key in subjectColors.keys) {
       if (lowerSubject.contains(key)) {
         return subjectColors[key]!;
       }
     }
-    
+
     return _getFallbackColor(subjectName);
   }
 
@@ -194,10 +189,12 @@ class ColorUtils {
   // Get text color based on background color
   static Color getTextColorForBackground(Color backgroundColor) {
     // Calculate the perceptive luminance
-    final luminance = (0.299 * backgroundColor.red + 
-                      0.587 * backgroundColor.green + 
-                      0.114 * backgroundColor.blue) / 255;
-    
+    final luminance =
+        (0.299 * backgroundColor.red +
+            0.587 * backgroundColor.green +
+            0.114 * backgroundColor.blue) /
+        255;
+
     return luminance > 0.5 ? Colors.black : Colors.white;
   }
 
@@ -207,10 +204,10 @@ class ColorUtils {
 
   // Get border color
   static Color get borderColor => Colors.grey[300]!;
-  
+
   // Get divider color
   static Color get dividerColor => Colors.grey[200]!;
-  
+
   // Get shadow color
   static Color get shadowColor => Colors.black.withOpacity(0.1);
 

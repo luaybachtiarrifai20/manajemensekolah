@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:http/http.dart' as http;
+import 'package:manajemensekolah/main.dart';
 import 'package:manajemensekolah/screen/login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -93,10 +95,11 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
 
-    // Redirect to login page using Navigator
-    // Since this is a static method, we need to use a different approach
-    // We'll set a flag that the app should redirect to login
-    prefs.setBool('force_logout', true);
+    // Redirect to login page using navigatorKey
+    navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => LoginScreen()),
+      (route) => false,
+    );
   }
 
   static dynamic _handleResponse(http.Response response) {
@@ -119,10 +122,23 @@ class ApiService {
   }
 
   static void _handleAuthenticationError() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token'); // Clear invalid token
-    // You can also navigate to login page here
-    // Navigator.of(context).pushReplacementNamed('/login');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear(); // Clear semua data, bukan hanya token
+
+      // Delay sedikit untuk memastikan context sudah ready
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      // Gunakan pushReplacement untuk mencegah kembali ke halaman sebelumnya
+      navigatorKey.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      print('Error during authentication cleanup: $e');
+      // Fallback ke named route
+      navigatorKey.currentState?.pushReplacementNamed('/login');
+    }
   }
 
   Future<List<dynamic>> getData(String endpoint) async {
@@ -145,24 +161,97 @@ class ApiService {
     String email,
     String password, {
     String? sekolahId,
+    String? role,
   }) async {
-    final Map<String, dynamic> body = {'email': email, 'password': password};
+    try {
+      final Map<String, dynamic> body = {'email': email, 'password': password};
 
-    if (sekolahId != null) {
-      body['sekolah_id'] = sekolahId;
+      if (sekolahId != null) {
+        body['sekolah_id'] = sekolahId;
+      }
+
+      if (role != null) {
+        body['role'] = role;
+      }
+
+      if (kDebugMode) {
+        print('📤 Login request: ${body.keys}');
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(body),
+      );
+
+      if (kDebugMode) {
+        print('📥 Login response status: ${response.statusCode}');
+        print('📥 Login response body: ${response.body}');
+      }
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+
+        // Handle semua kemungkinan flow
+        if (responseData['pilih_sekolah'] == true) {
+          if (kDebugMode) {
+            print('🔄 Login flow: Need to select school');
+          }
+          return responseData;
+        }
+
+        // PERBAIKAN: Handle jika setelah pilih sekolah, perlu pilih role
+        if (responseData['pilih_role'] == true) {
+          if (kDebugMode) {
+            print('🔄 Login flow: Need to select role after school selection');
+          }
+          return responseData;
+        }
+
+        // Hanya validasi token untuk login sukses langsung
+        if (responseData['token'] == null) {
+          throw Exception('Server tidak mengembalikan token');
+        }
+
+        if (responseData['user'] == null) {
+          throw Exception('Server tidak mengembalikan data user');
+        }
+
+        return responseData;
+      } else {
+        final errorResponse = json.decode(response.body);
+        throw Exception(
+          errorResponse['error'] ??
+              'Login failed with status: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ ApiService login error: $e');
+      }
+      rethrow;
     }
+  }
 
-    final response = await http.post(
-      Uri.parse('$baseUrl/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(body),
+  static Future<List<dynamic>> getUserRoles() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/user/roles'),
+      headers: await _getHeaders(),
     );
 
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception(json.decode(response.body)['error'] ?? 'Login failed');
-    }
+    final result = _handleResponse(response);
+    return result['available_roles'] is List ? result['available_roles'] : [];
+  }
+
+  // Switch role
+  static Future<Map<String, dynamic>> switchRole(String role) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/switch-role'),
+      headers: await _getHeaders(),
+      body: json.encode({'role': role}),
+    );
+
+    return _handleResponse(response);
   }
 
   // Get sekolah yang bisa diakses user
@@ -175,7 +264,6 @@ class ApiService {
     final result = _handleResponse(response);
     return result is List ? result : [];
   }
-
 
   // Switch sekolah
   static Future<Map<String, dynamic>> switchSchool(String sekolahId) async {

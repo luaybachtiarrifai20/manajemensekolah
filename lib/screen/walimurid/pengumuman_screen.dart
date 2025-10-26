@@ -23,6 +23,8 @@ class PengumumanScreenState extends State<PengumumanScreen> {
   String? _errorMessage;
   final TextEditingController _searchController = TextEditingController();
 
+  String? _userRole;
+
   @override
   void initState() {
     super.initState();
@@ -37,9 +39,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
       });
 
       print('🔄 Memuat data pengumuman...');
-      final pengumumanData = await _apiService.get(
-        '/pengumuman/user/current',
-      );
+      final pengumumanData = await _apiService.get('/pengumuman');
 
       print('✅ Response dari API:');
       print('Type: ${pengumumanData.runtimeType}');
@@ -77,15 +77,19 @@ class PengumumanScreenState extends State<PengumumanScreen> {
   }
 
   Color _getPrimaryColor() {
-    return ColorUtils.primaryColor;
+    // Gunakan ColorUtils.getRoleColor yang sudah ada
+    final role = _userRole ?? 'guru';
+    final color = ColorUtils.getRoleColor(role);
+    print('🎨 Using color for role: $role -> $color');
+    return color;
   }
 
-  LinearGradient _getCardGradient() {
+   LinearGradient _getCardGradient() {
     final primaryColor = _getPrimaryColor();
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [primaryColor, ColorUtils.primaryColor],
+      colors: [primaryColor, primaryColor.withOpacity(0.7)],
     );
   }
 
@@ -381,27 +385,44 @@ class PengumumanScreenState extends State<PengumumanScreen> {
             borderRadius: BorderRadius.circular(16),
             child: Container(
               decoration: BoxDecoration(
-                gradient: _getCardGradient(),
+                color: Colors.white, // Background putih
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: _getPrimaryColor().withOpacity(0.2),
-                    blurRadius: 12,
+                    color: Colors.grey.withOpacity(0.3),
+                    blurRadius: 5,
                     offset: Offset(0, 4),
                   ),
                 ],
               ),
               child: Stack(
                 children: [
-                  // Background pattern
+                  // Strip berwarna di pinggir kiri - menyesuaikan role
                   Positioned(
-                    right: -10,
-                    top: -10,
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
                     child: Container(
-                      width: 60,
-                      height: 60,
+                      width: 6,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: _getPrimaryColor(), // Warna sesuai role
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          bottomLeft: Radius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Background pattern effect
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -460,17 +481,17 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                      color: Colors.black,
                                     ),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  SizedBox(height: 4),
+                                  SizedBox(height: 2),
                                   Text(
                                     _formatDate(pengumumanData['created_at']),
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.white.withOpacity(0.8),
+                                      color: Colors.grey.shade600,
                                     ),
                                   ),
                                 ],
@@ -482,31 +503,69 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                         SizedBox(height: 12),
 
                         // Konten preview
-                        Text(
-                          pengumumanData['konten'] ?? '',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white.withOpacity(0.9),
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-
-                        SizedBox(height: 12),
-
-                        // Informasi tambahan
                         Row(
                           children: [
                             Container(
                               width: 32,
                               height: 32,
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: _getPrimaryColor().withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                Icons.description,
+                                color: _getPrimaryColor(),
+                                size: 16,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Content',
+                                      'id': 'Konten',
+                                    }),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(height: 1),
+                                  Text(
+                                    pengumumanData['konten'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 12),
+
+                        // Informasi pembuat
+                        Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: _getPrimaryColor().withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Icon(
                                 Icons.person,
-                                color: Colors.white,
+                                color: _getPrimaryColor(),
                                 size: 16,
                               ),
                             ),
@@ -522,7 +581,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                                     }),
                                     style: TextStyle(
                                       fontSize: 10,
-                                      color: Colors.white.withOpacity(0.8),
+                                      color: Colors.grey.shade600,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -532,7 +591,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.white,
+                                      color: Colors.black,
                                     ),
                                   ),
                                 ],
@@ -541,22 +600,53 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                           ],
                         ),
 
-                        SizedBox(height: 8),
+                        SizedBox(height: 12),
 
                         // Target informasi
                         Row(
                           children: [
-                            Icon(
-                              Icons.people_outline,
-                              size: 14,
-                              color: Colors.white.withOpacity(0.8),
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: _getPrimaryColor().withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                Icons.people,
+                                color: _getPrimaryColor(),
+                                size: 16,
+                              ),
                             ),
-                            SizedBox(width: 4),
-                            Text(
-                              _getTargetText(pengumumanData, languageProvider),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white.withOpacity(0.8),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Target Audience',
+                                      'id': 'Target Pengguna',
+                                    }),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(height: 1),
+                                  Text(
+                                    _getTargetText(
+                                      pengumumanData,
+                                      languageProvider,
+                                    ),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -581,7 +671,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
           backgroundColor: Color(0xFFF8F9FA),
           body: Column(
             children: [
-              // Header
+              // Header - menggunakan gradient sesuai role
               Container(
                 width: double.infinity,
                 padding: EdgeInsets.only(
@@ -718,7 +808,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                       )
                     : RefreshIndicator(
                         onRefresh: _loadData,
-                        color: _getPrimaryColor(),
+                        color: _getPrimaryColor(), // Warna sesuai role
                         backgroundColor: Colors.white,
                         child: ListView.builder(
                           padding: EdgeInsets.only(top: 8, bottom: 16),
