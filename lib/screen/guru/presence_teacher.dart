@@ -268,7 +268,7 @@ class PresencePageState extends State<PresencePage> {
     final isSelected = _currentMode == mode;
 
     return Material(
-      color: isSelected ? ColorUtils.primaryColor : Colors.transparent,
+      color: isSelected ? _getPrimaryColor().withValues(alpha: 0.85) : Colors.transparent,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -443,6 +443,108 @@ class PresencePageState extends State<PresencePage> {
         date1.day == date2.day;
   }
 
+  // ========== HEADER BARU SEPERTI PENGUMUMAN ==========
+  Widget _buildHeader(LanguageProvider languageProvider) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 16,
+        left: 16,
+        right: 16,
+        bottom: 16,
+      ),
+      decoration: BoxDecoration(
+        gradient: _getCardGradient(),
+        boxShadow: [
+          BoxShadow(
+            color: _getPrimaryColor().withOpacity(0.3),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _currentMode == 0
+                          ? languageProvider.getTranslatedText({
+                              'en': 'Attendance Results',
+                              'id': 'Hasil Absensi',
+                            })
+                          : languageProvider.getTranslatedText({
+                              'en': 'Add Attendance',
+                              'id': 'Tambah Absensi',
+                            }),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      _currentMode == 0
+                          ? languageProvider.getTranslatedText({
+                              'en': 'View attendance records',
+                              'id': 'Lihat catatan kehadiran',
+                            })
+                          : languageProvider.getTranslatedText({
+                              'en': 'Record student attendance',
+                              'id': 'Catat kehadiran siswa',
+                            }),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  _currentMode == 0 ? Icons.list_alt : Icons.add_circle,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+
+          // Mode Switcher di dalam header
+          _buildModeSwitcher(),
+        ],
+      ),
+    );
+  }
+
+  // ========== CARD BARU SEPERTI PENGUMUMAN ==========
   Widget _buildSummaryCard(
     AbsensiSummary summary,
     LanguageProvider languageProvider,
@@ -451,107 +553,304 @@ class PresencePageState extends State<PresencePage> {
         ? (summary.hadir / summary.totalSiswa * 100).round()
         : 0;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      child: ListTile(
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: ColorUtils.primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
+    return GestureDetector(
+      onTap: () {
+        _navigateToDetailAbsensi(summary);
+      },
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _navigateToDetailAbsensi(summary),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.3),
+                    blurRadius: 5,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  // Strip berwarna di pinggir kiri
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 6,
+                      decoration: BoxDecoration(
+                        color: _getPrimaryColor(),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          bottomLeft: Radius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Background pattern effect
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+
+                  // Attendance percentage badge
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: presentaseHadir >= 80
+                            ? Colors.green
+                            : presentaseHadir >= 60
+                            ? Colors.orange
+                            : Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$presentaseHadir%',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header dengan judul mata pelajaran
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    summary.mataPelajaranNama,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    DateFormat(
+                                      'EEEE, dd MMMM yyyy',
+                                      'id_ID',
+                                    ).format(summary.tanggal),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 12),
+
+                        // Total siswa
+                        Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: _getPrimaryColor().withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                Icons.people,
+                                color: _getPrimaryColor(),
+                                size: 16,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Total Students',
+                                      'id': 'Total Siswa',
+                                    }),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(height: 1),
+                                  Text(
+                                    '${summary.totalSiswa} ${languageProvider.getTranslatedText({'en': 'Students', 'id': 'Siswa'})}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 12),
+
+                        // Status kehadiran
+                        Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: _getPrimaryColor().withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                Icons.check_circle,
+                                color: _getPrimaryColor(),
+                                size: 16,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Attendance Status',
+                                      'id': 'Status Kehadiran',
+                                    }),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(height: 1),
+                                  Row(
+                                    children: [
+                                      _buildMiniStatusIndicator(
+                                        languageProvider.getTranslatedText({
+                                          'en': 'Present',
+                                          'id': 'Hadir',
+                                        }),
+                                        summary.hadir,
+                                        Colors.green,
+                                      ),
+                                      SizedBox(width: 8),
+                                      _buildMiniStatusIndicator(
+                                        languageProvider.getTranslatedText({
+                                          'en': 'Absent',
+                                          'id': 'Tidak Hadir',
+                                        }),
+                                        summary.tidakHadir,
+                                        Colors.red,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        SizedBox(height: 12),
+
+                        // Progress bar
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              languageProvider.getTranslatedText({
+                                'en': 'Attendance Rate',
+                                'id': 'Tingkat Kehadiran',
+                              }),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            LinearProgressIndicator(
+                              value: summary.totalSiswa > 0
+                                  ? summary.hadir / summary.totalSiswa
+                                  : 0,
+                              backgroundColor: Colors.grey[200],
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                presentaseHadir >= 80
+                                    ? Colors.green
+                                    : presentaseHadir >= 60
+                                    ? Colors.orange
+                                    : Colors.red,
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                              minHeight: 6,
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              '$presentaseHadir% ${languageProvider.getTranslatedText({'en': 'Attendance', 'id': 'Kehadiran'})}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          child: Icon(Icons.calendar_today, color: ColorUtils.primaryColor),
         ),
-        title: Text(
-          summary.mataPelajaranNama,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 4),
-            Text(
-              DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(summary.tanggal),
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _buildStatusIndicator(
-                  languageProvider.getTranslatedText({
-                    'en': 'Present',
-                    'id': 'Hadir',
-                  }),
-                  summary.hadir,
-                  Colors.green,
-                  languageProvider,
-                ),
-                const SizedBox(width: 12),
-                _buildStatusIndicator(
-                  languageProvider.getTranslatedText({
-                    'en': 'Absent',
-                    'id': 'Tidak Hadir',
-                  }),
-                  summary.tidakHadir,
-                  Colors.red,
-                  languageProvider,
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            LinearProgressIndicator(
-              value: summary.totalSiswa > 0
-                  ? summary.hadir / summary.totalSiswa
-                  : 0,
-              backgroundColor: Colors.grey[200],
-              valueColor: AlwaysStoppedAnimation<Color>(
-                presentaseHadir >= 80
-                    ? Colors.green
-                    : presentaseHadir >= 60
-                    ? Colors.orange
-                    : Colors.red,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '$presentaseHadir% ${languageProvider.getTranslatedText({'en': 'Attendance', 'id': 'Kehadiran'})}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-        trailing: const Icon(
-          Icons.arrow_forward_ios,
-          size: 16,
-          color: Colors.grey,
-        ),
-        onTap: () {
-          _navigateToDetailAbsensi(summary);
-        },
       ),
     );
   }
 
-  Widget _buildStatusIndicator(
-    String label,
-    int count,
-    Color color,
-    LanguageProvider languageProvider,
-  ) {
+  Widget _buildMiniStatusIndicator(String label, int count, Color color) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 10,
-          height: 10,
+          width: 8,
+          height: 8,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 6),
+        SizedBox(width: 4),
         Text(
           '$count $label',
           style: TextStyle(
@@ -610,7 +909,7 @@ class PresencePageState extends State<PresencePage> {
               ),
               child: Column(
                 children: [
-                  // Date Picker (tetap sama)
+                  // Date Picker
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -648,7 +947,7 @@ class PresencePageState extends State<PresencePage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Class Filter (tetap sama)
+                  // Class Filter
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -878,9 +1177,8 @@ class PresencePageState extends State<PresencePage> {
         );
       },
     );
-  }
+  } // ========== STUDENT ITEM BUILDER ==========
 
-  // ========== STUDENT ITEM BUILDER ==========
   Widget _buildStudentItem(Siswa siswa, LanguageProvider languageProvider) {
     final status = _absensiStatus[siswa.id] ?? 'hadir';
     final Color statusColor = _getStatusColor(status);
@@ -1332,53 +1630,13 @@ class PresencePageState extends State<PresencePage> {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
         return Scaffold(
-          backgroundColor: Colors.grey.shade50,
-          appBar: AppBar(
-            title: Text(
-              _currentMode == 0
-                  ? languageProvider.getTranslatedText({
-                      'en': 'Attendance Results',
-                      'id': 'Hasil Absensi',
-                    })
-                  : languageProvider.getTranslatedText({
-                      'en': 'Add Attendance',
-                      'id': 'Tambah Absensi',
-                    }),
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-            backgroundColor: Colors.white,
-            elevation: 0,
-            centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.black),
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: Colors.black),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.refresh, color: Colors.black),
-                onPressed: _currentMode == 0
-                    ? _loadAbsensiSummary
-                    : _loadInitialData,
-                tooltip: languageProvider.getTranslatedText({
-                  'en': 'Refresh',
-                  'id': 'Muat Ulang',
-                }),
-              ),
-            ],
-            bottom: PreferredSize(
-              preferredSize: Size.fromHeight(1),
-              child: Container(height: 1, color: Colors.grey.shade300),
-            ),
-          ),
+          backgroundColor: Color(0xFFF8F9FA), // Background sama dengan pengumuman
           body: Column(
             children: [
-              _buildModeSwitcher(),
+              // Header baru seperti pengumuman
+              _buildHeader(languageProvider),
+              
+              // Content
               Expanded(
                 child: _currentMode == 0
                     ? _buildResultsMode()
@@ -1863,7 +2121,7 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
+                            backgroundColor: _getPrimaryColor(),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -1880,3 +2138,17 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
     );
   }
 }
+
+ // ========== HELPER FUNCTIONS UNTUK STYLING ==========
+  Color _getPrimaryColor() {
+    return ColorUtils.getRoleColor('guru'); // Gunakan primary color dari ColorUtils
+  }
+
+  LinearGradient _getCardGradient() {
+    final primaryColor = _getPrimaryColor();
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [primaryColor, primaryColor.withOpacity(0.7)],
+    );
+  }
