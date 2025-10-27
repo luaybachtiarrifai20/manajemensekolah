@@ -4,8 +4,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/services/api_services.dart';
-import 'package:manajemensekolah/utils/language_utils.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
+import 'package:manajemensekolah/utils/language_utils.dart';
 
 class RppScreen extends StatefulWidget {
   final String guruId;
@@ -90,132 +90,204 @@ class RppScreenState extends State<RppScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Text(
-          AppLocalizations.rppList.tr,
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.black),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: Colors.black),
-            onPressed: _loadRpp,
-            tooltip: AppLocalizations.refresh.tr,
+  Color _getPrimaryColor() {
+    return ColorUtils.getRoleColor('guru');
+  }
+
+  LinearGradient _getCardGradient() {
+    final primaryColor = _getPrimaryColor();
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [primaryColor, primaryColor.withOpacity(0.7)],
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 16,
+        left: 16,
+        right: 16,
+        bottom: 16,
+      ),
+      decoration: BoxDecoration(
+        gradient: _getCardGradient(),
+        boxShadow: [
+          BoxShadow(
+            color: _getPrimaryColor().withOpacity(0.3),
+            blurRadius: 8,
+            offset: Offset(0, 2),
           ),
         ],
-        bottom: PreferredSize(
-          preferredSize: Size.fromHeight(1),
-          child: Container(height: 1, color: Colors.grey.shade300),
-        ),
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('${AppLocalizations.error.tr}: $_errorMessage'),
-                  SizedBox(height: 16),
-                  ElevatedButton(onPressed: _loadRpp, child: Text('Coba Lagi')),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppLocalizations.rppList.tr,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      AppLocalizations.viewAndManageRpp.tr,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.refresh, color: Colors.white),
+                onPressed: _loadRpp,
+                tooltip: AppLocalizations.refresh.tr,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRppContent() {
+    if (_isLoading) {
+      return Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('${AppLocalizations.error.tr}: $_errorMessage'),
+            SizedBox(height: 16),
+            ElevatedButton(onPressed: _loadRpp, child: Text('Coba Lagi')),
+          ],
+        ),
+      );
+    }
+
+    if (_rppList.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.description, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              AppLocalizations.noRppCreated.tr,
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+            SizedBox(height: 8),
+            Text(
+              AppLocalizations.clickPlusToCreate.tr,
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: EdgeInsets.all(16),
+      itemCount: _rppList.length,
+      itemBuilder: (context, index) {
+        final rpp = _rppList[index];
+        return _buildRppCard(rpp);
+      },
+    );
+  }
+
+  Widget _buildRppCard(Map<String, dynamic> rpp) {
+    return GestureDetector(
+      onTap: () => _lihatDetailRpp(rpp),
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 6, horizontal: 0),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _lihatDetailRpp(rpp),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.3),
+                    blurRadius: 5,
+                    offset: Offset(0, 4),
+                  ),
                 ],
               ),
-            )
-          : _rppList.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+              child: Stack(
                 children: [
-                  Icon(Icons.description, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    AppLocalizations.noRppCreated.tr,
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    AppLocalizations.clickPlusToCreate.tr,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-            )
-          : ListView.builder(
-              padding: EdgeInsets.all(16),
-              itemCount: _rppList.length,
-              itemBuilder: (context, index) {
-                final rpp = _rppList[index];
-                return Card(
-                  margin: EdgeInsets.only(bottom: 12),
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ListTile(
-                    contentPadding: EdgeInsets.all(16),
-                    leading: Container(
-                      width: 50,
-                      height: 50,
+                  // Strip berwarna di pinggir kiri
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 6,
                       decoration: BoxDecoration(
-                        color: _getStatusColor(rpp['status']).withOpacity(0.1),
+                        color: _getStatusColor(rpp['status']),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          bottomLeft: Radius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Background pattern effect
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        _getStatusIcon(rpp['status']),
-                        color: _getStatusColor(rpp['status']),
-                        size: 24,
-                      ),
                     ),
-                    title: Text(
-                      rpp['judul'] ?? '-',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: 4),
-                        Text(
-                          '${rpp['mata_pelajaran_nama'] ?? '-'}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                        if (rpp['kelas_nama'] != null)
-                          Text(
-                            'Kelas: ${rpp['kelas_nama']}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                      ],
-                    ),
-                    trailing: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
+                  ),
+
+                  // Status badge
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: _getStatusColor(rpp['status']),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         rpp['status'] == 'Menunggu'
@@ -230,11 +302,115 @@ class RppScreenState extends State<RppScreen> {
                         ),
                       ),
                     ),
-                    onTap: () => _lihatDetailRpp(rpp),
                   ),
-                );
-              },
+
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Judul
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    rpp['judul'] ?? '-',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    rpp['mata_pelajaran_nama'] ?? '-',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        if (rpp['kelas_nama'] != null) ...[
+                          SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  color: _getPrimaryColor().withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(
+                                  Icons.class_,
+                                  color: _getPrimaryColor(),
+                                  size: 12,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Kelas',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 1),
+                                    Text(
+                                      rpp['kelas_nama'],
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Color(0xFFF8F9FA),
+      body: Column(
+        children: [
+          // Header dengan gradient seperti presence_teacher
+          _buildHeader(),
+
+          // Content
+          Expanded(child: _buildRppContent()),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _tambahRpp,
         backgroundColor: ColorUtils.primaryColor,

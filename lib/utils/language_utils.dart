@@ -663,6 +663,11 @@ class AppLocalizations {
     'id': 'Tekan tombol + untuk membuat RPP',
   };
 
+  static Map<String, String> get viewAndManageRpp => {
+    'en': 'View and manage your lesson plans',
+    'id': 'Lihat dan kelola RPP Anda',
+  };
+
   static Map<String, String> get noRppForFilter => {
     'en': 'No lesson plans found for the selected filter',
     'id': 'Tidak ada RPP untuk filter yang dipilih',
@@ -704,6 +709,11 @@ class AppLocalizations {
     'en': 'Supported formats: .doc, .docx, .pdf',
     'id': 'Format yang didukung: .doc, .docx, .pdf',
   };
+
+  static Map<String, String> get selectAndOrganizeMaterials => {
+    'en': 'Select and organize your teaching materials',
+    'id': 'Pilih dan kelola materi pembelajaran Anda',
+  };
 }
 
 // Extension untuk memudahkan penggunaan terjemahan
@@ -714,7 +724,8 @@ extension AppLocalizationsExtension on AppLocalizations {
   static String get className => AppLocalizations.className.tr;
   static String get classNameRequired => AppLocalizations.classNameRequired.tr;
   static String get gradeLevel => AppLocalizations.gradeLevel.tr;
-  static String get gradeLevelRequired => AppLocalizations.gradeLevelRequired.tr;
+  static String get gradeLevelRequired =>
+      AppLocalizations.gradeLevelRequired.tr;
   static String get selectGradeLevel => AppLocalizations.selectGradeLevel.tr;
   static String get homeroomTeacher => AppLocalizations.homeroomTeacher.tr;
   static String get noTeacher => AppLocalizations.noTeacher.tr;
@@ -727,13 +738,20 @@ extension AppLocalizationsExtension on AppLocalizations {
   static String get tapToAddClass => AppLocalizations.tapToAddClass.tr;
   static String get searchClasses => AppLocalizations.searchClasses.tr;
   static String get loadingClassData => AppLocalizations.loadingClassData.tr;
-  static String get classSuccessfullyUpdated => AppLocalizations.classSuccessfullyUpdated.tr;
-  static String get classSuccessfullyAdded => AppLocalizations.classSuccessfullyAdded.tr;
-  static String get classSuccessfullyDeleted => AppLocalizations.classSuccessfullyDeleted.tr;
+  static String get classSuccessfullyUpdated =>
+      AppLocalizations.classSuccessfullyUpdated.tr;
+  static String get classSuccessfullyAdded =>
+      AppLocalizations.classSuccessfullyAdded.tr;
+  static String get classSuccessfullyDeleted =>
+      AppLocalizations.classSuccessfullyDeleted.tr;
   static String get failedToSaveClass => AppLocalizations.failedToSaveClass.tr;
-  static String get failedToDeleteClass => AppLocalizations.failedToDeleteClass.tr;
-  static String get areYouSureDeleteClass => AppLocalizations.areYouSureDeleteClass.tr;
+  static String get failedToDeleteClass =>
+      AppLocalizations.failedToDeleteClass.tr;
+  static String get areYouSureDeleteClass =>
+      AppLocalizations.areYouSureDeleteClass.tr;
   static String get all => AppLocalizations.all.tr;
-  static String get withHomeroomTeacher => AppLocalizations.withHomeroomTeacher.tr;
-  static String get withoutHomeroomTeacher => AppLocalizations.withoutHomeroomTeacher.tr;
+  static String get withHomeroomTeacher =>
+      AppLocalizations.withHomeroomTeacher.tr;
+  static String get withoutHomeroomTeacher =>
+      AppLocalizations.withoutHomeroomTeacher.tr;
 }

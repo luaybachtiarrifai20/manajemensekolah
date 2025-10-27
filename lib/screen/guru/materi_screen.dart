@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:manajemensekolah/components/empty_state.dart';
+import 'package:manajemensekolah/components/enhanced_search_bar.dart';
+import 'package:manajemensekolah/components/loading_screen.dart';
 import 'package:manajemensekolah/screen/guru/rpp_generate_screen.dart';
 import 'package:manajemensekolah/services/api_subject_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
-import 'package:manajemensekolah/components/enhanced_search_bar.dart';
-import 'package:manajemensekolah/components/empty_state.dart';
-import 'package:manajemensekolah/components/loading_screen.dart';
+import 'package:manajemensekolah/utils/color_utils.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
 import 'package:provider/provider.dart';
 
@@ -299,53 +300,109 @@ class MateriPageState extends State<MateriPage> {
 
   List<dynamic> _getFilteredBabMateri() {
     final searchTerm = _searchController.text.toLowerCase();
-    
+
     if (searchTerm.isEmpty) {
       return _babMateriList;
     }
 
     return _babMateriList.where((bab) {
-      final matchesBab = (bab['judul_bab']?.toString().toLowerCase().contains(searchTerm) ?? false);
-      
+      final matchesBab =
+          (bab['judul_bab']?.toString().toLowerCase().contains(searchTerm) ??
+          false);
+
       // Cari juga di sub bab yang terkait
       final subBabMatches = _subBabMateriList
           .where((subBab) => subBab['bab_id'] == bab['id'])
-          .any((subBab) => subBab['judul_sub_bab']?.toString().toLowerCase().contains(searchTerm) ?? false);
+          .any(
+            (subBab) =>
+                subBab['judul_sub_bab']?.toString().toLowerCase().contains(
+                  searchTerm,
+                ) ??
+                false,
+          );
 
       return matchesBab || subBabMatches;
     }).toList();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<LanguageProvider>(
-      builder: (context, languageProvider, child) {
-        return Scaffold(
-          backgroundColor: Colors.grey.shade50,
-          appBar: AppBar(
-            title: Text(
-              languageProvider.getTranslatedText({
-                'en': 'Learning Materials',
-                'id': 'Materi Pembelajaran',
-              }),
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+  Color _getPrimaryColor() {
+    return ColorUtils.getRoleColor('guru');
+  }
+
+  LinearGradient _getCardGradient() {
+    final primaryColor = _getPrimaryColor();
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [primaryColor, primaryColor.withOpacity(0.7)],
+    );
+  }
+
+  Widget _buildHeader(LanguageProvider languageProvider) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 16,
+        left: 16,
+        right: 16,
+        bottom: 16,
+      ),
+      decoration: BoxDecoration(
+        gradient: _getCardGradient(),
+        boxShadow: [
+          BoxShadow(
+            color: _getPrimaryColor().withOpacity(0.3),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                ),
               ),
-            ),
-            backgroundColor: Colors.white,
-            elevation: 0,
-            centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.black),
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: Colors.black),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            actions: [
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      languageProvider.getTranslatedText({
+                        'en': 'Learning Materials',
+                        'id': 'Materi Pembelajaran',
+                      }),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      AppLocalizations.selectAndOrganizeMaterials.tr,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               IconButton(
-                icon: Icon(Icons.auto_awesome, color: Colors.black),
+                icon: Icon(Icons.auto_awesome, color: Colors.white),
                 onPressed: _navigateToGenerateRPP,
                 tooltip: languageProvider.getTranslatedText({
                   'en': 'Generate RPP',
@@ -353,7 +410,7 @@ class MateriPageState extends State<MateriPage> {
                 }),
               ),
               IconButton(
-                icon: Icon(Icons.refresh, color: Colors.black),
+                icon: Icon(Icons.refresh, color: Colors.white),
                 onPressed: _loadData,
                 tooltip: languageProvider.getTranslatedText({
                   'en': 'Refresh',
@@ -361,13 +418,23 @@ class MateriPageState extends State<MateriPage> {
                 }),
               ),
             ],
-            bottom: PreferredSize(
-              preferredSize: Size.fromHeight(1),
-              child: Container(height: 1, color: Colors.grey.shade300),
-            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return Scaffold(
+          backgroundColor: Color(0xFFF8F9FA),
           body: Column(
             children: [
+              // Header dengan gradient seperti presence_teacher
+              _buildHeader(languageProvider),
+
               // Filter Section
               _buildFilterSection(languageProvider),
 
@@ -375,8 +442,14 @@ class MateriPageState extends State<MateriPage> {
               Consumer<LanguageProvider>(
                 builder: (context, languageProvider, child) {
                   final translatedFilterOptions = [
-                    languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
-                    languageProvider.getTranslatedText({'en': 'Today', 'id': 'Hari Ini'}),
+                    languageProvider.getTranslatedText({
+                      'en': 'All',
+                      'id': 'Semua',
+                    }),
+                    languageProvider.getTranslatedText({
+                      'en': 'Today',
+                      'id': 'Hari Ini',
+                    }),
                     languageProvider.getTranslatedText({
                       'en': 'This Week',
                       'id': 'Minggu Ini',
@@ -461,8 +534,10 @@ class MateriPageState extends State<MateriPage> {
                           'id': 'Materi Tidak Ditemukan',
                         }),
                         subtitle: languageProvider.getTranslatedText({
-                          'en': 'No search results found for "${_searchController.text}"',
-                          'id': 'Tidak ditemukan hasil pencarian untuk "${_searchController.text}"',
+                          'en':
+                              'No search results found for "${_searchController.text}"',
+                          'id':
+                              'Tidak ditemukan hasil pencarian untuk "${_searchController.text}"',
                         }),
                         icon: Icons.search,
                       )
@@ -521,13 +596,13 @@ class MateriPageState extends State<MateriPage> {
 
           // Tombol Generate RPP jika ada yang dicentang
           if (totalChecked > 0) ...[
-            Container(
+            SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _navigateToGenerateRPP,
                 icon: Icon(Icons.auto_awesome, size: 20),
                 label: Text(
-                  '${languageProvider.getTranslatedText({'en': 'Generate RPP', 'id': 'Generate RPP'})} ($totalChecked ${languageProvider.getTranslatedText({'en': 'selected', 'id': 'dipilih'})})'
+                  '${languageProvider.getTranslatedText({'en': 'Generate RPP', 'id': 'Generate RPP'})} ($totalChecked ${languageProvider.getTranslatedText({'en': 'selected', 'id': 'dipilih'})})',
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Color(0xFF10B981),
@@ -623,7 +698,7 @@ class MateriPageState extends State<MateriPage> {
 
   Widget _buildMateriList() {
     final filteredBabMateri = _getFilteredBabMateri();
-    
+
     return ListView.builder(
       padding: EdgeInsets.all(16),
       itemCount: filteredBabMateri.length,
@@ -633,78 +708,141 @@ class MateriPageState extends State<MateriPage> {
         final isExpanded = _expandedBab[bab['id']] ?? false;
 
         return Container(
-          margin: EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 4,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // Header Bab
-              ListTile(
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${bab['urutan']}',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
-                title: Text(
-                  bab['judul_bab'] ?? 'Judul Bab',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(
-                  'Bab ${bab['urutan']}',
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Checkbox(
-                      value: _checkedBab[bab['id']] ?? false,
-                      onChanged: (value) {
-                        _handleBabCheck(bab['id'], value);
-                      },
-                    ),
-                    Icon(
-                      isExpanded ? Icons.expand_less : Icons.expand_more,
-                      color: Colors.grey.shade600,
+          margin: EdgeInsets.symmetric(vertical: 6, horizontal: 0),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () {
+                setState(() {
+                  _expandedBab[bab['id']] = !isExpanded;
+                  if (!isExpanded) {
+                    _loadSubBabMateri(bab['id']);
+                  }
+                });
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.3),
+                      blurRadius: 5,
+                      offset: Offset(0, 4),
                     ),
                   ],
                 ),
-                onTap: () {
-                  setState(() {
-                    _expandedBab[bab['id']] = !isExpanded;
-                    if (!isExpanded) {
-                      _loadSubBabMateri(bab['id']);
-                    }
-                  });
-                },
-              ),
+                child: Stack(
+                  children: [
+                    // Strip berwarna di pinggir kiri
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 6,
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            bottomLeft: Radius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
 
-              // Sub Bab List (Expandable)
-              if (isExpanded) ...[Divider(height: 1), _buildSubBabList(bab)],
-            ],
+                    // Background pattern effect
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header Bab
+                          Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: cardColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${bab['urutan']}',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      bab['judul_bab'] ?? 'Judul Bab',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Bab ${bab['urutan']}',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Checkbox(
+                                value: _checkedBab[bab['id']] ?? false,
+                                onChanged: (value) {
+                                  _handleBabCheck(bab['id'], value);
+                                },
+                              ),
+                              Icon(
+                                isExpanded
+                                    ? Icons.expand_less
+                                    : Icons.expand_more,
+                                color: Colors.grey.shade600,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Sub Bab List (Expandable)
+                    if (isExpanded) ...[
+                      Divider(height: 1),
+                      _buildSubBabList(bab),
+                    ],
+                  ],
+                ),
+              ),
+            ),
           ),
         );
       },
@@ -724,52 +862,55 @@ class MateriPageState extends State<MateriPage> {
     }
 
     return Column(
-      children: _subBabMateriList.where((subBab) => subBab['bab_id'] == bab['id']).map((subBab) {
-        return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: ListTile(
-              leading: Container(
-                width: 32,
-                height: 32,
+      children: _subBabMateriList
+          .where((subBab) => subBab['bab_id'] == bab['id'])
+          .map((subBab) {
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Container(
                 decoration: BoxDecoration(
-                  color: _getCardColor(
-                    int.parse(subBab['urutan']?.toString() ?? '0'),
-                  ),
-                  borderRadius: BorderRadius.circular(6),
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Center(
-                  child: Text(
-                    '${subBab['urutan']}',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                child: ListTile(
+                  leading: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: _getCardColor(
+                        int.parse(subBab['urutan']?.toString() ?? '0'),
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${subBab['urutan']}',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
+                  title: Text(
+                    subBab['judul_sub_bab'] ?? 'Judul Sub Bab',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  trailing: Checkbox(
+                    value: _checkedSubBab[subBab['id']] ?? false,
+                    onChanged: (value) {
+                      _handleSubBabCheck(subBab['id'], bab['id'], value);
+                    },
+                  ),
+                  onTap: () {
+                    _navigateToSubBabDetail(subBab, bab);
+                  },
                 ),
               ),
-              title: Text(
-                subBab['judul_sub_bab'] ?? 'Judul Sub Bab',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              trailing: Checkbox(
-                value: _checkedSubBab[subBab['id']] ?? false,
-                onChanged: (value) {
-                  _handleSubBabCheck(subBab['id'], bab['id'], value);
-                },
-              ),
-              onTap: () {
-                _navigateToSubBabDetail(subBab, bab);
-              },
-            ),
-          ),
-        );
-      }).toList(),
+            );
+          })
+          .toList(),
     );
   }
 
@@ -862,40 +1003,81 @@ class SubBabDetailPageState extends State<SubBabDetailPage> {
     return colors[index % colors.length];
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<LanguageProvider>(
-      builder: (context, languageProvider, child) {
-        return Scaffold(
-          backgroundColor: Colors.grey.shade50,
-          appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'BAB ${widget.bab['urutan']}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.8),
+  Color _getPrimaryColor() {
+    return ColorUtils.getRoleColor('guru');
+  }
+
+  LinearGradient _getCardGradient() {
+    final primaryColor = _getPrimaryColor();
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [primaryColor, primaryColor.withOpacity(0.7)],
+    );
+  }
+
+  Widget _buildHeader(LanguageProvider languageProvider) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 16,
+        left: 16,
+        right: 16,
+        bottom: 16,
+      ),
+      decoration: BoxDecoration(
+        gradient: _getCardGradient(),
+        boxShadow: [
+          BoxShadow(
+            color: _getPrimaryColor().withOpacity(0.3),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  child: Icon(Icons.arrow_back, color: Colors.white, size: 20),
                 ),
-                Text(
-                  widget.bab['judul_bab'] ?? 'Judul Bab',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'BAB ${widget.bab['urutan']}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      widget.bab['judul_bab'] ?? 'Judul Bab',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            backgroundColor: Colors.white,
-            elevation: 0,
-            centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.black),
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: Colors.black),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            actions: [
+              ),
               Padding(
                 padding: EdgeInsets.only(right: 8),
                 child: Row(
@@ -904,8 +1086,8 @@ class SubBabDetailPageState extends State<SubBabDetailPage> {
                       languageProvider.getTranslatedText({
                         'en': 'Done',
                         'id': 'Selesai',
-                      }), 
-                      style: TextStyle(fontSize: 14, color: Colors.black)
+                      }),
+                      style: TextStyle(fontSize: 14, color: Colors.white),
                     ),
                     Checkbox(
                       value: _isChecked,
@@ -915,49 +1097,68 @@ class SubBabDetailPageState extends State<SubBabDetailPage> {
                         });
                         widget.onCheckChanged(value);
                       },
-                      fillColor: MaterialStateProperty.all(Colors.blue),
-                      checkColor: Colors.white,
+                      fillColor: WidgetStateProperty.all(Colors.white),
+                      checkColor: _getPrimaryColor(),
                     ),
                   ],
                 ),
               ),
             ],
-            bottom: PreferredSize(
-              preferredSize: Size.fromHeight(1),
-              child: Container(height: 1, color: Colors.grey.shade300),
+          ),
+          SizedBox(height: 12),
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.description, color: Colors.white, size: 16),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Sub Bab ${widget.subBab['urutan']}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        widget.subBab['judul_sub_bab'] ?? 'Judul Sub Bab',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<LanguageProvider>(
+      builder: (context, languageProvider, child) {
+        return Scaffold(
+          backgroundColor: Color(0xFFF8F9FA),
           body: Column(
             children: [
-              // Header Sub Bab
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(16),
-                color: Colors.white,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Sub Bab ${widget.subBab['urutan']}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      widget.subBab['judul_sub_bab'] ?? 'Judul Sub Bab',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF4F46E5),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 1),
+              // Header dengan gradient
+              _buildHeader(languageProvider),
 
               // Content
               Expanded(

@@ -1,13 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:manajemensekolah/services/api_services.dart';
-import 'package:manajemensekolah/utils/color_utils.dart';
-import 'package:manajemensekolah/utils/language_utils.dart';
-import 'package:manajemensekolah/components/loading_screen.dart';
-import 'package:manajemensekolah/components/error_screen.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/enhanced_search_bar.dart';
+import 'package:manajemensekolah/components/error_screen.dart';
+import 'package:manajemensekolah/components/loading_screen.dart';
+import 'package:manajemensekolah/services/api_services.dart';
+import 'package:manajemensekolah/utils/language_utils.dart';
+import 'package:provider/provider.dart';
 
 class PengumumanScreen extends StatefulWidget {
   const PengumumanScreen({super.key});
@@ -22,8 +20,6 @@ class PengumumanScreenState extends State<PengumumanScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   final TextEditingController _searchController = TextEditingController();
-
-  String? _userRole;
 
   @override
   void initState() {
@@ -77,14 +73,11 @@ class PengumumanScreenState extends State<PengumumanScreen> {
   }
 
   Color _getPrimaryColor() {
-    // Gunakan ColorUtils.getRoleColor yang sudah ada
-    final role = _userRole ?? 'guru';
-    final color = ColorUtils.getRoleColor(role);
-    print('🎨 Using color for role: $role -> $color');
-    return color;
+    // Warna purple untuk wali murid
+    return Color(0xFF9333EA);
   }
 
-   LinearGradient _getCardGradient() {
+  LinearGradient _getCardGradient() {
     final primaryColor = _getPrimaryColor();
     return LinearGradient(
       begin: Alignment.topLeft,

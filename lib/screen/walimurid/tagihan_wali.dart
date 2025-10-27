@@ -1,15 +1,16 @@
 // tagihan_wali.dart
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:manajemensekolah/services/api_services.dart';
-import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
+import 'package:manajemensekolah/components/enhanced_search_bar.dart';
 import 'package:manajemensekolah/components/error_screen.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
-import 'package:manajemensekolah/components/enhanced_search_bar.dart';
+import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'package:provider/provider.dart';
 
 class TagihanWaliScreen extends StatefulWidget {
   const TagihanWaliScreen({super.key});
@@ -382,14 +383,14 @@ class TagihanWaliScreenState extends State<TagihanWaliScreen>
                         // Info Tagihan
                         _buildInfoItem(
                           'Jenis Pembayaran',
-                          tagihan['jenis_pembayaran_nama'],
+                          tagihan['jenis_pembayaran_nama'] ?? '-',
                         ),
                         _buildInfoItem(
                           'Jumlah Tagihan',
-                          'Rp ${tagihan['jumlah']}',
+                          'Rp ${tagihan['jumlah'] ?? '-'}',
                         ),
-                        _buildInfoItem('Siswa', tagihan['siswa_nama']),
-                        _buildInfoItem('Kelas', tagihan['kelas_nama']),
+                        _buildInfoItem('Siswa', tagihan['siswa_nama'] ?? '-'),
+                        _buildInfoItem('Kelas', tagihan['kelas_nama'] ?? '-'),
 
                         SizedBox(height: 16),
                         Divider(),
@@ -650,7 +651,7 @@ class TagihanWaliScreenState extends State<TagihanWaliScreen>
       );
     } catch (error) {
       print('Error upload pembayaran: $error');
-      throw error;
+      rethrow;
     }
   }
 
@@ -693,7 +694,7 @@ class TagihanWaliScreenState extends State<TagihanWaliScreen>
             '$label: ',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
           ),
-          Expanded(child: Text(value ?? '-', style: TextStyle(fontSize: 12))),
+          Expanded(child: Text(value, style: TextStyle(fontSize: 12))),
         ],
       ),
     );
@@ -901,7 +902,7 @@ class TagihanWaliScreenState extends State<TagihanWaliScreen>
   }
 
   Color _getPrimaryColor() {
-    return Color(0xFF4CC9F0); // Cyan untuk wali murid
+    return Color(0xFF9333EA); // Warna purple untuk wali murid
   }
 
   LinearGradient _getCardGradient() {
@@ -909,6 +910,93 @@ class TagihanWaliScreenState extends State<TagihanWaliScreen>
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
+    );
+  }
+
+  Widget _buildHeader(LanguageProvider languageProvider) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 16,
+        left: 16,
+        right: 16,
+        bottom: 16,
+      ),
+      decoration: BoxDecoration(
+        gradient: _getCardGradient(),
+        boxShadow: [
+          BoxShadow(
+            color: _getPrimaryColor().withOpacity(0.3),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tagihan Saya',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Kelola pembayaran tagihan',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.refresh, color: Colors.white),
+                onPressed: _loadData,
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          EnhancedSearchBar(
+            controller: _searchController,
+            hintText: 'Cari tagihan...',
+            onChanged: (value) {
+              setState(() {});
+            },
+            filterOptions: _filterOptions,
+            selectedFilter: _selectedFilter,
+            onFilterChanged: (filter) {
+              setState(() {
+                _selectedFilter = filter;
+              });
+            },
+            showFilter: true,
+          ),
+        ],
+      ),
     );
   }
 
@@ -928,41 +1016,9 @@ class TagihanWaliScreenState extends State<TagihanWaliScreen>
 
         return Scaffold(
           backgroundColor: Color(0xFFF8F9FA),
-          appBar: AppBar(
-            title: Text(
-              'Tagihan Saya',
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            backgroundColor: _getPrimaryColor(),
-            elevation: 0,
-            centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.white),
-            actions: [
-              IconButton(icon: Icon(Icons.refresh), onPressed: _loadData),
-            ],
-          ),
           body: Column(
             children: [
-              EnhancedSearchBar(
-                controller: _searchController,
-                hintText: 'Cari tagihan...',
-                onChanged: (value) {
-                  setState(() {});
-                },
-                filterOptions: _filterOptions,
-                selectedFilter: _selectedFilter,
-                onFilterChanged: (filter) {
-                  setState(() {
-                    _selectedFilter = filter;
-                  });
-                },
-                showFilter: true,
-              ),
+              _buildHeader(languageProvider),
               if (filteredTagihan.isNotEmpty)
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16),

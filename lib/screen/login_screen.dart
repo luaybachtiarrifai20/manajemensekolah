@@ -6,7 +6,9 @@ import 'package:manajemensekolah/services/api_services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? initialError;
+
+  const LoginScreen({super.key, this.initialError});
 
   @override
   LoginScreenState createState() => LoginScreenState();
@@ -29,6 +31,19 @@ class LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _checkServerConnection();
+
+    // Show initial error if provided
+    if (widget.initialError != null && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(widget.initialError!),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      });
+    }
   }
 
   Future<void> _checkServerConnection() async {

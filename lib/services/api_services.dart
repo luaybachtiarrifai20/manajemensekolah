@@ -1,16 +1,15 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http_parser/http_parser.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:manajemensekolah/main.dart';
 import 'package:manajemensekolah/screen/login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static String? _cachedToken;
-  static bool _isRefreshing = false;
   // static const String baseUrl = 'http://10.0.2.2:3000/api'; // Android emulator
   static const String baseUrl =
       'http://localhost:3000/api'; // iOS simulator atau web
@@ -22,31 +21,80 @@ class ApiService {
   // static const String baseUrl = 'http://192.168.1.100:3000/api';
 
   Future<dynamic> get(String endpoint) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl$endpoint'),
-      headers: await _getHeaders(),
-    );
-    return _handleResponse(response);
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: await _getHeaders(),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ GET Error on $endpoint: $e');
+      }
+      // If it's a network error or critical error, logout user
+      if (e is SocketException || e.toString().contains('Failed host lookup')) {
+        await _handleAuthenticationErrorWithMessage(
+          'Connection failed. Please check your internet connection and try again.',
+        );
+      } else if (e.toString().contains('Timeout')) {
+        await _handleAuthenticationErrorWithMessage(
+          'Request timeout. Please try again.',
+        );
+      }
+      rethrow;
+    }
   }
 
   // Instance method untuk POST request
   Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl$endpoint'),
-      headers: await _getHeaders(),
-      body: json.encode(data),
-    );
-    return _handleResponse(response);
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: await _getHeaders(),
+        body: json.encode(data),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ POST Error on $endpoint: $e');
+      }
+      if (e is SocketException || e.toString().contains('Failed host lookup')) {
+        await _handleAuthenticationErrorWithMessage(
+          'Connection failed. Please check your internet connection and try again.',
+        );
+      } else if (e.toString().contains('Timeout')) {
+        await _handleAuthenticationErrorWithMessage(
+          'Request timeout. Please try again.',
+        );
+      }
+      rethrow;
+    }
   }
 
   // Instance method untuk PUT request
   Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl$endpoint'),
-      headers: await _getHeaders(),
-      body: json.encode(data),
-    );
-    return _handleResponse(response);
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: await _getHeaders(),
+        body: json.encode(data),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ PUT Error on $endpoint: $e');
+      }
+      if (e is SocketException || e.toString().contains('Failed host lookup')) {
+        await _handleAuthenticationErrorWithMessage(
+          'Connection failed. Please check your internet connection and try again.',
+        );
+      } else if (e.toString().contains('Timeout')) {
+        await _handleAuthenticationErrorWithMessage(
+          'Request timeout. Please try again.',
+        );
+      }
+      rethrow;
+    }
   }
 
   // Dalam ApiService class
@@ -67,78 +115,142 @@ class ApiService {
 
   // Instance method untuk DELETE request
   Future<dynamic> delete(String endpoint) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl$endpoint'),
-      headers: await _getHeaders(),
-    );
-    return _handleResponse(response);
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: await _getHeaders(),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ DELETE Error on $endpoint: $e');
+      }
+      if (e is SocketException || e.toString().contains('Failed host lookup')) {
+        await _handleAuthenticationErrorWithMessage(
+          'Connection failed. Please check your internet connection and try again.',
+        );
+      } else if (e.toString().contains('Timeout')) {
+        await _handleAuthenticationErrorWithMessage(
+          'Request timeout. Please try again.',
+        );
+      }
+      rethrow;
+    }
   }
 
   static Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
 
-    // Validate token exists
-    if (token == null || token.isEmpty) {
-      _redirectToLogin();
+      // Validate token exists
+      if (token == null || token.isEmpty) {
+        await _redirectToLogin();
+        return {'Content-Type': 'application/json'};
+      }
+
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error getting headers: $e');
+      }
+      await _redirectToLogin();
       return {'Content-Type': 'application/json'};
     }
-
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
   }
 
   static Future<void> _redirectToLogin() async {
-    // Clear all stored data
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-
-    // Redirect to login page using navigatorKey
-    navigatorKey.currentState?.pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => LoginScreen()),
-      (route) => false,
+    await _handleAuthenticationErrorWithMessage(
+      'Authentication required. Please login.',
     );
   }
 
   static dynamic _handleResponse(http.Response response) {
-    final responseBody = json.decode(response.body);
+    try {
+      final responseBody = json.decode(response.body);
 
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return responseBody;
-    } else {
-      final errorMessage =
-          responseBody['error'] ??
-          'Request failed with status: ${response.statusCode}';
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return responseBody;
+      } else {
+        final errorMessage =
+            responseBody['error'] ??
+            'Request failed with status: ${response.statusCode}';
 
-      // Handle specific authentication errors
-      if (response.statusCode == 401) {
-        _handleAuthenticationError();
+        // Handle specific authentication errors
+        if (response.statusCode == 401) {
+          _handleAuthenticationErrorWithMessage(
+            'Session expired. Please login again.',
+          );
+        } else if (response.statusCode == 403) {
+          _handleAuthenticationErrorWithMessage(
+            'Access forbidden. Please login again.',
+          );
+        } else if (response.statusCode >= 500) {
+          _handleAuthenticationErrorWithMessage(
+            'Server error. Please try again later.',
+          );
+        }
+
+        throw Exception(errorMessage);
       }
-
-      throw Exception(errorMessage);
+    } catch (e) {
+      // Handle JSON decode errors
+      if (e is FormatException) {
+        _handleAuthenticationErrorWithMessage(
+          'Invalid server response. Please try again.',
+        );
+      }
+      rethrow;
     }
   }
 
-  static void _handleAuthenticationError() async {
+  static Future<void> _handleAuthenticationErrorWithMessage(
+    String errorMessage,
+  ) async {
     try {
+      if (kDebugMode) {
+        print('🔴 Handling authentication error: $errorMessage');
+      }
+
+      // Clear all stored data
       final prefs = await SharedPreferences.getInstance();
-      await prefs.clear(); // Clear semua data, bukan hanya token
+      await prefs.clear();
 
       // Delay sedikit untuk memastikan context sudah ready
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 300));
 
-      // Gunakan pushReplacement untuk mencegah kembali ke halaman sebelumnya
-      navigatorKey.currentState?.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-        (route) => false,
-      );
+      // Navigate to login with error message
+      if (navigatorKey.currentState != null &&
+          navigatorKey.currentState!.mounted) {
+        navigatorKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => LoginScreen(initialError: errorMessage),
+          ),
+          (route) => false,
+        );
+      }
     } catch (e) {
-      print('Error during authentication cleanup: $e');
+      if (kDebugMode) {
+        print('❌ Error during authentication cleanup: $e');
+      }
       // Fallback ke named route
-      navigatorKey.currentState?.pushReplacementNamed('/login');
+      try {
+        navigatorKey.currentState?.pushReplacementNamed('/login');
+      } catch (_) {
+        // If all navigation fails, we're likely in a bad state
+        if (kDebugMode) {
+          print('🚨 Critical: Unable to navigate to login');
+        }
+      }
     }
+  }
+
+  // Public method untuk logout dengan custom message
+  static Future<void> logoutWithMessage(String message) async {
+    await _handleAuthenticationErrorWithMessage(message);
   }
 
   Future<List<dynamic>> getData(String endpoint) async {
@@ -452,12 +564,13 @@ class ApiService {
       );
 
       final result = _handleResponse(response);
-      if (result is List) {
-        return result.cast<int>();
-      }
-      return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; // fallback
+      return result is List
+          ? result.cast<int>()
+          : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     } catch (e) {
-      print('Error getting grade levels: $e');
+      if (kDebugMode) {
+        print('Error getting grade levels: $e');
+      }
       return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; // fallback
     }
   }
@@ -557,7 +670,7 @@ class ApiService {
         await http.MultipartFile.fromPath(
           'bukti_bayar',
           file.path,
-          contentType: mimeType != null ? MediaType.parse(mimeType) : null,
+          contentType: MediaType.parse(mimeType),
         ),
       );
 

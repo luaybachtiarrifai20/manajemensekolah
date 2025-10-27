@@ -254,231 +254,299 @@ class ParentClassActivityScreenState extends State<ParentClassActivityScreen> {
         final isSpecificTarget = activity['target'] == 'khusus';
         final isForThisStudent = activity['untuk_siswa_ini'] == true;
 
-        return Card(
-          elevation: 2,
-          margin: EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            children: [
-              // Activity Header
-              ListTile(
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    isAssignment ? Icons.assignment : Icons.menu_book,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                title: Text(
-                  activity['judul'] ?? 'Judul Kegiatan',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(height: 4),
-                    Text(
-                      '${activity['mata_pelajaran_nama']} • ${activity['kelas_nama']}',
-                      style: TextStyle(color: Colors.grey.shade600),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      '${activity['hari']} • ${_formatDate(activity['tanggal'])}',
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 12,
-                      ),
+        return Container(
+          margin: EdgeInsets.symmetric(vertical: 6, horizontal: 0),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.3),
+                      blurRadius: 5,
+                      offset: Offset(0, 4),
                     ),
                   ],
                 ),
-                trailing: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                child: Stack(
                   children: [
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isAssignment
-                            ? Colors.orange.shade50
-                            : Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isAssignment ? Colors.orange : Colors.blue,
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        isAssignment ? 'TUGAS' : 'MATERI',
-                        style: TextStyle(
-                          color: isAssignment ? Colors.orange : Colors.blue,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                    // Strip berwarna di pinggir kiri
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 6,
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(16),
+                            bottomLeft: Radius.circular(16),
+                          ),
                         ),
                       ),
                     ),
-                    if (isSpecificTarget && isForThisStudent)
-                      Container(
-                        margin: EdgeInsets.only(top: 4),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
+
+                    // Background pattern effect
+                    Positioned(
+                      right: -8,
+                      top: -8,
+                      child: Container(
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
-                          color: Colors.purple.shade50,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: Colors.purple, width: 0.5),
-                        ),
-                        child: Text(
-                          'KHUSUS',
-                          style: TextStyle(
-                            color: Colors.purple,
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          color: Colors.grey.withOpacity(0.1),
+                          shape: BoxShape.circle,
                         ),
                       ),
-                  ],
-                ),
-              ),
+                    ),
 
-              // Activity Details
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (activity['deskripsi'] != null &&
-                        activity['deskripsi'].isNotEmpty)
-                      Container(
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          activity['deskripsi'],
-                          style: TextStyle(
-                            color: Colors.grey.shade700,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-
-                    if (activity['judul_bab'] != null)
-                      Container(
-                        margin: EdgeInsets.only(top: 8),
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade50,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.menu_book,
-                              size: 14,
-                              color: Colors.grey.shade600,
-                            ),
-                            SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                '${activity['judul_bab']}${activity['judul_sub_bab'] != null ? ' • ${activity['judul_sub_bab']}' : ''}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                    SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isSpecificTarget
-                                ? Colors.purple.shade50
-                                : Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: isSpecificTarget
-                                  ? Colors.purple
-                                  : Colors.green,
-                              width: 0.5,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                isSpecificTarget ? Icons.person : Icons.group,
-                                size: 12,
-                                color: isSpecificTarget
-                                    ? Colors.purple
-                                    : Colors.green,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                isSpecificTarget
-                                    ? 'Khusus Siswa'
-                                    : 'Semua Siswa',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: isSpecificTarget
-                                      ? Colors.purple
-                                      : Colors.green,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Spacer(),
-                        if (isAssignment && activity['batas_waktu'] != null)
+                    // Badge
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
                           Container(
                             padding: EdgeInsets.symmetric(
                               horizontal: 8,
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: Colors.red.shade300,
-                                width: 0.5,
-                              ),
+                              color: isAssignment ? Colors.orange : Colors.blue,
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              'Batas: ${_formatDate(activity['batas_waktu'])}',
+                              isAssignment ? 'TUGAS' : 'MATERI',
                               style: TextStyle(
+                                color: Colors.white,
                                 fontSize: 10,
-                                color: Colors.red.shade700,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                      ],
+                          if (isSpecificTarget && isForThisStudent) ...[
+                            SizedBox(height: 4),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.purple,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'KHUSUS',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          // Activity Header
+                          Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: cardColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  isAssignment
+                                      ? Icons.assignment
+                                      : Icons.menu_book,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      activity['judul'] ?? 'Judul Kegiatan',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      '${activity['mata_pelajaran_nama']} • ${activity['kelas_nama']}',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      '${activity['hari']} • ${_formatDate(activity['tanggal'])}',
+                                      style: TextStyle(
+                                        color: Colors.grey.shade500,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          SizedBox(height: 8),
+
+                          // Activity Details
+                          if (activity['deskripsi'] != null &&
+                              activity['deskripsi'].isNotEmpty)
+                            Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                activity['deskripsi'],
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+
+                          if (activity['judul_bab'] != null) ...[
+                            SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.menu_book,
+                                    size: 14,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                  SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      '${activity['judul_bab']}${activity['judul_sub_bab'] != null ? ' • ${activity['judul_sub_bab']}' : ''}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+
+                          SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isSpecificTarget
+                                      ? Colors.purple.shade50
+                                      : Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: isSpecificTarget
+                                        ? Colors.purple
+                                        : Colors.green,
+                                    width: 0.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isSpecificTarget
+                                          ? Icons.person
+                                          : Icons.group,
+                                      size: 12,
+                                      color: isSpecificTarget
+                                          ? Colors.purple
+                                          : Colors.green,
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      isSpecificTarget
+                                          ? 'Khusus Siswa'
+                                          : 'Semua Siswa',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: isSpecificTarget
+                                            ? Colors.purple
+                                            : Colors.green,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Spacer(),
+                              if (isAssignment &&
+                                  activity['batas_waktu'] != null)
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade50,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: Colors.red.shade300,
+                                      width: 0.5,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Batas: ${_formatDate(activity['batas_waktu'])}',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.red.shade700,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            ],
+            ),
           ),
         );
       },
@@ -541,94 +609,135 @@ class ParentClassActivityScreenState extends State<ParentClassActivityScreen> {
     return _dayColorMap[day] ?? Color(0xFF6B7280);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      appBar: AppBar(
-        title: Text(
-          'Aktivitas Kelas Anak',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-        ),
-        backgroundColor: Color(0xFF8B5CF6), // Warna ungu untuk wali murid
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: _loadActivities,
-            tooltip: 'Refresh',
+  Color _getPrimaryColor() {
+    return Color(0xFF9333EA); // Warna purple untuk wali murid
+  }
+
+  LinearGradient _getCardGradient() {
+    final primaryColor = _getPrimaryColor();
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [primaryColor, primaryColor.withOpacity(0.7)],
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 16,
+        left: 16,
+        right: 16,
+        bottom: 16,
+      ),
+      decoration: BoxDecoration(
+        gradient: _getCardGradient(),
+        boxShadow: [
+          BoxShadow(
+            color: _getPrimaryColor().withOpacity(0.3),
+            blurRadius: 8,
+            offset: Offset(0, 2),
           ),
         ],
       ),
-      body: Column(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Info
-          Container(
-            height: 120,
-            width: double.infinity,
-            padding: EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF8B5CF6), Color(0xFFA78BFA)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                ),
               ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(20),
-                bottomRight: Radius.circular(20),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
+                    Text(
+                      'Aktivitas Kelas Anak',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
-                      child: Icon(Icons.family_restroom, color: Colors.white),
                     ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _parentName,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Wali Murid',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 14,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Jumlah Anak: ${_studentList.length}',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                    SizedBox(height: 2),
+                    Text(
+                      'Pantau aktivitas anak Anda',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
                       ),
                     ),
                   ],
                 ),
+              ),
+              IconButton(
+                icon: Icon(Icons.refresh, color: Colors.white),
+                onPressed: _loadActivities,
+                tooltip: 'Refresh',
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          Container(
+            padding: EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.family_restroom, color: Colors.white, size: 16),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _parentName,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        '${_studentList.length} Anak',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Color(0xFFF8F9FA),
+      body: Column(
+        children: [
+          _buildHeader(),
 
           // Student Selector
           _buildStudentSelector(),

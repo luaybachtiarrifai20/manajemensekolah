@@ -50,9 +50,7 @@ class PresenceParentPageState extends State<PresenceParentPage> {
           .firstWhere((s) => s.id == widget.siswaId);
 
       // Load data absensi
-      final absensiData = await ApiService.getAbsensi(
-        siswaId: widget.siswaId,
-      );
+      final absensiData = await ApiService.getAbsensi(siswaId: widget.siswaId);
 
       setState(() {
         _siswa = siswa;
@@ -61,7 +59,9 @@ class PresenceParentPageState extends State<PresenceParentPage> {
         _isLoading = false;
       });
 
-      print('Loaded ${_absensiData.length} absensi records for student ${_siswa?.nama}');
+      print(
+        'Loaded ${_absensiData.length} absensi records for student ${_siswa?.nama}',
+      );
     } catch (e) {
       print('Error loading parent presence data: $e');
       setState(() {
@@ -96,7 +96,7 @@ class PresenceParentPageState extends State<PresenceParentPage> {
       initialEntryMode: DatePickerEntryMode.calendar,
       initialDatePickerMode: DatePickerMode.year,
     );
-    
+
     if (picked != null && picked != _selectedMonth) {
       setState(() {
         _selectedMonth = picked;
@@ -107,8 +107,11 @@ class PresenceParentPageState extends State<PresenceParentPage> {
 
   Widget _buildMonthlySummary() {
     final totalDays = _monthlySummary.values.reduce((a, b) => a + b);
-    final presentaseKehadiran = totalDays > 0 
-        ? ((_monthlySummary['hadir']! + _monthlySummary['terlambat']!) / totalDays * 100).round() 
+    final presentaseKehadiran = totalDays > 0
+        ? ((_monthlySummary['hadir']! + _monthlySummary['terlambat']!) /
+                  totalDays *
+                  100)
+              .round()
         : 0;
 
     return Container(
@@ -133,10 +136,7 @@ class PresenceParentPageState extends State<PresenceParentPage> {
             children: [
               const Text(
                 'Rekap Bulanan',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               TextButton(
                 onPressed: () => _selectMonth(context),
@@ -152,7 +152,7 @@ class PresenceParentPageState extends State<PresenceParentPage> {
             ],
           ),
           const SizedBox(height: 16),
-          
+
           // Persentase kehadiran
           Container(
             padding: const EdgeInsets.all(16),
@@ -183,15 +183,27 @@ class PresenceParentPageState extends State<PresenceParentPage> {
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Detail status
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildSummaryItem('Hadir', _monthlySummary['hadir']!, Colors.green),
-              _buildSummaryItem('Terlambat', _monthlySummary['terlambat']!, Colors.orange),
+              _buildSummaryItem(
+                'Hadir',
+                _monthlySummary['hadir']!,
+                Colors.green,
+              ),
+              _buildSummaryItem(
+                'Terlambat',
+                _monthlySummary['terlambat']!,
+                Colors.orange,
+              ),
               _buildSummaryItem('Izin', _monthlySummary['izin']!, Colors.blue),
-              _buildSummaryItem('Sakit', _monthlySummary['sakit']!, Colors.purple),
+              _buildSummaryItem(
+                'Sakit',
+                _monthlySummary['sakit']!,
+                Colors.purple,
+              ),
               _buildSummaryItem('Alpha', _monthlySummary['alpha']!, Colors.red),
             ],
           ),
@@ -225,10 +237,7 @@ class PresenceParentPageState extends State<PresenceParentPage> {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 10,
-            color: Colors.grey,
-          ),
+          style: const TextStyle(fontSize: 10, color: Colors.grey),
           textAlign: TextAlign.center,
         ),
       ],
@@ -239,11 +248,14 @@ class PresenceParentPageState extends State<PresenceParentPage> {
     final monthAbsensi = _absensiData.where((absen) {
       final absenDate = DateTime.parse(absen['tanggal']);
       final monthStart = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
-      final monthEnd = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
+      final monthEnd = DateTime(
+        _selectedMonth.year,
+        _selectedMonth.month + 1,
+        0,
+      );
       return absenDate.isAfter(monthStart.subtract(const Duration(days: 1))) &&
           absenDate.isBefore(monthEnd.add(const Duration(days: 1)));
-    }).toList()
-      ..sort((a, b) => b['tanggal'].compareTo(a['tanggal']));
+    }).toList()..sort((a, b) => b['tanggal'].compareTo(a['tanggal']));
 
     if (monthAbsensi.isEmpty) {
       return Center(
@@ -321,16 +333,13 @@ class PresenceParentPageState extends State<PresenceParentPage> {
                 ),
                 Text(
                   DateFormat('MMM').format(tanggal),
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: statusColor,
-                  ),
+                  style: TextStyle(fontSize: 10, color: statusColor),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 12),
-          
+
           // Detail absensi
           Expanded(
             child: Column(
@@ -338,10 +347,7 @@ class PresenceParentPageState extends State<PresenceParentPage> {
               children: [
                 Text(
                   hari,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -354,15 +360,12 @@ class PresenceParentPageState extends State<PresenceParentPage> {
                 const SizedBox(height: 4),
                 Text(
                   DateFormat('dd MMMM yyyy', 'id_ID').format(tanggal),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
             ),
           ),
-          
+
           // Status
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -415,127 +418,197 @@ class PresenceParentPageState extends State<PresenceParentPage> {
     }
   }
 
+  Color _getPrimaryColor() {
+    return Color(0xFF9333EA); // Warna purple untuk wali murid
+  }
+
+  LinearGradient _getCardGradient() {
+    final primaryColor = _getPrimaryColor();
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [primaryColor, primaryColor.withOpacity(0.7)],
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 16,
+        left: 16,
+        right: 16,
+        bottom: 16,
+      ),
+      decoration: BoxDecoration(
+        gradient: _getCardGradient(),
+        boxShadow: [
+          BoxShadow(
+            color: _getPrimaryColor().withOpacity(0.3),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Absensi Anak',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      _siswa?.nama ?? 'Nama Siswa',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text(
-          'Absensi Anak',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: _isLoading
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Memuat data absensi...'),
-                ],
-              ),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Info siswa
-                Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
+      backgroundColor: Color(0xFFF8F9FA),
+      body: Column(
+        children: [
+          _buildHeader(),
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Memuat data absensi...'),
+                      ],
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Avatar
+                      // Info siswa
                       Container(
-                        width: 50,
-                        height: 50,
+                        margin: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.blue[100],
-                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                        child: Icon(
-                          Icons.person,
-                          color: Colors.blue[700],
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Text(
-                              _siswa?.nama ?? 'Nama Siswa',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                            // Avatar
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: Colors.blue[100],
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.person,
+                                color: Colors.blue[700],
+                                size: 24,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'NIS: ${_siswa?.nis ?? '-'}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            Text(
-                              'Kelas: ${_siswa?.kelas ?? '-'}',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _siswa?.nama ?? 'Nama Siswa',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'NIS: ${_siswa?.nis ?? '-'}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Kelas: ${_siswa?.kelas ?? '-'}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
+
+                      // Summary bulanan
+                      _buildMonthlySummary(),
+
+                      // Daftar absensi
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'Riwayat Absensi',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      Expanded(child: _buildAbsensiList()),
                     ],
                   ),
-                ),
-                
-                // Summary bulanan
-                _buildMonthlySummary(),
-                
-                // Daftar absensi
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Riwayat Absensi',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                
-                Expanded(
-                  child: _buildAbsensiList(),
-                ),
-              ],
-            ),
+          ),
+        ],
+      ),
     );
   }
 }
