@@ -289,7 +289,10 @@ class _DashboardState extends State<Dashboard>
         }
 
         // Untuk pengumuman, kita gunakan fallback dulu
-        final pengumuman = []; // await _getPengumumanTerbaru();
+        final pengumuman = await _getPengumumanTerbaru();
+        if (kDebugMode) {
+          print('📢 Pengumuman untuk wali: ${pengumuman.length}');
+        }
 
         if (!mounted) return;
         setState(() {
@@ -546,10 +549,33 @@ class _DashboardState extends State<Dashboard>
 
   Future<List<dynamic>> _getPengumumanTerbaru() async {
     try {
-      // Implementasi untuk mendapatkan pengumuman terbaru
-      // Anda perlu menyesuaikan dengan API yang tersedia
+      // Sama seperti di PengumumanScreen - langsung ambil dari API
+      // Backend sudah melakukan filtering berdasarkan role user
+      if (kDebugMode) {
+        print('🔄 Memuat data pengumuman untuk role: ${widget.role}');
+      }
+      
+      final pengumumanData = await ApiService().get('/pengumuman');
+
+      if (kDebugMode) {
+        print('✅ Response dari API:');
+        print('Type: ${pengumumanData.runtimeType}');
+        print('Length: ${pengumumanData is List ? pengumumanData.length : 'N/A'}');
+      }
+
+      // Backend sudah filter berdasarkan role, jadi langsung return aja
+      if (pengumumanData is List) {
+        if (kDebugMode) {
+          print('📊 Data pengumuman berhasil dimuat: ${pengumumanData.length} pengumuman');
+        }
+        return pengumumanData;
+      }
+
       return [];
     } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error loading pengumuman: $e');
+      }
       return [];
     }
   }
@@ -781,8 +807,7 @@ class _DashboardState extends State<Dashboard>
           SizedBox(width: 12),
           _buildStatCard(
             title: "RPP",
-            value:
-                "${_stats['total_rpp']}",
+            value: "${_stats['total_rpp']}",
             // valueStyle: TextStyle(
             //   fontSize: 12,
             //   fontWeight: FontWeight.w600,

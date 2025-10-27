@@ -52,7 +52,10 @@ class PengumumanScreenState extends State<PengumumanScreen> {
       print('📊 Data berhasil dimuat: ${_pengumuman.length} pengumuman');
     } catch (e) {
       print('❌ Error loading announcements: $e');
-      // ... kode error handling existing
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString();
+      });
     }
   }
 
@@ -100,10 +103,11 @@ class PengumumanScreenState extends State<PengumumanScreen> {
     Map<String, dynamic> pengumumanData,
     LanguageProvider languageProvider,
   ) {
-    final roleTarget = pengumumanData['role_target'] ?? 'all';
+    final roleTarget = (pengumumanData['role_target'] ?? 'all').toString().toLowerCase().trim();
     final kelasNama = pengumumanData['kelas_nama'];
 
-    if (roleTarget == 'all' && kelasNama == null) {
+    // Handle both 'all' (English) and 'semua' (Indonesian) from backend
+    if ((roleTarget == 'all' || roleTarget == 'semua' || roleTarget == '') && kelasNama == null) {
       return languageProvider.getTranslatedText({
         'en': 'All Users',
         'id': 'Semua Pengguna',

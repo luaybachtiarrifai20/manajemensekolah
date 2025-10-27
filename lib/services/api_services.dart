@@ -179,7 +179,7 @@ class ApiService {
             responseBody['error'] ??
             'Request failed with status: ${response.statusCode}';
 
-        // Handle specific authentication errors
+        // Handle specific authentication errors (should logout)
         if (response.statusCode == 401) {
           _handleAuthenticationErrorWithMessage(
             'Session expired. Please login again.',
@@ -188,11 +188,9 @@ class ApiService {
           _handleAuthenticationErrorWithMessage(
             'Access forbidden. Please login again.',
           );
-        } else if (response.statusCode >= 500) {
-          _handleAuthenticationErrorWithMessage(
-            'Server error. Please try again later.',
-          );
         }
+        // For 500+ errors, just throw the exception without logging out
+        // The UI will handle displaying the error to the user
 
         throw Exception(errorMessage);
       }

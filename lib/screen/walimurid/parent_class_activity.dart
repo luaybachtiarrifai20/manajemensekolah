@@ -282,7 +282,7 @@ class ParentClassActivityScreenState extends State<ParentClassActivityScreen> {
                       child: Container(
                         width: 6,
                         decoration: BoxDecoration(
-                          color: cardColor,
+                          color: _getPrimaryColor(),
                           borderRadius: BorderRadius.only(
                             topLeft: Radius.circular(16),
                             bottomLeft: Radius.circular(16),
@@ -367,7 +367,7 @@ class ParentClassActivityScreenState extends State<ParentClassActivityScreen> {
                                 width: 40,
                                 height: 40,
                                 decoration: BoxDecoration(
-                                  color: cardColor,
+                                  color: _getPrimaryColor(),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
