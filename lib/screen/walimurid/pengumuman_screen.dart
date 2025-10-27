@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/enhanced_search_bar.dart';
@@ -34,24 +35,38 @@ class PengumumanScreenState extends State<PengumumanScreen> {
         _errorMessage = null;
       });
 
-      print('🔄 Memuat data pengumuman...');
+      if (kDebugMode) {
+        print('🔄 Memuat data pengumuman...');
+      }
       final pengumumanData = await _apiService.get('/pengumuman');
 
-      print('✅ Response dari API:');
-      print('Type: ${pengumumanData.runtimeType}');
-      print('Data: $pengumumanData');
-      print(
+      if (kDebugMode) {
+        print('✅ Response dari API:');
+      }
+      if (kDebugMode) {
+        print('Type: ${pengumumanData.runtimeType}');
+      }
+      if (kDebugMode) {
+        print('Data: $pengumumanData');
+      }
+      if (kDebugMode) {
+        print(
         'Length: ${pengumumanData is List ? pengumumanData.length : 'N/A'}',
       );
+      }
 
       setState(() {
         _pengumuman = pengumumanData is List ? pengumumanData : [];
         _isLoading = false;
       });
 
-      print('📊 Data berhasil dimuat: ${_pengumuman.length} pengumuman');
+      if (kDebugMode) {
+        print('📊 Data berhasil dimuat: ${_pengumuman.length} pengumuman');
+      }
     } catch (e) {
-      print('❌ Error loading announcements: $e');
+      if (kDebugMode) {
+        print('❌ Error loading announcements: $e');
+      }
       setState(() {
         _isLoading = false;
         _errorMessage = e.toString();
@@ -85,7 +100,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [primaryColor, primaryColor.withOpacity(0.7)],
+      colors: [primaryColor, primaryColor.withValues(alpha: 0.7)],
     );
   }
 
@@ -151,7 +166,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
@@ -178,7 +193,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                       _formatDate(pengumumanData['created_at']),
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                     ),
                   ],
@@ -199,7 +214,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.1),
+                          color: Colors.orange.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.orange),
                         ),
@@ -386,7 +401,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.3),
+                    color: Colors.grey.withValues(alpha: 0.3),
                     blurRadius: 5,
                     offset: Offset(0, 4),
                   ),
@@ -419,7 +434,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.grey.withOpacity(0.1),
+                        color: Colors.grey.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -506,7 +521,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                               width: 32,
                               height: 32,
                               decoration: BoxDecoration(
-                                color: _getPrimaryColor().withOpacity(0.1),
+                                color: _getPrimaryColor().withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Icon(
@@ -557,7 +572,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                               width: 32,
                               height: 32,
                               decoration: BoxDecoration(
-                                color: _getPrimaryColor().withOpacity(0.1),
+                                color: _getPrimaryColor().withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Icon(
@@ -606,7 +621,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                               width: 32,
                               height: 32,
                               decoration: BoxDecoration(
-                                color: _getPrimaryColor().withOpacity(0.1),
+                                color: _getPrimaryColor().withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Icon(
@@ -681,7 +696,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                   gradient: _getCardGradient(),
                   boxShadow: [
                     BoxShadow(
-                      color: _getPrimaryColor().withOpacity(0.3),
+                      color: _getPrimaryColor().withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: Offset(0, 2),
                     ),
@@ -698,7 +713,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
@@ -732,7 +747,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                                 }),
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                 ),
                               ),
                             ],
@@ -742,7 +757,7 @@ class PengumumanScreenState extends State<PengumumanScreen> {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
