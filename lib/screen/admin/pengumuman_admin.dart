@@ -1,10 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 import 'package:provider/provider.dart';
 import 'package:manajemensekolah/components/confirmation_dialog.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
-import 'package:manajemensekolah/components/enhanced_search_bar.dart';
 import 'package:manajemensekolah/components/error_screen.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
@@ -30,8 +28,12 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
   late Animation<double> _fadeAnimation;
 
   final TextEditingController _searchController = TextEditingController();
-  final List<String> _filterOptions = ['All', 'Penting', 'Biasa'];
-  String _selectedFilter = 'All';
+
+  // Filter States
+  String? _selectedPrioritasFilter; // 'Penting', 'Biasa', atau null untuk semua
+  String? _selectedTargetFilter; // 'Guru', 'Siswa', 'Orang Tua', 'Semua', atau null
+  String? _selectedStatusFilter; // 'Aktif', 'Terjadwal', 'Kedaluwarsa', atau null
+  bool _hasActiveFilter = false;
 
   @override
   void initState() {
@@ -56,7 +58,284 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
   @override
   void dispose() {
     _animationController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _checkActiveFilter() {
+    setState(() {
+      _hasActiveFilter = _selectedPrioritasFilter != null || 
+                         _selectedTargetFilter != null || 
+                         _selectedStatusFilter != null;
+    });
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _selectedPrioritasFilter = null;
+      _selectedTargetFilter = null;
+      _selectedStatusFilter = null;
+      _hasActiveFilter = false;
+    });
+  }
+
+  String _buildFilterSummary(LanguageProvider languageProvider) {
+    List<String> filters = [];
+    
+    if (_selectedPrioritasFilter != null) {
+      filters.add('${languageProvider.getTranslatedText({'en': 'Priority', 'id': 'Prioritas'})}: $_selectedPrioritasFilter');
+    }
+    
+    if (_selectedTargetFilter != null) {
+      filters.add('${languageProvider.getTranslatedText({'en': 'Target', 'id': 'Target'})}: $_selectedTargetFilter');
+    }
+    
+    if (_selectedStatusFilter != null) {
+      filters.add('${languageProvider.getTranslatedText({'en': 'Status', 'id': 'Status'})}: $_selectedStatusFilter');
+    }
+    
+    return filters.join(' • ');
+  }
+
+  void _showFilterSheet() {
+    final languageProvider = context.read<LanguageProvider>();
+    
+    // Temporary state for bottom sheet
+    String? tempSelectedPrioritas = _selectedPrioritasFilter;
+    String? tempSelectedTarget = _selectedTargetFilter;
+    String? tempSelectedStatus = _selectedStatusFilter;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade200),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      languageProvider.getTranslatedText({
+                        'en': 'Filter',
+                        'id': 'Filter',
+                      }),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        setModalState(() {
+                          tempSelectedPrioritas = null;
+                          tempSelectedTarget = null;
+                          tempSelectedStatus = null;
+                        });
+                      },
+                      child: Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Reset',
+                          'id': 'Reset',
+                        }),
+                        style: TextStyle(color: _getPrimaryColor()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Filter Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Prioritas Filter
+                      Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Priority',
+                          'id': 'Prioritas',
+                        }),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: ['Penting', 'Biasa'].map((prioritas) {
+                          final isSelected = tempSelectedPrioritas == prioritas;
+                          return FilterChip(
+                            label: Text(prioritas),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setModalState(() {
+                                tempSelectedPrioritas = selected ? prioritas : null;
+                              });
+                            },
+                            backgroundColor: Colors.grey.shade100,
+                            selectedColor: _getPrimaryColor().withOpacity(0.2),
+                            checkmarkColor: _getPrimaryColor(),
+                            labelStyle: TextStyle(
+                              color: isSelected ? _getPrimaryColor() : Colors.grey.shade700,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+
+                      SizedBox(height: 24),
+
+                      // Target Filter
+                      Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Target',
+                          'id': 'Target',
+                        }),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          {'value': 'Semua', 'label': languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'})},
+                          {'value': 'Guru', 'label': languageProvider.getTranslatedText({'en': 'Teachers', 'id': 'Guru'})},
+                          {'value': 'Siswa', 'label': languageProvider.getTranslatedText({'en': 'Students', 'id': 'Siswa'})},
+                          {'value': 'Orang Tua', 'label': languageProvider.getTranslatedText({'en': 'Parents', 'id': 'Orang Tua'})},
+                        ].map((item) {
+                          final isSelected = tempSelectedTarget == item['value'];
+                          return FilterChip(
+                            label: Text(item['label']!),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setModalState(() {
+                                tempSelectedTarget = selected ? item['value'] : null;
+                              });
+                            },
+                            backgroundColor: Colors.grey.shade100,
+                            selectedColor: _getPrimaryColor().withOpacity(0.2),
+                            checkmarkColor: _getPrimaryColor(),
+                            labelStyle: TextStyle(
+                              color: isSelected ? _getPrimaryColor() : Colors.grey.shade700,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+
+                      SizedBox(height: 24),
+
+                      // Status Filter
+                      Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Status',
+                          'id': 'Status',
+                        }),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          {'value': 'Aktif', 'label': languageProvider.getTranslatedText({'en': 'Active', 'id': 'Aktif'})},
+                          {'value': 'Terjadwal', 'label': languageProvider.getTranslatedText({'en': 'Scheduled', 'id': 'Terjadwal'})},
+                          {'value': 'Kedaluwarsa', 'label': languageProvider.getTranslatedText({'en': 'Expired', 'id': 'Kedaluwarsa'})},
+                        ].map((item) {
+                          final isSelected = tempSelectedStatus == item['value'];
+                          return FilterChip(
+                            label: Text(item['label']!),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setModalState(() {
+                                tempSelectedStatus = selected ? item['value'] : null;
+                              });
+                            },
+                            backgroundColor: Colors.grey.shade100,
+                            selectedColor: _getPrimaryColor().withOpacity(0.2),
+                            checkmarkColor: _getPrimaryColor(),
+                            labelStyle: TextStyle(
+                              color: isSelected ? _getPrimaryColor() : Colors.grey.shade700,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Apply Button
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.2),
+                      blurRadius: 4,
+                      offset: Offset(0, -2),
+                    ),
+                  ],
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedPrioritasFilter = tempSelectedPrioritas;
+                        _selectedTargetFilter = tempSelectedTarget;
+                        _selectedStatusFilter = tempSelectedStatus;
+                      });
+                      _checkActiveFilter();
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _getPrimaryColor(),
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      languageProvider.getTranslatedText({
+                        'en': 'Apply Filter',
+                        'id': 'Terapkan Filter',
+                      }),
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadData() async {
@@ -1347,9 +1626,39 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
     }
 
     // Filter berdasarkan prioritas
-    if (_selectedFilter != 'All') {
+    if (_selectedPrioritasFilter != null) {
       filtered = filtered.where((p) {
-        return p['prioritas']?.toLowerCase() == _selectedFilter.toLowerCase();
+        return p['prioritas']?.toString() == _selectedPrioritasFilter;
+      }).toList();
+    }
+
+    // Filter berdasarkan target
+    if (_selectedTargetFilter != null) {
+      filtered = filtered.where((p) {
+        return p['target']?.toString() == _selectedTargetFilter;
+      }).toList();
+    }
+
+    // Filter berdasarkan status (tanggal publikasi)
+    if (_selectedStatusFilter != null) {
+      final now = DateTime.now();
+      filtered = filtered.where((p) {
+        final tanggalMulai = p['tanggal_mulai'] != null 
+            ? DateTime.tryParse(p['tanggal_mulai'].toString())
+            : null;
+        final tanggalSelesai = p['tanggal_selesai'] != null 
+            ? DateTime.tryParse(p['tanggal_selesai'].toString())
+            : null;
+
+        if (_selectedStatusFilter == 'Aktif') {
+          return (tanggalMulai == null || tanggalMulai.isBefore(now)) &&
+                 (tanggalSelesai == null || tanggalSelesai.isAfter(now));
+        } else if (_selectedStatusFilter == 'Terjadwal') {
+          return tanggalMulai != null && tanggalMulai.isAfter(now);
+        } else if (_selectedStatusFilter == 'Kedaluwarsa') {
+          return tanggalSelesai != null && tanggalSelesai.isBefore(now);
+        }
+        return true;
       }).toList();
     }
 
@@ -1451,67 +1760,121 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                     ),
                     SizedBox(height: 16),
 
-                    // Search Bar dan Filter
-                    EnhancedSearchBar(
-                      controller: _searchController,
-                      onChanged: (value) => setState(() {}),
-                      hintText: languageProvider.getTranslatedText({
-                        'en': 'Search announcements...',
-                        'id': 'Cari pengumuman...',
-                      }),
-                    ),
-                    SizedBox(height: 12),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: _filterOptions.map((filter) {
-                          return Padding(
-                            padding: EdgeInsets.only(right: 8),
-                            child: FilterChip(
-                              label: Text(
-                                filter == 'All'
-                                    ? languageProvider.getTranslatedText({
-                                        'en': 'All',
-                                        'id': 'Semua',
-                                      })
-                                    : filter == 'Penting'
-                                    ? languageProvider.getTranslatedText({
-                                        'en': 'Important',
-                                        'id': 'Penting',
-                                      })
-                                    : languageProvider.getTranslatedText({
-                                        'en': 'Normal',
-                                        'id': 'Biasa',
-                                      }),
-                                style: TextStyle(
-                                  color: _selectedFilter == filter
-                                      ? Colors.white
-                                      : _getPrimaryColor(),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              selected: _selectedFilter == filter,
-                              onSelected: (selected) {
-                                setState(() {
-                                  _selectedFilter = selected ? filter : 'All';
-                                });
-                              },
-                              backgroundColor: Colors.white.withOpacity(0.2),
-                              selectedColor: _getPrimaryColor(),
-                              checkmarkColor: Colors.white,
-                              shape: StadiumBorder(
-                                side: BorderSide(
-                                  color: _selectedFilter == filter
-                                      ? Colors.transparent
-                                      : Colors.white.withOpacity(0.3),
+                    // Search Bar with Filter Button
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: (value) => setState(() {}),
+                              style: TextStyle(color: Colors.black87),
+                              decoration: InputDecoration(
+                                hintText: languageProvider.getTranslatedText({
+                                  'en': 'Search announcements...',
+                                  'id': 'Cari pengumuman...',
+                                }),
+                                hintStyle: TextStyle(color: Colors.grey),
+                                prefixIcon: Icon(Icons.search, color: Colors.grey),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
                                 ),
                               ),
                             ),
-                          );
-                        }).toList(),
-                      ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        // Filter Button
+                        Container(
+                          decoration: BoxDecoration(
+                            color: _hasActiveFilter
+                                ? Colors.white
+                                : Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              IconButton(
+                                onPressed: _showFilterSheet,
+                                icon: Icon(
+                                  Icons.tune,
+                                  color: _hasActiveFilter
+                                      ? _getPrimaryColor()
+                                      : Colors.white,
+                                ),
+                                tooltip: languageProvider.getTranslatedText({
+                                  'en': 'Filter',
+                                  'id': 'Filter',
+                                }),
+                              ),
+                              if (_hasActiveFilter)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    padding: EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: BoxConstraints(
+                                      minWidth: 8,
+                                      minHeight: 8,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
+                    
+                    // Show active filters indicator
+                    if (_hasActiveFilter) ...[
+                      SizedBox(height: 12),
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.filter_alt, 
+                              size: 16, 
+                              color: Colors.white),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _buildFilterSummary(languageProvider),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            InkWell(
+                              onTap: _clearAllFilters,
+                              child: Icon(Icons.close, 
+                                size: 18, 
+                                color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
