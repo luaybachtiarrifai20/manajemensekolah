@@ -53,9 +53,12 @@ class GradePageState extends State<GradePage> {
         _filteredMataPelajaranList = List.from(_mataPelajaranList);
       } else {
         _filteredMataPelajaranList = _mataPelajaranList
-            .where((mapel) =>
-                mapel['nama'].toLowerCase().contains(query) ||
-                (mapel['kode']?.toString().toLowerCase().contains(query) ?? false))
+            .where(
+              (mapel) =>
+                  mapel['nama'].toLowerCase().contains(query) ||
+                  (mapel['kode']?.toString().toLowerCase().contains(query) ??
+                      false),
+            )
             .toList();
       }
     });
@@ -98,7 +101,10 @@ class GradePageState extends State<GradePage> {
           content: Text(
             context.read<LanguageProvider>().getTranslatedText({
               'en': message,
-              'id': message.replaceAll('Failed to load data:', 'Gagal memuat data:'),
+              'id': message.replaceAll(
+                'Failed to load data:',
+                'Gagal memuat data:',
+              ),
             }),
           ),
           backgroundColor: Colors.red.shade400,
@@ -136,18 +142,23 @@ class GradePageState extends State<GradePage> {
   }
 
   Color _getPrimaryColor() {
-    return Color(0xFF4361EE); // Blue untuk konsisten dengan subject management
+    return ColorUtils.getRoleColor('guru');
   }
 
   LinearGradient _getCardGradient() {
+    final primaryColor = _getPrimaryColor();
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
+      colors: [primaryColor, primaryColor.withOpacity(0.8)],
     );
   }
 
-  Widget _buildSubjectCard(Map<String, dynamic> subject, LanguageProvider languageProvider, int index) {
+  Widget _buildSubjectCard(
+    Map<String, dynamic> subject,
+    LanguageProvider languageProvider,
+    int index,
+  ) {
     return Container(
       margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
       child: Material(
@@ -157,27 +168,44 @@ class GradePageState extends State<GradePage> {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             decoration: BoxDecoration(
-              gradient: _getCardGradient(),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: _getPrimaryColor().withOpacity(0.2),
-                  blurRadius: 12,
+                  color: Colors.grey.withOpacity(0.3),
+                  blurRadius: 5,
                   offset: Offset(0, 4),
                 ),
               ],
             ),
             child: Stack(
               children: [
-                // Background pattern
+                // Strip berwarna di pinggir kiri
                 Positioned(
-                  right: -10,
-                  top: -10,
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
                   child: Container(
-                    width: 60,
-                    height: 60,
+                    width: 6,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
+                      color: _getPrimaryColor(),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        bottomLeft: Radius.circular(16),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Background pattern effect
+                Positioned(
+                  right: -8,
+                  top: -8,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -188,7 +216,7 @@ class GradePageState extends State<GradePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header dengan nama dan kode
+                      // Header dengan judul
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -197,67 +225,100 @@ class GradePageState extends State<GradePage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  subject['nama'] ?? languageProvider.getTranslatedText({
-                                    'en': 'Subject',
-                                    'id': 'Mata Pelajaran',
-                                  }),
+                                  subject['nama'] ??
+                                      languageProvider.getTranslatedText({
+                                        'en': 'Subject',
+                                        'id': 'Mata Pelajaran',
+                                      }),
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                    color: Colors.black,
                                   ),
-                                  maxLines: 1,
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 SizedBox(height: 2),
                                 Text(
-                                  '${languageProvider.getTranslatedText({
-                                    'en': 'Code',
-                                    'id': 'Kode',
-                                  })}: ${subject['kode'] ?? '-'}',
+                                  '${languageProvider.getTranslatedText({'en': 'Code', 'id': 'Kode'})}: ${subject['kode'] ?? '-'}',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.white.withOpacity(0.8),
+                                    color: Colors.grey.shade600,
                                   ),
                                 ),
                               ],
                             ),
                           ),
                           Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
+                            width: 32,
+                            height: 32,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
-                              ),
+                              color: _getPrimaryColor().withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             child: Icon(
                               Icons.arrow_forward,
-                              color: Colors.white,
+                              color: _getPrimaryColor(),
                               size: 16,
                             ),
                           ),
                         ],
                       ),
 
-                      SizedBox(height: 2),
-                      if (subject['deskripsi'] != null &&
-                          subject['deskripsi'].isNotEmpty) ...[
-                        SizedBox(height: 8),
-                        Text(
-                          subject['deskripsi'],
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withOpacity(0.8),
+                      SizedBox(height: 12),
+
+                      // Konten preview
+                      Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: _getPrimaryColor().withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Icon(
+                              Icons.description,
+                              color: _getPrimaryColor(),
+                              size: 16,
+                            ),
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  languageProvider.getTranslatedText({
+                                    'en': 'Description',
+                                    'id': 'Deskripsi',
+                                  }),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade600,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                SizedBox(height: 1),
+                                Text(
+                                  subject['deskripsi'] ??
+                                      languageProvider.getTranslatedText({
+                                        'en': 'No description',
+                                        'id': 'Tidak ada deskripsi',
+                                      }),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -273,204 +334,244 @@ class GradePageState extends State<GradePage> {
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
-        if (_isLoading) {
-          return LoadingScreen(
-            message: languageProvider.getTranslatedText({
-              'en': 'Loading subjects...',
-              'id': 'Memuat mata pelajaran...',
-            }),
-          );
-        }
-
-        // Terjemahan filter options
-        final translatedFilterOptions = [
-          languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
-          languageProvider.getTranslatedText({
-            'en': 'With Grades',
-            'id': 'Dengan Nilai',
-          }),
-          languageProvider.getTranslatedText({
-            'en': 'Without Grades',
-            'id': 'Tanpa Nilai',
-          }),
-        ];
-
         return Scaffold(
           backgroundColor: Color(0xFFF8F9FA),
-          appBar: AppBar(
-            title: Text(
-              languageProvider.getTranslatedText({
-                'en': 'Input Grades',
-                'id': 'Input Nilai',
-              }),
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            backgroundColor: _getPrimaryColor(),
-            elevation: 0,
-            centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.white),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.refresh, color: Colors.white),
-                onPressed: _loadData,
-                tooltip: languageProvider.getTranslatedText({
-                  'en': 'Refresh',
-                  'id': 'Muat Ulang',
-                }),
-              ),
-            ],
-          ),
           body: Column(
             children: [
-              // Header Info Guru
+              // Header dengan gradient
               Container(
                 width: double.infinity,
-                padding: EdgeInsets.all(20),
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 16,
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                ),
                 decoration: BoxDecoration(
                   gradient: _getCardGradient(),
                   boxShadow: [
                     BoxShadow(
                       color: _getPrimaryColor().withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: Offset(0, 4),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        widget.guru['role'] == 'guru' ? Icons.school : Icons.admin_panel_settings,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.guru['role'] == 'guru'
-                                ? '${languageProvider.getTranslatedText({
-                                    'en': 'Teacher',
-                                    'id': 'Guru',
-                                  })}: ${widget.guru['nama']}'
-                                : '${languageProvider.getTranslatedText({
-                                    'en': 'Admin',
-                                    'id': 'Admin',
-                                  })}: ${widget.guru['nama']}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.arrow_back,
                               color: Colors.white,
+                              size: 20,
                             ),
                           ),
-                          SizedBox(height: 4),
-                          Text(
-                            languageProvider.getTranslatedText({
-                              'en': 'Select subject to view/input grades',
-                              'id': 'Pilih mata pelajaran untuk melihat/menginput nilai',
-                            }),
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 12,
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                languageProvider.getTranslatedText({
+                                  'en': 'Input Grades',
+                                  'id': 'Input Nilai',
+                                }),
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                languageProvider.getTranslatedText({
+                                  'en': 'Select subject to input grades',
+                                  'id':
+                                      'Pilih mata pelajaran untuk input nilai',
+                                }),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.grade,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+
+                    // Info Guru
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              widget.guru['role'] == 'guru'
+                                  ? Icons.school
+                                  : Icons.admin_panel_settings,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.guru['nama'] ?? 'Unknown',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                Text(
+                                  widget.guru['role'] == 'guru'
+                                      ? languageProvider.getTranslatedText({
+                                          'en': 'Teacher',
+                                          'id': 'Guru',
+                                        })
+                                      : languageProvider.getTranslatedText({
+                                          'en': 'Admin',
+                                          'id': 'Admin',
+                                        }),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.8),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
+                    SizedBox(height: 16),
+
+                    // Search Bar
+                    EnhancedSearchBar(
+                      controller: _searchController,
+                      onChanged: (value) => setState(() {}),
+                      hintText: languageProvider.getTranslatedText({
+                        'en': 'Search subjects...',
+                        'id': 'Cari mata pelajaran...',
+                      }),
+                    ),
                   ],
                 ),
               ),
-              
-              // Search Bar dengan Filter
-              EnhancedSearchBar(
-                controller: _searchController,
-                hintText: languageProvider.getTranslatedText({
-                  'en': 'Search subjects...',
-                  'id': 'Cari mata pelajaran...',
-                }),
-                onChanged: (value) {
-                  setState(() {});
-                },
-                filterOptions: translatedFilterOptions,
-                selectedFilter: translatedFilterOptions[
-                  _selectedFilter == 'All' 
-                    ? 0 
-                    : _selectedFilter == 'With Grades' 
-                      ? 1 
-                      : 2
-                ],
-                onFilterChanged: (filter) {
-                  final index = translatedFilterOptions.indexOf(filter);
-                  setState(() {
-                    _selectedFilter = index == 0 
-                      ? 'All' 
-                      : index == 1 
-                        ? 'With Grades' 
-                        : 'Without Grades';
-                  });
-                },
-                showFilter: true,
-              ),
 
-              if (_filteredMataPelajaranList.isNotEmpty)
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${_filteredMataPelajaranList.length} ${languageProvider.getTranslatedText({
-                          'en': 'subjects found',
-                          'id': 'mata pelajaran ditemukan',
-                        })}',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              SizedBox(height: 4),
-
+              // Content
               Expanded(
-                child: _filteredMataPelajaranList.isEmpty
-                    ? EmptyState(
-                        title: languageProvider.getTranslatedText({
-                          'en': 'No subjects available',
-                          'id': 'Tidak ada mata pelajaran',
+                child: _isLoading
+                    ? LoadingScreen(
+                        message: languageProvider.getTranslatedText({
+                          'en': 'Loading subjects...',
+                          'id': 'Memuat mata pelajaran...',
                         }),
-                        subtitle: _searchController.text.isEmpty && _selectedFilter == 'All'
-                            ? languageProvider.getTranslatedText({
-                                'en': widget.guru['role'] == 'guru'
-                                  ? 'No subjects assigned to you'
-                                  : 'No subjects available',
-                                'id': widget.guru['role'] == 'guru'
-                                  ? 'Tidak ada mata pelajaran yang diajarkan'
-                                  : 'Tidak ada mata pelajaran tersedia',
-                              })
-                            : languageProvider.getTranslatedText({
-                                'en': 'No search results found',
-                                'id': 'Tidak ditemukan hasil pencarian',
-                              }),
-                        icon: Icons.menu_book,
                       )
-                    : ListView.builder(
-                        itemCount: _filteredMataPelajaranList.length,
-                        itemBuilder: (context, index) {
-                          final subject = _filteredMataPelajaranList[index];
-                          return _buildSubjectCard(subject, languageProvider, index);
-                        },
+                    : _filteredMataPelajaranList.isEmpty
+                    ? EmptyState(
+                        icon: Icons.menu_book,
+                        title: languageProvider.getTranslatedText({
+                          'en': 'No Subjects Available',
+                          'id': 'Tidak Ada Mata Pelajaran',
+                        }),
+                        subtitle: languageProvider.getTranslatedText({
+                          'en': _searchController.text.isNotEmpty
+                              ? 'No subjects found for your search'
+                              : widget.guru['role'] == 'guru'
+                              ? 'No subjects assigned to you'
+                              : 'No subjects available',
+                          'id': _searchController.text.isNotEmpty
+                              ? 'Tidak ada mata pelajaran yang sesuai dengan pencarian'
+                              : widget.guru['role'] == 'guru'
+                              ? 'Tidak ada mata pelajaran yang diajarkan'
+                              : 'Tidak ada mata pelajaran tersedia',
+                        }),
+                        buttonText: languageProvider.getTranslatedText({
+                          'en': 'Refresh',
+                          'id': 'Muat Ulang',
+                        }),
+                        onPressed: _loadData,
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _loadData,
+                        color: _getPrimaryColor(),
+                        backgroundColor: Colors.white,
+                        child: Column(
+                          children: [
+                            if (_filteredMataPelajaranList.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      '${_filteredMataPelajaranList.length} ${languageProvider.getTranslatedText({'en': 'subjects found', 'id': 'mata pelajaran ditemukan'})}',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            Expanded(
+                              child: ListView.builder(
+                                padding: EdgeInsets.only(top: 8, bottom: 16),
+                                itemCount: _filteredMataPelajaranList.length,
+                                itemBuilder: (context, index) {
+                                  return _buildSubjectCard(
+                                    _filteredMataPelajaranList[index],
+                                    languageProvider,
+                                    index,
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
               ),
             ],
@@ -522,9 +623,12 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
         _filteredKelasList = List.from(_kelasList);
       } else {
         _filteredKelasList = _kelasList
-            .where((kelas) =>
-                kelas['nama'].toLowerCase().contains(query) ||
-                (kelas['tingkat']?.toString().toLowerCase().contains(query) ?? false))
+            .where(
+              (kelas) =>
+                  kelas['nama'].toLowerCase().contains(query) ||
+                  (kelas['tingkat']?.toString().toLowerCase().contains(query) ??
+                      false),
+            )
             .toList();
       }
     });
@@ -561,7 +665,10 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
           content: Text(
             context.read<LanguageProvider>().getTranslatedText({
               'en': message,
-              'id': message.replaceAll('Failed to load classes:', 'Gagal memuat kelas:'),
+              'id': message.replaceAll(
+                'Failed to load classes:',
+                'Gagal memuat kelas:',
+              ),
             }),
           ),
           backgroundColor: Colors.red.shade400,
@@ -585,18 +692,23 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
   }
 
   Color _getPrimaryColor() {
-    return Color(0xFF4361EE);
+    return ColorUtils.getRoleColor('guru');
   }
 
   LinearGradient _getCardGradient() {
+    final primaryColor = _getPrimaryColor();
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
+      colors: [primaryColor, primaryColor.withOpacity(0.8)],
     );
   }
 
-  Widget _buildClassCard(Map<String, dynamic> kelas, LanguageProvider languageProvider, int index) {
+  Widget _buildClassCard(
+    Map<String, dynamic> kelas,
+    LanguageProvider languageProvider,
+    int index,
+  ) {
     return Container(
       margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
       child: Material(
@@ -606,27 +718,44 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             decoration: BoxDecoration(
-              gradient: _getCardGradient(),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: _getPrimaryColor().withOpacity(0.2),
-                  blurRadius: 12,
+                  color: Colors.grey.withOpacity(0.3),
+                  blurRadius: 5,
                   offset: Offset(0, 4),
                 ),
               ],
             ),
             child: Stack(
               children: [
-                // Background pattern
+                // Strip berwarna di pinggir kiri
                 Positioned(
-                  right: -10,
-                  top: -10,
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
                   child: Container(
-                    width: 60,
-                    height: 60,
+                    width: 6,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
+                      color: _getPrimaryColor(),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        bottomLeft: Radius.circular(16),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Background pattern effect
+                Positioned(
+                  right: -8,
+                  top: -8,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -646,14 +775,15 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  kelas['nama'] ?? languageProvider.getTranslatedText({
-                                    'en': 'Class',
-                                    'id': 'Kelas',
-                                  }),
+                                  kelas['nama'] ??
+                                      languageProvider.getTranslatedText({
+                                        'en': 'Class',
+                                        'id': 'Kelas',
+                                      }),
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                    color: Colors.black,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -661,33 +791,25 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                                 SizedBox(height: 2),
                                 if (kelas['tingkat'] != null)
                                   Text(
-                                    '${languageProvider.getTranslatedText({
-                                      'en': 'Level',
-                                      'id': 'Tingkat',
-                                    })}: ${kelas['tingkat']}',
+                                    '${languageProvider.getTranslatedText({'en': 'Level', 'id': 'Tingkat'})}: ${kelas['tingkat']}',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.white.withOpacity(0.8),
+                                      color: Colors.grey.shade600,
                                     ),
                                   ),
                               ],
                             ),
                           ),
                           Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
+                            width: 32,
+                            height: 32,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
-                              ),
+                              color: _getPrimaryColor().withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             child: Icon(
                               Icons.arrow_forward,
-                              color: Colors.white,
+                              color: _getPrimaryColor(),
                               size: 16,
                             ),
                           ),
@@ -703,12 +825,12 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                             width: 32,
                             height: 32,
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: _getPrimaryColor().withOpacity(0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Icon(
                               Icons.people,
-                              color: Colors.white,
+                              color: _getPrimaryColor(),
                               size: 16,
                             ),
                           ),
@@ -724,7 +846,7 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                                   }),
                                   style: TextStyle(
                                     fontSize: 10,
-                                    color: Colors.white.withOpacity(0.8),
+                                    color: Colors.grey.shade600,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -737,7 +859,7 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.white,
+                                    color: Colors.black,
                                   ),
                                 ),
                               ],
@@ -762,85 +884,112 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
       builder: (context, languageProvider, child) {
         return Scaffold(
           backgroundColor: Color(0xFFF8F9FA),
-          appBar: AppBar(
-            title: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${languageProvider.getTranslatedText({
-                    'en': 'Select Class',
-                    'id': 'Pilih Kelas',
-                  })}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+          body: Column(
+            children: [
+              // Header dengan gradient
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 16,
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
                 ),
-                Text(
-                  widget.mataPelajaran['nama'] ?? '',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.8),
-                  ),
+                decoration: BoxDecoration(
+                  gradient: _getCardGradient(),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getPrimaryColor().withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            backgroundColor: _getPrimaryColor(),
-            elevation: 0,
-            centerTitle: false,
-            iconTheme: IconThemeData(color: Colors.white),
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.refresh, color: Colors.white),
-                onPressed: _loadKelas,
-                tooltip: languageProvider.getTranslatedText({
-                  'en': 'Refresh',
-                  'id': 'Muat Ulang',
-                }),
-              ),
-            ],
-          ),
-          body: _isLoading
-              ? LoadingScreen(
-                  message: languageProvider.getTranslatedText({
-                    'en': 'Loading classes...',
-                    'id': 'Memuat kelas...',
-                  }),
-                )
-              : Column(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header Info
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: _getCardGradient(),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _getPrimaryColor().withOpacity(0.3),
-                            blurRadius: 12,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 50,
-                            height: 50,
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                languageProvider.getTranslatedText({
+                                  'en': 'Select Class',
+                                  'id': 'Pilih Kelas',
+                                }),
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                widget.mataPelajaran['nama'] ?? '',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.class_,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+
+                    // Info Mata Pelajaran
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
                               Icons.menu_book,
                               color: Colors.white,
-                              size: 24,
+                              size: 20,
                             ),
                           ),
                           SizedBox(width: 12),
@@ -849,26 +998,23 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  widget.mataPelajaran['nama'] ?? languageProvider.getTranslatedText({
-                                    'en': 'Subject',
-                                    'id': 'Mata Pelajaran',
-                                  }),
+                                  widget.mataPelajaran['nama'] ??
+                                      languageProvider.getTranslatedText({
+                                        'en': 'Subject',
+                                        'id': 'Mata Pelajaran',
+                                      }),
                                   style: TextStyle(
-                                    fontSize: 16,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
                                 ),
-                                SizedBox(height: 4),
                                 if (widget.mataPelajaran['kode'] != null)
                                   Text(
-                                    '${languageProvider.getTranslatedText({
-                                      'en': 'Code',
-                                      'id': 'Kode',
-                                    })}: ${widget.mataPelajaran['kode']}',
+                                    '${languageProvider.getTranslatedText({'en': 'Code', 'id': 'Kode'})}: ${widget.mataPelajaran['kode']}',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.8),
                                       fontSize: 12,
+                                      color: Colors.white.withOpacity(0.8),
                                     ),
                                   ),
                               ],
@@ -877,87 +1023,100 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                         ],
                       ),
                     ),
-                    
+                    SizedBox(height: 16),
+
                     // Search Bar
-                    Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 4,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: InputDecoration(
-                            hintText: languageProvider.getTranslatedText({
-                              'en': 'Search classes...',
-                              'id': 'Cari kelas...',
-                            }),
-                            prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    if (_filteredKelasList.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            Text(
-                              '${_filteredKelasList.length} ${languageProvider.getTranslatedText({
-                                'en': 'classes found',
-                                'id': 'kelas ditemukan',
-                              })}',
-                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                    SizedBox(height: 4),
-
-                    Expanded(
-                      child: _filteredKelasList.isEmpty
-                          ? EmptyState(
-                              title: languageProvider.getTranslatedText({
-                                'en': 'No classes available',
-                                'id': 'Tidak ada kelas',
-                              }),
-                              subtitle: _searchController.text.isEmpty
-                                  ? languageProvider.getTranslatedText({
-                                      'en': 'No classes available for this subject',
-                                      'id': 'Tidak ada kelas untuk mata pelajaran ini',
-                                    })
-                                  : languageProvider.getTranslatedText({
-                                      'en': 'No search results found',
-                                      'id': 'Tidak ditemukan hasil pencarian',
-                                    }),
-                              icon: Icons.class_,
-                            )
-                          : ListView.builder(
-                              itemCount: _filteredKelasList.length,
-                              itemBuilder: (context, index) {
-                                final kelas = _filteredKelasList[index];
-                                return _buildClassCard(kelas, languageProvider, index);
-                              },
-                            ),
+                    EnhancedSearchBar(
+                      controller: _searchController,
+                      onChanged: (value) => setState(() {}),
+                      hintText: languageProvider.getTranslatedText({
+                        'en': 'Search classes...',
+                        'id': 'Cari kelas...',
+                      }),
                     ),
                   ],
                 ),
+              ),
+
+              // Content
+              Expanded(
+                child: _isLoading
+                    ? LoadingScreen(
+                        message: languageProvider.getTranslatedText({
+                          'en': 'Loading classes...',
+                          'id': 'Memuat kelas...',
+                        }),
+                      )
+                    : _filteredKelasList.isEmpty
+                    ? EmptyState(
+                        icon: Icons.class_,
+                        title: languageProvider.getTranslatedText({
+                          'en': 'No Classes Available',
+                          'id': 'Tidak Ada Kelas',
+                        }),
+                        subtitle: languageProvider.getTranslatedText({
+                          'en': _searchController.text.isNotEmpty
+                              ? 'No classes found for your search'
+                              : 'No classes available for this subject',
+                          'id': _searchController.text.isNotEmpty
+                              ? 'Tidak ada kelas yang sesuai dengan pencarian'
+                              : 'Tidak ada kelas untuk mata pelajaran ini',
+                        }),
+                        buttonText: languageProvider.getTranslatedText({
+                          'en': 'Refresh',
+                          'id': 'Muat Ulang',
+                        }),
+                        onPressed: _loadKelas,
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _loadKelas,
+                        color: _getPrimaryColor(),
+                        backgroundColor: Colors.white,
+                        child: Column(
+                          children: [
+                            if (_filteredKelasList.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      '${_filteredKelasList.length} ${languageProvider.getTranslatedText({'en': 'classes found', 'id': 'kelas ditemukan'})}',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            Expanded(
+                              child: ListView.builder(
+                                padding: EdgeInsets.only(top: 8, bottom: 16),
+                                itemCount: _filteredKelasList.length,
+                                itemBuilder: (context, index) {
+                                  return _buildClassCard(
+                                    _filteredKelasList[index],
+                                    languageProvider,
+                                    index,
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 }
+
 // Halaman Grade Book/Tabel Nilai
 class GradeBookPage extends StatefulWidget {
   final Map<String, dynamic> guru;
@@ -1024,9 +1183,11 @@ class GradeBookPageState extends State<GradeBookPage> {
         _filteredSiswaList = List.from(_siswaList);
       } else {
         _filteredSiswaList = _siswaList
-            .where((siswa) =>
-                siswa.nama.toLowerCase().contains(query) ||
-                siswa.nis.toLowerCase().contains(query))
+            .where(
+              (siswa) =>
+                  siswa.nama.toLowerCase().contains(query) ||
+                  siswa.nis.toLowerCase().contains(query),
+            )
             .toList();
       }
     });
@@ -1066,7 +1227,10 @@ class GradeBookPageState extends State<GradeBookPage> {
           content: Text(
             context.read<LanguageProvider>().getTranslatedText({
               'en': message,
-              'id': message.replaceAll('Failed to load grade data:', 'Gagal memuat data nilai:'),
+              'id': message.replaceAll(
+                'Failed to load grade data:',
+                'Gagal memuat data nilai:',
+              ),
             }),
           ),
           backgroundColor: Colors.red.shade400,
@@ -1110,10 +1274,12 @@ class GradeBookPageState extends State<GradeBookPage> {
             children: [
               Icon(Icons.filter_list, color: ColorUtils.primaryColor),
               SizedBox(width: 8),
-              Text(languageProvider.getTranslatedText({
-                'en': 'Filter Grade Types',
-                'id': 'Filter Jenis Nilai',
-              })),
+              Text(
+                languageProvider.getTranslatedText({
+                  'en': 'Filter Grade Types',
+                  'id': 'Filter Jenis Nilai',
+                }),
+              ),
             ],
           ),
           content: SingleChildScrollView(
@@ -1139,20 +1305,24 @@ class GradeBookPageState extends State<GradeBookPage> {
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: Text(languageProvider.getTranslatedText({
-                'en': 'Cancel',
-                'id': 'Batal',
-              })),
+              child: Text(
+                languageProvider.getTranslatedText({
+                  'en': 'Cancel',
+                  'id': 'Batal',
+                }),
+              ),
             ),
             ElevatedButton(
               onPressed: () {
                 _updateFilteredJenisNilai();
                 Navigator.of(context).pop();
               },
-              child: Text(languageProvider.getTranslatedText({
-                'en': 'Apply',
-                'id': 'Terapkan',
-              })),
+              child: Text(
+                languageProvider.getTranslatedText({
+                  'en': 'Apply',
+                  'id': 'Terapkan',
+                }),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: ColorUtils.primaryColor,
                 foregroundColor: Colors.white,
@@ -1178,7 +1348,11 @@ class GradeBookPageState extends State<GradeBookPage> {
     }
   }
 
-  void _openInputForm(Siswa siswa, String jenisNilai, LanguageProvider languageProvider) {
+  void _openInputForm(
+    Siswa siswa,
+    String jenisNilai,
+    LanguageProvider languageProvider,
+  ) {
     final existingNilai = _getNilaiForSiswaAndJenis(siswa.id!, jenisNilai);
 
     Navigator.push(
@@ -1296,14 +1470,8 @@ class GradeBookPageState extends State<GradeBookPage> {
                             maxLines: 1,
                           ),
                           Text(
-                            '${languageProvider.getTranslatedText({
-                              'en': 'NIS',
-                              'id': 'NIS',
-                            })}: ${siswa.nis ?? ''}',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey,
-                            ),
+                            '${languageProvider.getTranslatedText({'en': 'NIS', 'id': 'NIS'})}: ${siswa.nis ?? ''}',
+                            style: TextStyle(fontSize: 10, color: Colors.grey),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
                           ),
@@ -1312,10 +1480,7 @@ class GradeBookPageState extends State<GradeBookPage> {
                     ),
                     // Kolom Nilai
                     ..._filteredJenisNilaiList.map((jenis) {
-                      final nilai = _getNilaiForSiswaAndJenis(
-                        siswa.id!,
-                        jenis,
-                      );
+                      final nilai = _getNilaiForSiswaAndJenis(siswa.id!, jenis);
                       final nilaiText = nilai?.isNotEmpty == true
                           ? nilai!['nilai'].toString()
                           : '-';
@@ -1325,7 +1490,8 @@ class GradeBookPageState extends State<GradeBookPage> {
                         width: 90,
                         padding: EdgeInsets.all(4),
                         child: GestureDetector(
-                          onTap: () => _openInputForm(siswa, jenis, languageProvider),
+                          onTap: () =>
+                              _openInputForm(siswa, jenis, languageProvider),
                           child: Container(
                             height: 40,
                             padding: EdgeInsets.all(6),
@@ -1394,10 +1560,7 @@ class GradeBookPageState extends State<GradeBookPage> {
           'id': 'UTS',
         });
       case 'uas':
-        return languageProvider.getTranslatedText({
-          'en': 'Final',
-          'id': 'UAS',
-        });
+        return languageProvider.getTranslatedText({'en': 'Final', 'id': 'UAS'});
       default:
         return jenis;
     }
@@ -1407,16 +1570,15 @@ class GradeBookPageState extends State<GradeBookPage> {
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
-        final activeFilterCount = _jenisNilaiFilter.values.where((v) => v).length;
+        final activeFilterCount = _jenisNilaiFilter.values
+            .where((v) => v)
+            .length;
 
         return Scaffold(
           backgroundColor: Colors.grey.shade50,
           appBar: AppBar(
             title: Text(
-              '${languageProvider.getTranslatedText({
-                'en': 'Grades',
-                'id': 'Nilai',
-              })} - ${widget.mataPelajaran['nama']} - ${widget.kelas['nama']}',
+              '${languageProvider.getTranslatedText({'en': 'Grades', 'id': 'Nilai'})} - ${widget.mataPelajaran['nama']} - ${widget.kelas['nama']}',
               style: TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 18,
@@ -1501,7 +1663,10 @@ class GradeBookPageState extends State<GradeBookPage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         border: Border(
-                          bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+                          bottom: BorderSide(
+                            color: Colors.grey.shade200,
+                            width: 1,
+                          ),
                         ),
                       ),
                       child: Column(
@@ -1517,10 +1682,7 @@ class GradeBookPageState extends State<GradeBookPage> {
                           ),
                           SizedBox(height: 8),
                           Text(
-                            '${languageProvider.getTranslatedText({
-                              'en': 'Grade types',
-                              'id': 'Jenis nilai',
-                            })}: ${_filteredJenisNilaiList.map((jenis) => _getJenisNilaiLabel(jenis, languageProvider)).join(', ')}',
+                            '${languageProvider.getTranslatedText({'en': 'Grade types', 'id': 'Jenis nilai'})}: ${_filteredJenisNilaiList.map((jenis) => _getJenisNilaiLabel(jenis, languageProvider)).join(', ')}',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey.shade600,
@@ -1529,7 +1691,7 @@ class GradeBookPageState extends State<GradeBookPage> {
                         ],
                       ),
                     ),
-                    
+
                     // Search Bar
                     Padding(
                       padding: EdgeInsets.all(16),
@@ -1552,9 +1714,15 @@ class GradeBookPageState extends State<GradeBookPage> {
                               'en': 'Search students...',
                               'id': 'Cari siswa...',
                             }),
-                            prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Colors.grey.shade600,
+                            ),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                           ),
                         ),
                       ),
@@ -1566,11 +1734,11 @@ class GradeBookPageState extends State<GradeBookPage> {
                         child: Row(
                           children: [
                             Text(
-                              '${_filteredSiswaList.length} ${languageProvider.getTranslatedText({
-                                'en': 'students found',
-                                'id': 'siswa ditemukan',
-                              })}',
-                              style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                              '${_filteredSiswaList.length} ${languageProvider.getTranslatedText({'en': 'students found', 'id': 'siswa ditemukan'})}',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
+                              ),
                             ),
                           ],
                         ),
@@ -1583,7 +1751,8 @@ class GradeBookPageState extends State<GradeBookPage> {
                       child: Text(
                         languageProvider.getTranslatedText({
                           'en': 'Click on grade cells to input/edit',
-                          'id': 'Klik pada kolom nilai untuk menginput/mengedit',
+                          'id':
+                              'Klik pada kolom nilai untuk menginput/mengedit',
                         }),
                         style: TextStyle(
                           fontSize: 12,
@@ -1732,16 +1901,15 @@ class GradeInputFormState extends State<GradeInputForm> {
 
         Navigator.pop(context);
       } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(
-          content: Text('${context.read<LanguageProvider>().getTranslatedText({
-            'en': 'Error:',
-            'id': 'Error:',
-          })} $e'),
-          backgroundColor: Colors.red.shade400,
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${context.read<LanguageProvider>().getTranslatedText({'en': 'Error:', 'id': 'Error:'})} $e',
+            ),
+            backgroundColor: Colors.red.shade400,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -1769,10 +1937,7 @@ class GradeInputFormState extends State<GradeInputForm> {
           'id': 'UTS',
         });
       case 'uas':
-        return languageProvider.getTranslatedText({
-          'en': 'Final',
-          'id': 'UAS',
-        });
+        return languageProvider.getTranslatedText({'en': 'Final', 'id': 'UAS'});
       default:
         return jenis;
     }
@@ -1839,10 +2004,7 @@ class GradeInputFormState extends State<GradeInputForm> {
                             Icon(Icons.person, color: ColorUtils.primaryColor),
                             SizedBox(width: 8),
                             Text(
-                              '${languageProvider.getTranslatedText({
-                                'en': 'Student',
-                                'id': 'Siswa',
-                              })}: ${widget.siswa.nama}',
+                              '${languageProvider.getTranslatedText({'en': 'Student', 'id': 'Siswa'})}: ${widget.siswa.nama}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: ColorUtils.primaryColor,
@@ -1855,35 +2017,34 @@ class GradeInputFormState extends State<GradeInputForm> {
                           children: [
                             Icon(Icons.badge, color: ColorUtils.primaryColor),
                             SizedBox(width: 8),
-                            Text('${languageProvider.getTranslatedText({
-                              'en': 'NIS',
-                              'id': 'NIS',
-                            })}: ${widget.siswa.nis}'),
-                          ],
-                        ),
-                        SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(Icons.menu_book, color: ColorUtils.primaryColor),
-                            SizedBox(width: 8),
                             Text(
-                              '${languageProvider.getTranslatedText({
-                                'en': 'Subject',
-                                'id': 'Mata Pelajaran',
-                              })}: ${widget.mataPelajaran['nama']}',
+                              '${languageProvider.getTranslatedText({'en': 'NIS', 'id': 'NIS'})}: ${widget.siswa.nis}',
                             ),
                           ],
                         ),
                         SizedBox(height: 8),
                         Row(
                           children: [
-                            Icon(Icons.assignment, color: ColorUtils.primaryColor),
+                            Icon(
+                              Icons.menu_book,
+                              color: ColorUtils.primaryColor,
+                            ),
                             SizedBox(width: 8),
                             Text(
-                              '${languageProvider.getTranslatedText({
-                                'en': 'Type',
-                                'id': 'Jenis',
-                              })}: ${_getJenisNilaiLabel(widget.jenisNilai, languageProvider)}',
+                              '${languageProvider.getTranslatedText({'en': 'Subject', 'id': 'Mata Pelajaran'})}: ${widget.mataPelajaran['nama']}',
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.assignment,
+                              color: ColorUtils.primaryColor,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              '${languageProvider.getTranslatedText({'en': 'Type', 'id': 'Jenis'})}: ${_getJenisNilaiLabel(widget.jenisNilai, languageProvider)}',
                             ),
                           ],
                         ),
@@ -1902,7 +2063,10 @@ class GradeInputFormState extends State<GradeInputForm> {
                         'id': 'Nilai',
                       }),
                       border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.score, color: ColorUtils.primaryColor),
+                      prefixIcon: Icon(
+                        Icons.score,
+                        color: ColorUtils.primaryColor,
+                      ),
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
@@ -1940,7 +2104,10 @@ class GradeInputFormState extends State<GradeInputForm> {
                         'id': 'Deskripsi',
                       }),
                       border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.description, color: ColorUtils.primaryColor),
+                      prefixIcon: Icon(
+                        Icons.description,
+                        color: ColorUtils.primaryColor,
+                      ),
                     ),
                     maxLines: 3,
                   ),
@@ -1964,7 +2131,10 @@ class GradeInputFormState extends State<GradeInputForm> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.calendar_today, color: ColorUtils.primaryColor),
+                        Icon(
+                          Icons.calendar_today,
+                          color: ColorUtils.primaryColor,
+                        ),
                         SizedBox(width: 12),
                         Text(
                           languageProvider.getTranslatedText({
@@ -1978,7 +2148,10 @@ class GradeInputFormState extends State<GradeInputForm> {
                           onPressed: () => _selectDate(context),
                           child: Text(
                             '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                            style: TextStyle(fontSize: 16, color: ColorUtils.primaryColor),
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: ColorUtils.primaryColor,
+                            ),
                           ),
                         ),
                       ],
@@ -2008,7 +2181,10 @@ class GradeInputFormState extends State<GradeInputForm> {
                               'en': 'Save Grade',
                               'id': 'Simpan Nilai',
                             }),
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -2060,10 +2236,7 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
     super.initState();
     // Initialize map dengan nilai default untuk setiap siswa
     for (var siswa in widget.siswaList) {
-      _nilaiSiswaMap[siswa.id!] = {
-        'nilai': '',
-        'deskripsi': '',
-      };
+      _nilaiSiswaMap[siswa.id!] = {'nilai': '', 'deskripsi': ''};
     }
   }
 
@@ -2083,15 +2256,17 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
 
   Future<void> _submitNilai() async {
     final languageProvider = context.read<LanguageProvider>();
-    
+
     if (_formKey.currentState!.validate()) {
       if (_selectedJenisNilai == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(languageProvider.getTranslatedText({
-              'en': 'Please select grade type first',
-              'id': 'Pilih jenis nilai terlebih dahulu',
-            })),
+            content: Text(
+              languageProvider.getTranslatedText({
+                'en': 'Please select grade type first',
+                'id': 'Pilih jenis nilai terlebih dahulu',
+              }),
+            ),
             backgroundColor: Colors.orange.shade400,
             behavior: SnackBarBehavior.floating,
           ),
@@ -2112,10 +2287,12 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
       if (!hasData) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(languageProvider.getTranslatedText({
-              'en': 'Enter grade for at least one student',
-              'id': 'Masukkan nilai untuk setidaknya satu siswa',
-            })),
+            content: Text(
+              languageProvider.getTranslatedText({
+                'en': 'Enter grade for at least one student',
+                'id': 'Masukkan nilai untuk setidaknya satu siswa',
+              }),
+            ),
             backgroundColor: Colors.orange.shade400,
             behavior: SnackBarBehavior.floating,
           ),
@@ -2125,11 +2302,11 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
 
       try {
         int successCount = 0;
-        
+
         for (var siswa in widget.siswaList) {
           final nilaiData = _nilaiSiswaMap[siswa.id!];
           final nilai = nilaiData?['nilai']?.toString().trim();
-          
+
           // Skip jika tidak ada nilai yang diinput
           if (nilai == null || nilai.isEmpty) {
             continue;
@@ -2167,16 +2344,15 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
 
         Navigator.pop(context);
       } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(
-          content: Text('${languageProvider.getTranslatedText({
-            'en': 'Error:',
-            'id': 'Error:',
-          })} $e'),
-          backgroundColor: Colors.red.shade400,
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${languageProvider.getTranslatedText({'en': 'Error:', 'id': 'Error:'})} $e',
+            ),
+            backgroundColor: Colors.red.shade400,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -2204,10 +2380,7 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
           'id': 'UTS',
         });
       case 'uas':
-        return languageProvider.getTranslatedText({
-          'en': 'Final',
-          'id': 'UAS',
-        });
+        return languageProvider.getTranslatedText({'en': 'Final', 'id': 'UAS'});
       default:
         return jenis;
     }
@@ -2215,8 +2388,12 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
 
   Widget _buildSiswaInputCard(Siswa siswa, LanguageProvider languageProvider) {
     final nilaiData = _nilaiSiswaMap[siswa.id!] ?? {};
-    final nilaiController = TextEditingController(text: nilaiData['nilai'] ?? '');
-    final deskripsiController = TextEditingController(text: nilaiData['deskripsi'] ?? '');
+    final nilaiController = TextEditingController(
+      text: nilaiData['nilai'] ?? '',
+    );
+    final deskripsiController = TextEditingController(
+      text: nilaiData['deskripsi'] ?? '',
+    );
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -2231,16 +2408,16 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
           ),
         ),
         title: Text(
-          siswa.nama ?? languageProvider.getTranslatedText({
-            'en': 'Student',
-            'id': 'Siswa',
-          }),
+          siswa.nama ??
+              languageProvider.getTranslatedText({
+                'en': 'Student',
+                'id': 'Siswa',
+              }),
           style: TextStyle(fontWeight: FontWeight.w500),
         ),
-        subtitle: Text('${languageProvider.getTranslatedText({
-          'en': 'NIS',
-          'id': 'NIS',
-        })}: ${siswa.nis ?? '-'}'),
+        subtitle: Text(
+          '${languageProvider.getTranslatedText({'en': 'NIS', 'id': 'NIS'})}: ${siswa.nis ?? '-'}',
+        ),
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -2255,7 +2432,10 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                       'id': 'Nilai',
                     }),
                     border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.score, color: ColorUtils.primaryColor),
+                    prefixIcon: Icon(
+                      Icons.score,
+                      color: ColorUtils.primaryColor,
+                    ),
                     hintText: languageProvider.getTranslatedText({
                       'en': 'Enter grade 0-100',
                       'id': 'Masukkan nilai 0-100',
@@ -2294,7 +2474,10 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                       'id': 'Deskripsi (Opsional)',
                     }),
                     border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.description, color: ColorUtils.primaryColor),
+                    prefixIcon: Icon(
+                      Icons.description,
+                      color: ColorUtils.primaryColor,
+                    ),
                     hintText: languageProvider.getTranslatedText({
                       'en': 'Enter grade description',
                       'id': 'Masukkan deskripsi nilai',
@@ -2318,13 +2501,14 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check_circle, color: Colors.green.shade600, size: 16),
+                        Icon(
+                          Icons.check_circle,
+                          color: Colors.green.shade600,
+                          size: 16,
+                        ),
                         const SizedBox(width: 4),
                         Text(
-                          '${languageProvider.getTranslatedText({
-                            'en': 'Grade',
-                            'id': 'Nilai',
-                          })}: ${nilaiData['nilai']}',
+                          '${languageProvider.getTranslatedText({'en': 'Grade', 'id': 'Nilai'})}: ${nilaiData['nilai']}',
                           style: TextStyle(
                             color: Colors.green.shade800,
                             fontSize: 12,
@@ -2397,17 +2581,18 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.menu_book, color: ColorUtils.primaryColor, size: 40),
+                          Icon(
+                            Icons.menu_book,
+                            color: ColorUtils.primaryColor,
+                            size: 40,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  '${languageProvider.getTranslatedText({
-                                    'en': 'Subject',
-                                    'id': 'Mata Pelajaran',
-                                  })}: ${widget.mataPelajaran['nama']}',
+                                  '${languageProvider.getTranslatedText({'en': 'Subject', 'id': 'Mata Pelajaran'})}: ${widget.mataPelajaran['nama']}',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
@@ -2418,10 +2603,7 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4.0),
                                     child: Text(
-                                      '${languageProvider.getTranslatedText({
-                                        'en': 'Code',
-                                        'id': 'Kode',
-                                      })}: ${widget.mataPelajaran['kode']}',
+                                      '${languageProvider.getTranslatedText({'en': 'Code', 'id': 'Kode'})}: ${widget.mataPelajaran['kode']}',
                                       style: TextStyle(fontSize: 12),
                                     ),
                                   ),
@@ -2433,7 +2615,10 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                       const SizedBox(height: 16),
                       // Pilih Jenis Nilai
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
@@ -2450,7 +2635,10 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                           value: _selectedJenisNilai,
                           decoration: InputDecoration(
                             border: InputBorder.none,
-                            prefixIcon: Icon(Icons.assignment, color: ColorUtils.primaryColor),
+                            prefixIcon: Icon(
+                              Icons.assignment,
+                              color: ColorUtils.primaryColor,
+                            ),
                             hintText: languageProvider.getTranslatedText({
                               'en': 'Select grade type',
                               'id': 'Pilih jenis nilai',
@@ -2459,7 +2647,9 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                           items: _jenisNilaiList.map((String jenis) {
                             return DropdownMenuItem<String>(
                               value: jenis,
-                              child: Text(_getJenisNilaiLabel(jenis, languageProvider)),
+                              child: Text(
+                                _getJenisNilaiLabel(jenis, languageProvider),
+                              ),
                             );
                           }).toList(),
                           onChanged: (String? newValue) {
@@ -2481,7 +2671,10 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                       const SizedBox(height: 16),
                       // Pilih Tanggal
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
@@ -2496,7 +2689,10 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.calendar_today, color: ColorUtils.primaryColor),
+                            Icon(
+                              Icons.calendar_today,
+                              color: ColorUtils.primaryColor,
+                            ),
                             const SizedBox(width: 12),
                             Text(
                               languageProvider.getTranslatedText({
@@ -2513,7 +2709,10 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                               onPressed: () => _selectDate(context),
                               child: Text(
                                 '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                                style: TextStyle(fontSize: 16, color: ColorUtils.primaryColor),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: ColorUtils.primaryColor,
+                                ),
                               ),
                             ),
                           ],
@@ -2527,7 +2726,10 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                 if (_selectedJenisNilai != null) ...[
                   const SizedBox(height: 16),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Row(
                       children: [
                         Text(
@@ -2543,21 +2745,27 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                         ),
                         const Spacer(),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: siswaWithNilaiCount > 0 ? Colors.green.shade50 : Colors.grey.shade100,
+                            color: siswaWithNilaiCount > 0
+                                ? Colors.green.shade50
+                                : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: siswaWithNilaiCount > 0 ? Colors.green.shade200 : Colors.grey.shade300,
+                              color: siswaWithNilaiCount > 0
+                                  ? Colors.green.shade200
+                                  : Colors.grey.shade300,
                             ),
                           ),
                           child: Text(
-                            '$siswaWithNilaiCount/${widget.siswaList.length} ${languageProvider.getTranslatedText({
-                              'en': 'students',
-                              'id': 'siswa',
-                            })}',
+                            '$siswaWithNilaiCount/${widget.siswaList.length} ${languageProvider.getTranslatedText({'en': 'students', 'id': 'siswa'})}',
                             style: TextStyle(
-                              color: siswaWithNilaiCount > 0 ? Colors.green.shade800 : Colors.grey.shade600,
+                              color: siswaWithNilaiCount > 0
+                                  ? Colors.green.shade800
+                                  : Colors.grey.shade600,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
@@ -2597,7 +2805,8 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                   const Expanded(
                     child: EmptyState(
                       title: 'Select grade type',
-                      subtitle: 'Please select grade type first to see student list',
+                      subtitle:
+                          'Please select grade type first to see student list',
                       icon: Icons.assignment,
                     ),
                   ),
@@ -2629,7 +2838,10 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                           'en': 'Save All Grades',
                           'id': 'Simpan Semua Nilai',
                         }),
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
