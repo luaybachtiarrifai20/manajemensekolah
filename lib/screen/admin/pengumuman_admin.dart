@@ -1621,7 +1621,7 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
   }
 
   Color _getPrimaryColor() {
-    return ColorUtils.primaryColor;
+    return ColorUtils.getRoleColor('admin');
   }
 
   LinearGradient _getCardGradient() {

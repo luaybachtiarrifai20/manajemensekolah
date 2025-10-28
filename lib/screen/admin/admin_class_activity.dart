@@ -1,13 +1,11 @@
 // admin_class_activity.dart
 import 'package:flutter/material.dart';
+import 'package:manajemensekolah/components/empty_state.dart';
+import 'package:manajemensekolah/components/error_screen.dart';
+import 'package:manajemensekolah/components/loading_screen.dart';
 import 'package:manajemensekolah/services/api_class_activity_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
-import 'package:manajemensekolah/components/enhanced_search_bar.dart';
-import 'package:manajemensekolah/components/empty_state.dart';
-import 'package:manajemensekolah/components/loading_screen.dart';
-import 'package:manajemensekolah/components/error_screen.dart';
 import 'package:manajemensekolah/services/excel_class_activity_service.dart';
-import 'package:manajemensekolah/utils/color_utils.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
 import 'package:provider/provider.dart';
 
@@ -30,10 +28,8 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
   bool _showTeacherList = true;
   String? _errorMessage;
 
-  // Search dan filter
+  // Search
   final TextEditingController _searchController = TextEditingController();
-  final List<String> _filterOptions = ['All', 'Assignment', 'Material'];
-  String _selectedFilter = 'All';
 
   // Animations
   late AnimationController _animationController;
@@ -191,7 +187,6 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
       _selectedTeacherId = null;
       _selectedTeacherName = null;
       _searchController.clear();
-      _selectedFilter = 'All';
     });
     _animationController.forward();
   }
@@ -220,20 +215,11 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
       final className = activity['kelas_nama']?.toString().toLowerCase() ?? '';
       final description = activity['deskripsi']?.toString().toLowerCase() ?? '';
 
-      final matchesSearch =
-          searchTerm.isEmpty ||
+      return searchTerm.isEmpty ||
           title.contains(searchTerm) ||
           subject.contains(searchTerm) ||
           className.contains(searchTerm) ||
           description.contains(searchTerm);
-
-      final isAssignment = activity['jenis'] == 'tugas';
-      final matchesFilter =
-          _selectedFilter == 'All' ||
-          (_selectedFilter == 'Assignment' && isAssignment) ||
-          (_selectedFilter == 'Material' && !isAssignment);
-
-      return matchesSearch && matchesFilter;
     }).toList();
   }
 
@@ -264,7 +250,12 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
         onTap: () =>
             _loadActivitiesByTeacher(teacher['id'].toString(), teacherName),
         child: Container(
-          margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+          margin: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: index == 0 ? 0 : 6,
+            bottom: 6,
+          ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
@@ -480,7 +471,12 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
         );
       },
       child: Container(
-        margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+        margin: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: index == 0 ? 0 : 6,
+          bottom: 6,
+        ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -1147,132 +1143,148 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
 
         return Scaffold(
           backgroundColor: Color(0xFFF8F9FA),
-          appBar: AppBar(
-            title: Text(
-              _showTeacherList
-                  ? languageProvider.getTranslatedText({
-                      'en': 'Class Activities - All Teachers',
-                      'id': 'Kegiatan Kelas - Semua Guru',
-                    })
-                  : languageProvider.getTranslatedText({
-                      'en': 'Activities - $_selectedTeacherName',
-                      'id': 'Kegiatan - $_selectedTeacherName',
-                    }),
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            backgroundColor: _getPrimaryColor(),
-            elevation: 0,
-            centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.white),
-            leading: _showTeacherList
-                ? null
-                : IconButton(
-                    icon: Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: _backToTeacherList,
-                    tooltip: languageProvider.getTranslatedText({
-                      'en': 'Back to teacher list',
-                      'id': 'Kembali ke daftar guru',
-                    }),
-                  ),
-            actions: [
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: Colors.white),
-                onSelected: (value) {
-                  switch (value) {
-                    case 'export':
-                      exportActivities();
-                      break;
-                    case 'refresh':
-                      if (_showTeacherList) {
-                        _loadTeachers();
-                      } else {
-                        if (_selectedTeacherId != null) {
-                          _loadActivitiesByTeacher(
-                            _selectedTeacherId!,
-                            _selectedTeacherName!,
-                          );
-                        }
-                      }
-                      break;
-                  }
-                },
-                itemBuilder: (BuildContext context) => [
-                  PopupMenuItem<String>(
-                    value: 'export',
-                    child: Row(
-                      children: [
-                        Icon(Icons.file_download, color: _getPrimaryColor()),
-                        SizedBox(width: 8),
-                        Text(
-                          languageProvider.getTranslatedText({
-                            'en': 'Export to Excel',
-                            'id': 'Export ke Excel',
-                          }),
-                        ),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'refresh',
-                    child: Row(
-                      children: [
-                        Icon(Icons.refresh, color: _getPrimaryColor()),
-                        SizedBox(width: 8),
-                        Text(
-                          languageProvider.getTranslatedText({
-                            'en': 'Refresh',
-                            'id': 'Refresh',
-                          }),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
           body: Column(
             children: [
-              EnhancedSearchBar(
-                controller: _searchController,
-                hintText: _showTeacherList
-                    ? languageProvider.getTranslatedText({
-                        'en': 'Search teachers...',
-                        'id': 'Cari guru...',
-                      })
-                    : languageProvider.getTranslatedText({
-                        'en': 'Search activities...',
-                        'id': 'Cari kegiatan...',
-                      }),
-                onChanged: (value) => setState(() {}),
-                filterOptions: _showTeacherList
-                    ? ['All', 'With Activities', 'Without Activities']
-                    : _filterOptions,
-                selectedFilter: _selectedFilter,
-                onFilterChanged: (filter) {
-                  setState(() {
-                    _selectedFilter = filter;
-                  });
-                },
-                showFilter: !_showTeacherList,
-              ),
-              if (filteredItems.isNotEmpty)
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${filteredItems.length} ${_showTeacherList ? languageProvider.getTranslatedText({'en': 'teachers found', 'id': 'guru ditemukan'}) : languageProvider.getTranslatedText({'en': 'activities found', 'id': 'kegiatan ditemukan'})}',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                      ),
-                    ],
-                  ),
+              // Header dengan gradient
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 16,
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
                 ),
-              SizedBox(height: 4),
+                decoration: BoxDecoration(
+                  gradient: _getCardGradient(),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getPrimaryColor().withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: _showTeacherList
+                              ? () => Navigator.pop(context)
+                              : _backToTeacherList,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _showTeacherList
+                                    ? languageProvider.getTranslatedText({
+                                        'en': 'Class Activities',
+                                        'id': 'Kegiatan Kelas',
+                                      })
+                                    : languageProvider.getTranslatedText({
+                                        'en': 'Activities - $_selectedTeacherName',
+                                        'id': 'Kegiatan - $_selectedTeacherName',
+                                      }),
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                _showTeacherList
+                                    ? languageProvider.getTranslatedText({
+                                        'en': 'View all teacher activities',
+                                        'id': 'Lihat semua kegiatan guru',
+                                      })
+                                    : languageProvider.getTranslatedText({
+                                        'en': 'View teacher activities',
+                                        'id': 'Lihat kegiatan guru',
+                                      }),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            _showTeacherList ? Icons.people : Icons.assignment,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+
+                    // Search Bar
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: (value) => setState(() {}),
+                              style: TextStyle(color: Colors.black87),
+                              decoration: InputDecoration(
+                                hintText: _showTeacherList
+                                    ? languageProvider.getTranslatedText({
+                                        'en': 'Search teachers...',
+                                        'id': 'Cari guru...',
+                                      })
+                                    : languageProvider.getTranslatedText({
+                                        'en': 'Search activities...',
+                                        'id': 'Cari kegiatan...',
+                                      }),
+                                hintStyle: TextStyle(color: Colors.grey),
+                                prefixIcon: Icon(Icons.search, color: Colors.grey),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Content
               Expanded(
                 child: filteredItems.isEmpty
                     ? EmptyState(
@@ -1306,6 +1318,7 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                             : Icons.event_note,
                       )
                     : ListView.builder(
+                        padding: EdgeInsets.only(top: 8),
                         itemCount: filteredItems.length,
                         itemBuilder: (context, index) {
                           final item = filteredItems[index];

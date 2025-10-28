@@ -1771,263 +1771,260 @@ class StudentManagementScreenState extends State<StudentManagementScreen>
 
         return Scaffold(
           backgroundColor: Color(0xFFF8F9FA),
-          // Dalam build method, update AppBar actions:
-          appBar: AppBar(
-            title: Text(
-              languageProvider.getTranslatedText({
-                'en': 'Manage Students',
-                'id': 'Kelola Siswa',
-              }),
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            backgroundColor: _getPrimaryColor(),
-            elevation: 0,
-            centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.white),
-            actions: [
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: Colors.white),
-                onSelected: (value) {
-                  switch (value) {
-                    case 'export':
-                      _exportToExcel();
-                      break;
-                    case 'import':
-                      _importFromExcel();
-                      break;
-                    case 'template':
-                      _downloadTemplate();
-                      break;
-                    case 'refresh':
-                      _loadData();
-                      break;
-                  }
-                },
-                itemBuilder: (BuildContext context) => [
-                  PopupMenuItem<String>(
-                    value: 'export',
-                    child: Row(
-                      children: [
-                        Icon(Icons.file_download, color: _getPrimaryColor()),
-                        SizedBox(width: 8),
-                        Text(
-                          languageProvider.getTranslatedText({
-                            'en': 'Export to Excel',
-                            'id': 'Export ke Excel',
-                          }),
-                        ),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'import',
-                    child: Row(
-                      children: [
-                        Icon(Icons.file_upload, color: _getPrimaryColor()),
-                        SizedBox(width: 8),
-                        Text(
-                          languageProvider.getTranslatedText({
-                            'en': 'Import from Excel',
-                            'id': 'Import dari Excel',
-                          }),
-                        ),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'template',
-                    child: Row(
-                      children: [
-                        Icon(Icons.download, color: _getPrimaryColor()),
-                        SizedBox(width: 8),
-                        Text(
-                          languageProvider.getTranslatedText({
-                            'en': 'Download Template',
-                            'id': 'Unduh Template',
-                          }),
-                        ),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'refresh',
-                    child: Row(
-                      children: [
-                        Icon(Icons.refresh, color: _getPrimaryColor()),
-                        SizedBox(width: 8),
-                        Text(
-                          languageProvider.getTranslatedText({
-                            'en': 'Refresh',
-                            'id': 'Refresh',
-                          }),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
           body: Column(
             children: [
-              // Search Bar with Filter Button
+              // Header
               Container(
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (value) => setState(() {}),
-                        decoration: InputDecoration(
-                          hintText: languageProvider.getTranslatedText({
-                            'en': 'Search students...',
-                            'id': 'Cari siswa...',
-                          }),
-                          prefixIcon: Icon(Icons.search, color: Colors.grey),
-                          filled: true,
-                          fillColor: Colors.grey.shade100,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 8),
-                    // Filter Button
-                    Stack(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: _hasActiveFilter
-                                ? _getPrimaryColor()
-                                : Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: IconButton(
-                            onPressed: _showFilterSheet,
-                            icon: Icon(
-                              Icons.tune,
-                              color: _hasActiveFilter
-                                  ? Colors.white
-                                  : Colors.grey.shade700,
-                            ),
-                            tooltip: languageProvider.getTranslatedText({
-                              'en': 'Filter',
-                              'id': 'Filter',
-                            }),
-                          ),
-                        ),
-                        if (_hasActiveFilter)
-                          Positioned(
-                            right: 8,
-                            top: 8,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                      ],
+                width: double.infinity,
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 16,
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [_getPrimaryColor(), _getPrimaryColor()],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getPrimaryColor().withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
                     ),
                   ],
                 ),
-              ),
-              
-              // Show active filters as chips
-              if (_hasActiveFilter)
-                Container(
-                  margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  height: 42,
-                  child: Row(
-                    children: [
-                      // Filter icon
-                      Container(
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: _getPrimaryColor().withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
                         ),
-                        child: Icon(
-                          Icons.filter_alt,
-                          size: 18,
-                          color: _getPrimaryColor(),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                languageProvider.getTranslatedText({
+                                  'en': 'Student Management',
+                                  'id': 'Manajemen Siswa',
+                                }),
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                languageProvider.getTranslatedText({
+                                  'en': 'Manage and monitor students',
+                                  'id': 'Kelola dan pantau siswa',
+                                }),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 8),
-                      // Scrollable filter chips
-                      Expanded(
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          children: [
-                            ..._buildFilterChips(languageProvider).map((filter) {
-                              return Container(
-                                margin: EdgeInsets.only(right: 6),
-                                child: Chip(
-                                  label: Text(
-                                    filter['label'],
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: _getPrimaryColor(),
-                                      fontWeight: FontWeight.w500,
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.school,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+
+                    // Search Bar with Filter Button
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: (value) => setState(() {}),
+                              style: TextStyle(color: Colors.black87),
+                              decoration: InputDecoration(
+                                hintText: languageProvider.getTranslatedText({
+                                  'en': 'Search students...',
+                                  'id': 'Cari siswa...',
+                                }),
+                                hintStyle: TextStyle(color: Colors.grey),
+                                prefixIcon: Icon(Icons.search, color: Colors.grey),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        // Filter Button
+                        Container(
+                          decoration: BoxDecoration(
+                            color: _hasActiveFilter
+                                ? Colors.white
+                                : Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              IconButton(
+                                onPressed: _showFilterSheet,
+                                icon: Icon(
+                                  Icons.tune,
+                                  color: _hasActiveFilter
+                                      ? _getPrimaryColor()
+                                      : Colors.white,
+                                ),
+                                tooltip: languageProvider.getTranslatedText({
+                                  'en': 'Filter',
+                                  'id': 'Filter',
+                                }),
+                              ),
+                              if (_hasActiveFilter)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    padding: EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: BoxConstraints(
+                                      minWidth: 8,
+                                      minHeight: 8,
                                     ),
                                   ),
-                                  deleteIcon: Icon(
-                                    Icons.close,
-                                    size: 16,
-                                    color: _getPrimaryColor(),
-                                  ),
-                                  onDeleted: filter['onRemove'],
-                                  backgroundColor: _getPrimaryColor().withOpacity(0.1),
-                                  side: BorderSide(
-                                    color: _getPrimaryColor().withOpacity(0.3),
-                                    width: 1,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  labelPadding: EdgeInsets.only(left: 4),
                                 ),
-                              );
-                            }).toList(),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    // Show active filters as chips
+                    if (_hasActiveFilter) ...[
+                      SizedBox(height: 12),
+                      Container(
+                        height: 42,
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.filter_alt,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: ListView(
+                                scrollDirection: Axis.horizontal,
+                                children: [
+                                  ..._buildFilterChips(languageProvider).map((filter) {
+                                    return Container(
+                                      margin: EdgeInsets.only(right: 6),
+                                      child: Chip(
+                                        label: Text(
+                                          filter['label'],
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: _getPrimaryColor(),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        deleteIcon: Icon(
+                                          Icons.close,
+                                          size: 16,
+                                          color: Colors.red,
+                                        ),
+                                        onDeleted: filter['onRemove'],
+                                        backgroundColor: Colors.white.withOpacity(0.2),
+                                        side: BorderSide(
+                                          color: Colors.white.withOpacity(0.3),
+                                          width: 1,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        labelPadding: EdgeInsets.only(left: 4),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            InkWell(
+                              onTap: _clearAllFilters,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.clear_all,
+                                  size: 18,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      SizedBox(width: 8),
-                      // Clear all button
-                      InkWell(
-                        onTap: _clearAllFilters,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Icon(
-                            Icons.clear_all,
-                            size: 18,
-                            color: Colors.red,
-                          ),
-                        ),
-                      ),
                     ],
-                  ),
+                  ],
                 ),
-              
+              ),
+
               if (filteredStudents.isNotEmpty)
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16),

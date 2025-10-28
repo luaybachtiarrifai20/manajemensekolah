@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
-import 'package:manajemensekolah/components/enhanced_search_bar.dart';
 import 'package:manajemensekolah/models/siswa.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_student_services.dart';
@@ -28,10 +27,6 @@ class GradePageState extends State<GradePage> {
   List<dynamic> _filteredMataPelajaranList = [];
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
-
-  // Filter options
-  final List<String> _filterOptions = ['All', 'With Grades', 'Without Grades'];
-  String _selectedFilter = 'All';
 
   @override
   void initState() {
@@ -142,7 +137,7 @@ class GradePageState extends State<GradePage> {
   }
 
   Color _getPrimaryColor() {
-    return ColorUtils.getRoleColor('guru');
+    return ColorUtils.getRoleColor(widget.guru['role'] ?? 'guru');
   }
 
   LinearGradient _getCardGradient() {
@@ -487,13 +482,29 @@ class GradePageState extends State<GradePage> {
                     SizedBox(height: 16),
 
                     // Search Bar
-                    EnhancedSearchBar(
-                      controller: _searchController,
-                      onChanged: (value) => setState(() {}),
-                      hintText: languageProvider.getTranslatedText({
-                        'en': 'Search subjects...',
-                        'id': 'Cari mata pelajaran...',
-                      }),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (value) => setState(() {}),
+                        style: TextStyle(color: Colors.black87),
+                        decoration: InputDecoration(
+                          hintText: languageProvider.getTranslatedText({
+                            'en': 'Search subjects...',
+                            'id': 'Cari mata pelajaran...',
+                          }),
+                          hintStyle: TextStyle(color: Colors.grey),
+                          prefixIcon: Icon(Icons.search, color: Colors.grey),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -692,7 +703,7 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
   }
 
   Color _getPrimaryColor() {
-    return ColorUtils.getRoleColor('guru');
+    return ColorUtils.getRoleColor(widget.guru['role'] ?? 'guru');
   }
 
   LinearGradient _getCardGradient() {
@@ -1026,13 +1037,29 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                     SizedBox(height: 16),
 
                     // Search Bar
-                    EnhancedSearchBar(
-                      controller: _searchController,
-                      onChanged: (value) => setState(() {}),
-                      hintText: languageProvider.getTranslatedText({
-                        'en': 'Search classes...',
-                        'id': 'Cari kelas...',
-                      }),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (value) => setState(() {}),
+                        style: TextStyle(color: Colors.black87),
+                        decoration: InputDecoration(
+                          hintText: languageProvider.getTranslatedText({
+                            'en': 'Search classes...',
+                            'id': 'Cari kelas...',
+                          }),
+                          hintStyle: TextStyle(color: Colors.grey),
+                          prefixIcon: Icon(Icons.search, color: Colors.grey),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),

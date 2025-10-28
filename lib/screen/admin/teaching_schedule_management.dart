@@ -4,11 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:manajemensekolah/components/confirmation_dialog.dart';
 import 'package:manajemensekolah/components/conflict_resolution_dialog.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
-import 'package:manajemensekolah/components/filter_section.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
 import 'package:manajemensekolah/components/schedule_form_dialog.dart';
 import 'package:manajemensekolah/components/schedule_list.dart';
-import 'package:manajemensekolah/components/enhanced_search_bar.dart';
 import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_schedule_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
@@ -49,21 +47,19 @@ class TeachingScheduleManagementScreenState
   List<dynamic> _jamPelajaranList = [];
 
   bool _isLoading = true;
-  String _selectedSemester = '1';
-  String _selectedAcademicYear = '2024/2025';
+  String _selectedSemester = '1'; // Will be set by _setDefaultAcademicPeriod()
+  String _selectedAcademicYear = '2024/2025'; // Will be set by _setDefaultAcademicPeriod()
   final TextEditingController _searchController = TextEditingController();
 
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
 
-  // Filter options untuk EnhancedSearchBar
-  final List<String> _filterOptions = [
-    'All',
-    'With Conflicts',
-    'Without Conflicts',
-  ];
-  String _selectedFilter = 'All';
+  // Filter state
+  String? _selectedFilterConflict;
+  String? _selectedFilterSemester;
+  String? _selectedFilterAcademicYear;
+  bool _hasActiveFilter = false;
 
   // Tambahan untuk tampilan tabel
   bool _showTableView = false;
@@ -87,7 +83,70 @@ class TeachingScheduleManagementScreenState
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
 
+    // Set default academic year and semester based on current date
+    _setDefaultAcademicPeriod();
+
     _loadData();
+  }
+
+  /// Calculate current academic year based on current date
+  /// Academic year runs from July to June
+  /// Example: Oct 2025 -> 2025/2026
+  String _getCurrentAcademicYear() {
+    final now = DateTime.now();
+    final currentYear = now.year;
+    final currentMonth = now.month;
+
+    // If month is July (7) or later, academic year is currentYear/nextYear
+    // If month is before July, academic year is previousYear/currentYear
+    if (currentMonth >= 7) {
+      return '$currentYear/${currentYear + 1}';
+    } else {
+      return '${currentYear - 1}/$currentYear';
+    }
+  }
+
+  /// Calculate current semester based on current date
+  /// Semester 1 (Ganjil): July - December
+  /// Semester 2 (Genap): January - June
+  String _getCurrentSemester() {
+    final now = DateTime.now();
+    final currentMonth = now.month;
+
+    // Semester 1 (Ganjil) = July to December (months 7-12)
+    // Semester 2 (Genap) = January to June (months 1-6)
+    if (currentMonth >= 7 && currentMonth <= 12) {
+      return '1'; // Semester Ganjil
+    } else {
+      return '2'; // Semester Genap
+    }
+  }
+
+  /// Set default academic period based on current date
+  void _setDefaultAcademicPeriod() {
+    _selectedAcademicYear = _getCurrentAcademicYear();
+    _selectedSemester = _getCurrentSemester();
+  }
+
+  /// Generate list of academic years (current year ± 2 years)
+  /// Example: If current is 2025/2026, returns [2023/2024, 2024/2025, 2025/2026, 2026/2027, 2027/2028]
+  List<String> _getAcademicYearOptions() {
+    final now = DateTime.now();
+    final currentYear = now.year;
+    final currentMonth = now.month;
+    
+    // Determine the starting year of current academic year
+    final academicStartYear = currentMonth >= 7 ? currentYear : currentYear - 1;
+    
+    // Generate list: 2 years before to 2 years after current academic year
+    final years = <String>[];
+    for (int i = -2; i <= 2; i++) {
+      final startYear = academicStartYear + i;
+      final endYear = startYear + 1;
+      years.add('$startYear/$endYear');
+    }
+    
+    return years;
   }
 
   @override
@@ -505,6 +564,293 @@ class TeachingScheduleManagementScreenState
     );
   }
 
+  void _checkActiveFilter() {
+    setState(() {
+      _hasActiveFilter = _selectedFilterConflict != null ||
+          _selectedFilterSemester != null ||
+          _selectedFilterAcademicYear != null;
+    });
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _selectedFilterConflict = null;
+      _selectedFilterSemester = null;
+      _selectedFilterAcademicYear = null;
+    });
+    _checkActiveFilter();
+  }
+
+  void _showFilterSheet() {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    
+    String? tempSelectedConflict = _selectedFilterConflict;
+    String? tempSelectedSemester = _selectedFilterSemester;
+    String? tempSelectedAcademicYear = _selectedFilterAcademicYear;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade200),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      languageProvider.getTranslatedText({
+                        'en': 'Filter',
+                        'id': 'Filter',
+                      }),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        setModalState(() {
+                          tempSelectedConflict = null;
+                          tempSelectedSemester = null;
+                          tempSelectedAcademicYear = null;
+                        });
+                      },
+                      child: Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Reset',
+                          'id': 'Reset',
+                        }),
+                        style: TextStyle(color: _getPrimaryColor()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Filter Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Conflict Filter
+                      Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Conflict Status',
+                          'id': 'Status Konflik',
+                        }),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: ['With Conflicts', 'Without Conflicts'].map((status) {
+                          final isSelected = tempSelectedConflict == status;
+                          final label = status == 'With Conflicts'
+                              ? languageProvider.getTranslatedText({'en': 'With Conflicts', 'id': 'Dengan Konflik'})
+                              : languageProvider.getTranslatedText({'en': 'Without Conflicts', 'id': 'Tanpa Konflik'});
+                          return FilterChip(
+                            label: Text(label),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setModalState(() {
+                                tempSelectedConflict = selected ? status : null;
+                              });
+                            },
+                            backgroundColor: Colors.grey.shade100,
+                            selectedColor: _getPrimaryColor().withOpacity(0.2),
+                            checkmarkColor: _getPrimaryColor(),
+                            labelStyle: TextStyle(
+                              color: isSelected ? _getPrimaryColor() : Colors.grey.shade700,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      SizedBox(height: 24),
+
+                      // Semester Filter
+                      Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Semester',
+                          'id': 'Semester',
+                        }),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _semesterList.map<Widget>((semester) {
+                          final semesterId = semester['id'].toString();
+                          final semesterName = semester['nama'] ?? 'Semester $semesterId';
+                          final isSelected = tempSelectedSemester == semesterId;
+                          return FilterChip(
+                            label: Text(semesterName),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setModalState(() {
+                                tempSelectedSemester = selected ? semesterId : null;
+                              });
+                            },
+                            backgroundColor: Colors.grey.shade100,
+                            selectedColor: _getPrimaryColor().withOpacity(0.2),
+                            checkmarkColor: _getPrimaryColor(),
+                            labelStyle: TextStyle(
+                              color: isSelected ? _getPrimaryColor() : Colors.grey.shade700,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      SizedBox(height: 24),
+
+                      // Academic Year Filter
+                      Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Academic Year',
+                          'id': 'Tahun Ajaran',
+                        }),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _getAcademicYearOptions().map((year) {
+                          final isSelected = tempSelectedAcademicYear == year;
+                          return FilterChip(
+                            label: Text(year),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setModalState(() {
+                                tempSelectedAcademicYear = selected ? year : null;
+                              });
+                            },
+                            backgroundColor: Colors.grey.shade100,
+                            selectedColor: _getPrimaryColor().withOpacity(0.2),
+                            checkmarkColor: _getPrimaryColor(),
+                            labelStyle: TextStyle(
+                              color: isSelected ? _getPrimaryColor() : Colors.grey.shade700,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Apply Button
+              Container(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(color: _getPrimaryColor()),
+                        ),
+                        child: Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Cancel',
+                            'id': 'Batal',
+                          }),
+                          style: TextStyle(color: _getPrimaryColor()),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          
+                          // Check if semester or academic year changed - need to reload data
+                          bool needsReload = false;
+                          if (tempSelectedSemester != null && tempSelectedSemester != _selectedSemester) {
+                            needsReload = true;
+                          }
+                          if (tempSelectedAcademicYear != null && tempSelectedAcademicYear != _selectedAcademicYear) {
+                            needsReload = true;
+                          }
+                          
+                          setState(() {
+                            _selectedFilterConflict = tempSelectedConflict;
+                            _selectedFilterSemester = tempSelectedSemester;
+                            _selectedFilterAcademicYear = tempSelectedAcademicYear;
+                            _hasActiveFilter = _selectedFilterConflict != null ||
+                                _selectedFilterSemester != null ||
+                                _selectedFilterAcademicYear != null;
+                            
+                            // Update main semester/year if filtered
+                            if (tempSelectedSemester != null) {
+                              _selectedSemester = tempSelectedSemester!;
+                            }
+                            if (tempSelectedAcademicYear != null) {
+                              _selectedAcademicYear = tempSelectedAcademicYear!;
+                            }
+                            
+                            if (_showTableView) {
+                              _updateGridData();
+                            }
+                          });
+                          
+                          // Reload data if semester or academic year changed
+                          if (needsReload) {
+                            _loadData();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _getPrimaryColor(),
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Apply',
+                            'id': 'Terapkan',
+                          }),
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   List<dynamic> _getFilteredSchedules() {
     final searchTerm = _searchController.text.toLowerCase();
     return _scheduleList.where((schedule) {
@@ -521,14 +867,20 @@ class TeachingScheduleManagementScreenState
           className.contains(searchTerm) ||
           dayName.contains(searchTerm);
 
-      final hasConflict = false;
+      // Apply conflict filter (client-side only)
+      // Note: hasConflict should be calculated based on actual conflict data
+      final hasConflict = false; // TODO: Implement conflict detection
+      bool matchesConflictFilter = true;
+      if (_selectedFilterConflict != null) {
+        if (_selectedFilterConflict == 'With Conflicts') {
+          matchesConflictFilter = hasConflict;
+        } else if (_selectedFilterConflict == 'Without Conflicts') {
+          matchesConflictFilter = !hasConflict;
+        }
+      }
 
-      final matchesFilter =
-          _selectedFilter == 'All' ||
-          (_selectedFilter == 'With Conflicts' && hasConflict) ||
-          (_selectedFilter == 'Without Conflicts' && !hasConflict);
-
-      return matchesSearch && matchesFilter;
+      // Note: Semester and academic year filters are handled by reloading data from server
+      return matchesSearch && matchesConflictFilter;
     }).toList();
   }
 
@@ -954,155 +1306,200 @@ class TeachingScheduleManagementScreenState
 
         final filteredSchedules = _getFilteredSchedules();
 
-        // Terjemahan filter options
-        final translatedFilterOptions = [
-          languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
-          languageProvider.getTranslatedText({
-            'en': 'With Conflicts',
-            'id': 'Dengan Konflik',
-          }),
-          languageProvider.getTranslatedText({
-            'en': 'Without Conflicts',
-            'id': 'Tanpa Konflik',
-          }),
-        ];
-
         return Scaffold(
           backgroundColor: Color(0xFFF8F9FA),
-          appBar: AppBar(
-            title: Text(
-              languageProvider.getTranslatedText({
-                'en': 'Manage Teaching Schedule',
-                'id': 'Kelola Jadwal Mengajar',
-              }),
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            backgroundColor: _getPrimaryColor(),
-            elevation: 0,
-            centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.white),
-            actions: [
-              IconButton(
-                icon: Icon(
-                  _showTableView ? Icons.view_list : Icons.table_chart,
-                  color: Colors.white,
-                ),
-                onPressed: () {
-                  setState(() {
-                    _showTableView = !_showTableView;
-                    if (_showTableView) {
-                      _updateGridData();
-                    }
-                  });
-                },
-                tooltip: _showTableView
-                    ? languageProvider.getTranslatedText({
-                        'en': 'Card View',
-                        'id': 'Tampilan Kartu',
-                      })
-                    : languageProvider.getTranslatedText({
-                        'en': 'Table View',
-                        'id': 'Tampilan Tabel',
-                      }),
-              ),
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: Colors.white),
-                onSelected: (value) {
-                  switch (value) {
-                    case 'export':
-                      _exportToExcel();
-                      break;
-                    case 'import':
-                      _importFromExcel();
-                      break;
-                    case 'template':
-                      _downloadTemplate();
-                      break;
-                    case 'refresh':
-                      _loadData();
-                      break;
-                  }
-                },
-                itemBuilder: (BuildContext context) => [
-                  PopupMenuItem<String>(
-                    value: 'export',
-                    child: Text(
-                      languageProvider.getTranslatedText({
-                        'en': 'Export to Excel',
-                        'id': 'Export ke Excel',
-                      }),
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'import',
-                    child: Text(
-                      languageProvider.getTranslatedText({
-                        'en': 'Import from Excel',
-                        'id': 'Import dari Excel',
-                      }),
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'template',
-                    child: Text(
-                      languageProvider.getTranslatedText({
-                        'en': 'Download Template',
-                        'id': 'Download Template',
-                      }),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
           body: Column(
             children: [
-              FilterSection(
-                selectedSemester: _selectedSemester,
-                selectedAcademicYear: _selectedAcademicYear,
-                semesterList: _semesterList,
-                onSemesterChanged: _onSemesterChanged,
-                onAcademicYearChanged: _onAcademicYearChanged,
-              ),
-              SizedBox(height: 8),
-              EnhancedSearchBar(
-                controller: _searchController,
-                hintText: languageProvider.getTranslatedText({
-                  'en': 'Search schedules...',
-                  'id': 'Cari jadwal...',
-                }),
-                onChanged: (value) {
-                  setState(() {
-                    if (_showTableView) {
-                      _updateGridData();
-                    }
-                  });
-                },
-                filterOptions: translatedFilterOptions,
-                selectedFilter:
-                    translatedFilterOptions[_selectedFilter == 'All'
-                        ? 0
-                        : _selectedFilter == 'With Conflicts'
-                        ? 1
-                        : 2],
-                onFilterChanged: (filter) {
-                  final index = translatedFilterOptions.indexOf(filter);
-                  setState(() {
-                    _selectedFilter = index == 0
-                        ? 'All'
-                        : index == 1
-                        ? 'With Conflicts'
-                        : 'Without Conflicts';
-                    if (_showTableView) {
-                      _updateGridData();
-                    }
-                  });
-                },
-                showFilter: true,
+              // Header dengan gradient
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 16,
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                ),
+                decoration: BoxDecoration(
+                  gradient: _getCardGradient(),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getPrimaryColor().withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                languageProvider.getTranslatedText({
+                                  'en': 'Teaching Schedule',
+                                  'id': 'Jadwal Mengajar',
+                                }),
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                languageProvider.getTranslatedText({
+                                  'en': 'Manage teaching schedules',
+                                  'id': 'Kelola jadwal mengajar',
+                                }),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _showTableView = !_showTableView;
+                              if (_showTableView) {
+                                _updateGridData();
+                              }
+                            });
+                          },
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              _showTableView ? Icons.view_list : Icons.table_chart,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.schedule,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+
+                    // Search Bar with Filter Button
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: (value) => setState(() {}),
+                              style: TextStyle(color: Colors.black87),
+                              decoration: InputDecoration(
+                                hintText: languageProvider.getTranslatedText({
+                                  'en': 'Search schedules...',
+                                  'id': 'Cari jadwal...',
+                                }),
+                                hintStyle: TextStyle(color: Colors.grey),
+                                prefixIcon: Icon(Icons.search, color: Colors.grey),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        // Filter Button
+                        Container(
+                          decoration: BoxDecoration(
+                            color: _hasActiveFilter
+                                ? Colors.white
+                                : Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              IconButton(
+                                onPressed: _showFilterSheet,
+                                icon: Icon(
+                                  Icons.tune,
+                                  color: _hasActiveFilter
+                                      ? _getPrimaryColor()
+                                      : Colors.white,
+                                ),
+                                tooltip: languageProvider.getTranslatedText({
+                                  'en': 'Filter',
+                                  'id': 'Filter',
+                                }),
+                              ),
+                              if (_hasActiveFilter)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    padding: EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: BoxConstraints(
+                                      minWidth: 8,
+                                      minHeight: 8,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               if (!_showTableView && filteredSchedules.isNotEmpty)
                 Padding(
@@ -1127,8 +1524,7 @@ class TeachingScheduleManagementScreenState
                           'id': 'Belum ada jadwal mengajar',
                         }),
                         subtitle:
-                            _searchController.text.isEmpty &&
-                                _selectedFilter == 'All'
+                            _searchController.text.isEmpty && !_hasActiveFilter
                             ? languageProvider.getTranslatedText({
                                 'en': 'Tap + to add new schedule',
                                 'id': 'Tap + untuk menambah jadwal baru',

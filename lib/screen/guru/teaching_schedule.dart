@@ -1,10 +1,11 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
+import 'package:manajemensekolah/components/enhanced_search_bar.dart';
 import 'package:manajemensekolah/components/filter_section.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
-import 'package:manajemensekolah/components/enhanced_search_bar.dart';
 import 'package:manajemensekolah/services/api_schedule_services.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
@@ -721,7 +722,7 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
                                 ),
                               ),
                             ];
-                          }).toList(),
+                          }),
                         ],
                       ),
                     ),
@@ -787,7 +788,7 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
                                 ),
                               );
                             }).toList();
-                          }).toList(),
+                          }),
                         ],
                       ),
                     ),
@@ -916,11 +917,11 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
                                       : Container(),
                                 );
                               }).toList();
-                            }).toList(),
+                            }),
                           ],
                         ),
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
               ),
