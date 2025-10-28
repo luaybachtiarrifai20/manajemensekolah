@@ -91,32 +91,58 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen>
     });
   }
 
-  String _buildFilterSummary(LanguageProvider languageProvider) {
-    List<String> filters = [];
+  List<Map<String, dynamic>> _buildFilterChips(LanguageProvider languageProvider) {
+    List<Map<String, dynamic>> filterChips = [];
     
     if (_selectedHomeroomFilter != null) {
       final statusText = _selectedHomeroomFilter == 'wali_kelas'
           ? languageProvider.getTranslatedText({'en': 'Homeroom Teacher', 'id': 'Wali Kelas'})
           : languageProvider.getTranslatedText({'en': 'Regular Teacher', 'id': 'Guru Biasa'});
-      filters.add('${languageProvider.getTranslatedText({'en': 'Status', 'id': 'Status'})}: $statusText');
+      filterChips.add({
+        'label': '${languageProvider.getTranslatedText({'en': 'Status', 'id': 'Status'})}: $statusText',
+        'onRemove': () {
+          setState(() {
+            _selectedHomeroomFilter = null;
+            _checkActiveFilter();
+          });
+        },
+      });
     }
     
     if (_selectedSubjectIds.isNotEmpty) {
-      final subjectNames = _subjects
-          .where((subject) => _selectedSubjectIds.contains(subject['id'].toString()))
-          .map((subject) => subject['nama'])
-          .join(', ');
-      filters.add('${languageProvider.getTranslatedText({'en': 'Subject', 'id': 'Mata Pelajaran'})}: $subjectNames');
+      for (var subjectId in _selectedSubjectIds) {
+        final subject = _subjects.firstWhere(
+          (s) => s['id'].toString() == subjectId,
+          orElse: () => {'nama': subjectId},
+        );
+        filterChips.add({
+          'label': '${languageProvider.getTranslatedText({'en': 'Subject', 'id': 'Mata Pelajaran'})}: ${subject['nama']}',
+          'onRemove': () {
+            setState(() {
+              _selectedSubjectIds.remove(subjectId);
+              _checkActiveFilter();
+            });
+          },
+        });
+      }
     }
     
     if (_selectedGenderFilter != null) {
       final genderText = _selectedGenderFilter == 'L' 
           ? languageProvider.getTranslatedText({'en': 'Male', 'id': 'Laki-laki'})
           : languageProvider.getTranslatedText({'en': 'Female', 'id': 'Perempuan'});
-      filters.add('${languageProvider.getTranslatedText({'en': 'Gender', 'id': 'Jenis Kelamin'})}: $genderText');
+      filterChips.add({
+        'label': '${languageProvider.getTranslatedText({'en': 'Gender', 'id': 'Jenis Kelamin'})}: $genderText',
+        'onRemove': () {
+          setState(() {
+            _selectedGenderFilter = null;
+            _checkActiveFilter();
+          });
+        },
+      });
     }
     
-    return filters.join(' • ');
+    return filterChips;
   }
 
   void _showFilterSheet() {
@@ -974,11 +1000,11 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen>
 
                                     try {
                                       final data = {
-                                        'name': name,
+                                        'nama': name,
                                         'email': email,
-                                        'class_id': selectedClassId,
+                                        'kelas_id': selectedClassId,
                                         'nip': nip,
-                                        'is_homeroom_teacher':
+                                        'is_wali_kelas':
                                             isHomeroomTeacher,
                                       };
 
@@ -1461,43 +1487,79 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen>
                 ),
               ),
               
-              // Show active filters indicator
+              // Show active filters as chips
               if (_hasActiveFilter)
                 Container(
                   margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _getPrimaryColor().withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _getPrimaryColor().withOpacity(0.3),
-                    ),
-                  ),
+                  height: 42,
                   child: Row(
                     children: [
-                      Icon(
-                        Icons.filter_alt,
-                        size: 16,
-                        color: _getPrimaryColor(),
+                      Container(
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _getPrimaryColor().withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.filter_alt,
+                          size: 18,
+                          color: _getPrimaryColor(),
+                        ),
                       ),
                       SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          _buildFilterSummary(languageProvider),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _getPrimaryColor(),
-                            fontWeight: FontWeight.w500,
-                          ),
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            ..._buildFilterChips(languageProvider).map((filter) {
+                              return Container(
+                                margin: EdgeInsets.only(right: 6),
+                                child: Chip(
+                                  label: Text(
+                                    filter['label'],
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: _getPrimaryColor(),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  deleteIcon: Icon(
+                                    Icons.close,
+                                    size: 16,
+                                    color: _getPrimaryColor(),
+                                  ),
+                                  onDeleted: filter['onRemove'],
+                                  backgroundColor: _getPrimaryColor().withOpacity(0.1),
+                                  side: BorderSide(
+                                    color: _getPrimaryColor().withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  labelPadding: EdgeInsets.only(left: 4),
+                                ),
+                              );
+                            }).toList(),
+                          ],
                         ),
                       ),
                       SizedBox(width: 8),
                       InkWell(
                         onTap: _clearAllFilters,
-                        child: Icon(
-                          Icons.close,
-                          size: 18,
-                          color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.clear_all,
+                            size: 18,
+                            color: Colors.red,
+                          ),
                         ),
                       ),
                     ],

@@ -79,22 +79,46 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
     });
   }
 
-  String _buildFilterSummary(LanguageProvider languageProvider) {
-    List<String> filters = [];
+  List<Map<String, dynamic>> _buildFilterChips(LanguageProvider languageProvider) {
+    List<Map<String, dynamic>> filterChips = [];
     
     if (_selectedPrioritasFilter != null) {
-      filters.add('${languageProvider.getTranslatedText({'en': 'Priority', 'id': 'Prioritas'})}: $_selectedPrioritasFilter');
+      filterChips.add({
+        'label': '${languageProvider.getTranslatedText({'en': 'Priority', 'id': 'Prioritas'})}: $_selectedPrioritasFilter',
+        'onRemove': () {
+          setState(() {
+            _selectedPrioritasFilter = null;
+            _checkActiveFilter();
+          });
+        },
+      });
     }
     
     if (_selectedTargetFilter != null) {
-      filters.add('${languageProvider.getTranslatedText({'en': 'Target', 'id': 'Target'})}: $_selectedTargetFilter');
+      filterChips.add({
+        'label': '${languageProvider.getTranslatedText({'en': 'Target', 'id': 'Target'})}: $_selectedTargetFilter',
+        'onRemove': () {
+          setState(() {
+            _selectedTargetFilter = null;
+            _checkActiveFilter();
+          });
+        },
+      });
     }
     
     if (_selectedStatusFilter != null) {
-      filters.add('${languageProvider.getTranslatedText({'en': 'Status', 'id': 'Status'})}: $_selectedStatusFilter');
+      filterChips.add({
+        'label': '${languageProvider.getTranslatedText({'en': 'Status', 'id': 'Status'})}: $_selectedStatusFilter',
+        'onRemove': () {
+          setState(() {
+            _selectedStatusFilter = null;
+            _checkActiveFilter();
+          });
+        },
+      });
     }
     
-    return filters.join(' • ');
+    return filterChips;
   }
 
   void _showFilterSheet() {
@@ -1838,38 +1862,80 @@ class PengumumanManagementScreenState extends State<PengumumanManagementScreen>
                       ],
                     ),
                     
-                    // Show active filters indicator
+                    // Show active filters as chips
                     if (_hasActiveFilter) ...[
                       SizedBox(height: 12),
                       Container(
-                        padding: EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                          ),
-                        ),
+                        height: 42,
                         child: Row(
                           children: [
-                            Icon(Icons.filter_alt, 
-                              size: 16, 
-                              color: Colors.white),
+                            Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.filter_alt,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                            ),
                             SizedBox(width: 8),
                             Expanded(
-                              child: Text(
-                                _buildFilterSummary(languageProvider),
-                                style: TextStyle(
-                                  fontSize: 12,
+                              child: ListView(
+                                scrollDirection: Axis.horizontal,
+                                children: [
+                                  ..._buildFilterChips(languageProvider).map((filter) {
+                                    return Container(
+                                      margin: EdgeInsets.only(right: 6),
+                                      child: Chip(
+                                        label: Text(
+                                          filter['label'],
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: _getPrimaryColor(),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        deleteIcon: Icon(
+                                          Icons.close,
+                                          size: 16,
+                                          color: Colors.red,
+                                        ),
+                                        onDeleted: filter['onRemove'],
+                                        backgroundColor: Colors.white.withOpacity(0.2),
+                                        side: BorderSide(
+                                          color: Colors.white.withOpacity(0.3),
+                                          width: 1,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        labelPadding: EdgeInsets.only(left: 4),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            InkWell(
+                              onTap: _clearAllFilters,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.clear_all,
+                                  size: 18,
                                   color: Colors.white,
                                 ),
                               ),
-                            ),
-                            InkWell(
-                              onTap: _clearAllFilters,
-                              child: Icon(Icons.close, 
-                                size: 18, 
-                                color: Colors.white),
                             ),
                           ],
                         ),

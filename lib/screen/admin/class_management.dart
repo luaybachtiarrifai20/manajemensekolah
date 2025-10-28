@@ -84,32 +84,64 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
     });
   }
 
-  String _buildFilterSummary(LanguageProvider languageProvider) {
-    List<String> filters = [];
+  List<Map<String, dynamic>> _buildFilterChips(LanguageProvider languageProvider) {
+    List<Map<String, dynamic>> filterChips = [];
     
     if (_selectedTingkatFilter != null) {
-      filters.add('${languageProvider.getTranslatedText({'en': 'Level', 'id': 'Tingkat'})}: $_selectedTingkatFilter');
+      filterChips.add({
+        'label': '${languageProvider.getTranslatedText({'en': 'Level', 'id': 'Tingkat'})}: $_selectedTingkatFilter',
+        'onRemove': () {
+          setState(() {
+            _selectedTingkatFilter = null;
+            _checkActiveFilter();
+          });
+        },
+      });
     }
     
     if (_selectedKelasFilter != null) {
-      filters.add('${languageProvider.getTranslatedText({'en': 'Grade', 'id': 'Kelas'})}: $_selectedKelasFilter');
+      filterChips.add({
+        'label': '${languageProvider.getTranslatedText({'en': 'Grade', 'id': 'Kelas'})}: $_selectedKelasFilter',
+        'onRemove': () {
+          setState(() {
+            _selectedKelasFilter = null;
+            _checkActiveFilter();
+          });
+        },
+      });
     }
     
     if (_selectedHomeroomFilter != null) {
       final statusText = _selectedHomeroomFilter == 'ada'
           ? languageProvider.getTranslatedText({'en': 'Has Homeroom', 'id': 'Ada Wali Kelas'})
           : languageProvider.getTranslatedText({'en': 'No Homeroom', 'id': 'Tanpa Wali Kelas'});
-      filters.add('${languageProvider.getTranslatedText({'en': 'Homeroom', 'id': 'Wali Kelas'})}: $statusText');
+      filterChips.add({
+        'label': '${languageProvider.getTranslatedText({'en': 'Homeroom', 'id': 'Wali Kelas'})}: $statusText',
+        'onRemove': () {
+          setState(() {
+            _selectedHomeroomFilter = null;
+            _checkActiveFilter();
+          });
+        },
+      });
     }
     
     if (_selectedSiswaFilter != null) {
       final siswaText = _selectedSiswaFilter == 'ada'
           ? languageProvider.getTranslatedText({'en': 'Has Students', 'id': 'Ada Siswa'})
           : languageProvider.getTranslatedText({'en': 'Empty', 'id': 'Kosong'});
-      filters.add('${languageProvider.getTranslatedText({'en': 'Students', 'id': 'Siswa'})}: $siswaText');
+      filterChips.add({
+        'label': '${languageProvider.getTranslatedText({'en': 'Students', 'id': 'Siswa'})}: $siswaText',
+        'onRemove': () {
+          setState(() {
+            _selectedSiswaFilter = null;
+            _checkActiveFilter();
+          });
+        },
+      });
     }
     
-    return filters.join(' • ');
+    return filterChips;
   }
 
   void _showFilterSheet() {
@@ -1613,38 +1645,80 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                 ),
               ),
               
-              // Show active filters indicator
+              // Show active filters as chips
               if (_hasActiveFilter)
                 Container(
                   margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: _getPrimaryColor().withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _getPrimaryColor().withOpacity(0.3),
-                    ),
-                  ),
+                  height: 42,
                   child: Row(
                     children: [
-                      Icon(Icons.filter_alt, 
-                        size: 16, 
-                        color: _getPrimaryColor()),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _buildFilterSummary(languageProvider),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: _getPrimaryColor(),
-                          ),
+                      Container(
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _getPrimaryColor().withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.filter_alt,
+                          size: 18,
+                          color: _getPrimaryColor(),
                         ),
                       ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            ..._buildFilterChips(languageProvider).map((filter) {
+                              return Container(
+                                margin: EdgeInsets.only(right: 6),
+                                child: Chip(
+                                  label: Text(
+                                    filter['label'],
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: _getPrimaryColor(),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  deleteIcon: Icon(
+                                    Icons.close,
+                                    size: 16,
+                                    color: _getPrimaryColor(),
+                                  ),
+                                  onDeleted: filter['onRemove'],
+                                  backgroundColor: _getPrimaryColor().withOpacity(0.1),
+                                  side: BorderSide(
+                                    color: _getPrimaryColor().withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  labelPadding: EdgeInsets.only(left: 4),
+                                ),
+                              );
+                            }).toList(),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: 8),
                       InkWell(
                         onTap: _clearAllFilters,
-                        child: Icon(Icons.close, 
-                          size: 18, 
-                          color: _getPrimaryColor()),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.clear_all,
+                            size: 18,
+                            color: Colors.red,
+                          ),
+                        ),
                       ),
                     ],
                   ),
