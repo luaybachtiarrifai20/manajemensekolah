@@ -9,7 +9,6 @@ import 'package:manajemensekolah/components/confirmation_dialog.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/error_screen.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
-import 'package:manajemensekolah/components/teacher_list_item.dart';
 import 'package:manajemensekolah/screen/admin/teacher_detail_screen.dart';
 import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_subject_services.dart';
@@ -1254,6 +1253,307 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen>
     );
   }
 
+  Widget _buildTeacherCard(Map<String, dynamic> teacher, int index) {
+    final languageProvider = context.read<LanguageProvider>();
+    final isHomeroomTeacher = teacher['is_wali_kelas'] == 1 || teacher['is_wali_kelas'] == true;
+    final className = teacher['class_name'] ?? '-';
+    
+    return GestureDetector(
+      onTap: () => _navigateToDetail(teacher),
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _navigateToDetail(teacher),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.3),
+                    blurRadius: 5,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  // Strip biru di pinggir kiri
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 6,
+                      decoration: BoxDecoration(
+                        color: _getPrimaryColor(),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(16),
+                          bottomLeft: Radius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Background pattern effect
+                  Positioned(
+                    right: -8,
+                    top: -8,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header dengan nama dan NIP
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    teacher['nama'] ?? 'No Name',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'NIP: ${teacher['nip'] ?? '-'}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (isHomeroomTeacher)
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getPrimaryColor().withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: _getPrimaryColor().withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Text(
+                                  languageProvider.getTranslatedText({
+                                    'en': 'Homeroom',
+                                    'id': 'Wali Kelas',
+                                  }),
+                                  style: TextStyle(
+                                    color: _getPrimaryColor(),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+
+                        SizedBox(height: 12),
+
+                        // Informasi email
+                        Row(
+                          children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: _getPrimaryColor().withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                Icons.email,
+                                color: _getPrimaryColor(),
+                                size: 16,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Email',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(height: 1),
+                                  Text(
+                                    teacher['email'] ?? '-',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // Informasi kelas (jika wali kelas)
+                        if (isHomeroomTeacher && className != '-') ...[
+                          SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: _getPrimaryColor().withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(
+                                  Icons.class_,
+                                  color: _getPrimaryColor(),
+                                  size: 16,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      languageProvider.getTranslatedText({
+                                        'en': 'Class',
+                                        'id': 'Kelas',
+                                      }),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 1),
+                                    Text(
+                                      className,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+
+                        SizedBox(height: 12),
+
+                        // Action buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            _buildActionButton(
+                              icon: Icons.edit,
+                              label: languageProvider.getTranslatedText({
+                                'en': 'Edit',
+                                'id': 'Edit',
+                              }),
+                              color: _getPrimaryColor(),
+                              backgroundColor: Colors.white,
+                              borderColor: _getPrimaryColor(),
+                              onPressed: () => _showAddEditDialog(teacher: teacher),
+                            ),
+                            SizedBox(width: 8),
+                            _buildActionButton(
+                              icon: Icons.delete,
+                              label: languageProvider.getTranslatedText({
+                                'en': 'Delete',
+                                'id': 'Hapus',
+                              }),
+                              color: Colors.red,
+                              backgroundColor: Colors.white,
+                              borderColor: Colors.red,
+                              onPressed: () => _deleteTeacher(teacher),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    Color? backgroundColor,
+    Color? borderColor,
+    required VoidCallback onPressed,
+  }) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: backgroundColor ?? color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: borderColor ?? color,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color),
+            SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Color _getPrimaryColor() {
     return ColorUtils.getRoleColor('admin');
   }
@@ -1668,7 +1968,7 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen>
                     : RefreshIndicator(
                         onRefresh: _loadData,
                         child: ListView.builder(
-                          padding: EdgeInsets.all(16),
+                          padding: EdgeInsets.symmetric(vertical: 8),
                           itemCount: filteredTeachers.length,
                           itemBuilder: (context, index) {
                             final teacher = filteredTeachers[index];
@@ -1693,14 +1993,7 @@ class TeacherAdminScreenState extends State<TeacherAdminScreen>
                                   ),
                                 );
                               },
-                              child: TeacherListItem(
-                                guru: teacher,
-                                index: index,
-                                onTap: () => _navigateToDetail(teacher),
-                                onEdit: () =>
-                                    _showAddEditDialog(teacher: teacher),
-                                onDelete: () => _deleteTeacher(teacher),
-                              ),
+                              child: _buildTeacherCard(teacher, index),
                             );
                           },
                         ),

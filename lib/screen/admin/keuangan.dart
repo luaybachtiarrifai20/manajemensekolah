@@ -8,7 +8,7 @@ import 'package:manajemensekolah/components/confirmation_dialog.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/error_screen.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
-import 'package:manajemensekolah/components/enhanced_search_bar.dart';
+import 'package:manajemensekolah/utils/color_utils.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
 
 class KeuanganScreen extends StatefulWidget {
@@ -35,8 +35,9 @@ class KeuanganScreenState extends State<KeuanganScreen>
 
   // Search dan filter
   final TextEditingController _searchController = TextEditingController();
-  final List<String> _filterOptions = ['All', 'Aktif', 'Non-Aktif'];
-  String _selectedFilter = 'All';
+  String? _selectedStatusFilter; // 'aktif', 'non_aktif', atau null untuk semua
+  String? _selectedPeriodeFilter; // 'bulanan', 'tahunan', atau null untuk semua
+  bool _hasActiveFilter = false;
 
   // Variabel untuk modal pemilihan tujuan
   List<dynamic> _selectedKelas = [];
@@ -75,6 +76,351 @@ class KeuanganScreenState extends State<KeuanganScreen>
     _searchController.dispose();
     _searchSiswaController.dispose();
     super.dispose();
+  }
+
+  void _checkActiveFilter() {
+    setState(() {
+      _hasActiveFilter =
+          _selectedStatusFilter != null || _selectedPeriodeFilter != null;
+    });
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _selectedStatusFilter = null;
+      _selectedPeriodeFilter = null;
+      _hasActiveFilter = false;
+    });
+  }
+
+  List<Map<String, dynamic>> _buildFilterChips(
+    LanguageProvider languageProvider,
+  ) {
+    List<Map<String, dynamic>> filterChips = [];
+
+    if (_selectedStatusFilter != null) {
+      final statusText = _selectedStatusFilter == 'aktif'
+          ? languageProvider.getTranslatedText({'en': 'Active', 'id': 'Aktif'})
+          : languageProvider.getTranslatedText({
+              'en': 'Inactive',
+              'id': 'Non-Aktif',
+            });
+      filterChips.add({
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Status', 'id': 'Status'})}: $statusText',
+        'onRemove': () {
+          setState(() {
+            _selectedStatusFilter = null;
+            _checkActiveFilter();
+          });
+        },
+      });
+    }
+
+    if (_selectedPeriodeFilter != null) {
+      final periodeText = _selectedPeriodeFilter == 'bulanan'
+          ? languageProvider.getTranslatedText({
+              'en': 'Monthly',
+              'id': 'Bulanan',
+            })
+          : languageProvider.getTranslatedText({
+              'en': 'Yearly',
+              'id': 'Tahunan',
+            });
+      filterChips.add({
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Period', 'id': 'Periode'})}: $periodeText',
+        'onRemove': () {
+          setState(() {
+            _selectedPeriodeFilter = null;
+            _checkActiveFilter();
+          });
+        },
+      });
+    }
+
+    return filterChips;
+  }
+
+  void _showFilterSheet() {
+    final languageProvider = context.read<LanguageProvider>();
+
+    // Temporary state for bottom sheet
+    String? tempSelectedStatus = _selectedStatusFilter;
+    String? tempSelectedPeriode = _selectedPeriodeFilter;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade200),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      languageProvider.getTranslatedText({
+                        'en': 'Filter',
+                        'id': 'Filter',
+                      }),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        setModalState(() {
+                          tempSelectedStatus = null;
+                          tempSelectedPeriode = null;
+                        });
+                      },
+                      child: Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Reset',
+                          'id': 'Reset',
+                        }),
+                        style: TextStyle(color: _getPrimaryColor()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Filter Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment
+                        .start, // Ubah ke start agar konten lebih ke kiri
+                    children: [
+                      // Status Filter
+                      Container(
+                        width: double
+                            .infinity, // Pastikan container memenuhi lebar
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment
+                              .start, // Konten di dalam juga rata kiri
+                          children: [
+                            Text(
+                              languageProvider.getTranslatedText({
+                                'en': 'Status',
+                                'id': 'Status',
+                              }),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            SizedBox(height: 12),
+                            Wrap(
+                              alignment: WrapAlignment
+                                  .start, // Pastikan chip mulai dari kiri
+                              spacing: 8,
+                              runSpacing: 8,
+                              children:
+                                  [
+                                    {
+                                      'value': 'aktif',
+                                      'label': languageProvider
+                                          .getTranslatedText({
+                                            'en': 'Active',
+                                            'id': 'Aktif',
+                                          }),
+                                    },
+                                    {
+                                      'value': 'non_aktif',
+                                      'label': languageProvider
+                                          .getTranslatedText({
+                                            'en': 'Inactive',
+                                            'id': 'Non-Aktif',
+                                          }),
+                                    },
+                                  ].map((item) {
+                                    final isSelected =
+                                        tempSelectedStatus == item['value'];
+                                    return FilterChip(
+                                      label: Text(item['label']!),
+                                      selected: isSelected,
+                                      onSelected: (selected) {
+                                        setModalState(() {
+                                          tempSelectedStatus = selected
+                                              ? item['value']
+                                              : null;
+                                        });
+                                      },
+                                      backgroundColor: Colors.grey.shade100,
+                                      selectedColor: _getPrimaryColor()
+                                          .withOpacity(0.2),
+                                      checkmarkColor: _getPrimaryColor(),
+                                      labelStyle: TextStyle(
+                                        color: isSelected
+                                            ? _getPrimaryColor()
+                                            : Colors.grey.shade700,
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                      ),
+                                    );
+                                  }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 24),
+
+                      // Divider seperti pada gambar
+                      Container(
+                        height: 1,
+                        color: Colors.grey.shade300,
+                        margin: EdgeInsets.symmetric(vertical: 8),
+                      ),
+
+                      // Periode Filter
+                      Container(
+                        width: double
+                            .infinity, // Pastikan container memenuhi lebar
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment
+                              .start, // Konten di dalam juga rata kiri
+                          children: [
+                            Text(
+                              languageProvider.getTranslatedText({
+                                'en': 'Payment Period',
+                                'id': 'Periode Pembayaran',
+                              }),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            SizedBox(height: 12),
+                            Wrap(
+                              alignment: WrapAlignment
+                                  .start, // Pastikan chip mulai dari kiri
+                              spacing: 8,
+                              runSpacing: 8,
+                              children:
+                                  [
+                                    {
+                                      'value': 'bulanan',
+                                      'label': languageProvider
+                                          .getTranslatedText({
+                                            'en': 'Monthly',
+                                            'id': 'Bulanan',
+                                          }),
+                                    },
+                                    {
+                                      'value': 'tahunan',
+                                      'label': languageProvider
+                                          .getTranslatedText({
+                                            'en': 'Yearly',
+                                            'id': 'Tahunan',
+                                          }),
+                                    },
+                                  ].map((item) {
+                                    final isSelected =
+                                        tempSelectedPeriode == item['value'];
+                                    return FilterChip(
+                                      label: Text(item['label']!),
+                                      selected: isSelected,
+                                      onSelected: (selected) {
+                                        setModalState(() {
+                                          tempSelectedPeriode = selected
+                                              ? item['value']
+                                              : null;
+                                        });
+                                      },
+                                      backgroundColor: Colors.grey.shade100,
+                                      selectedColor: _getPrimaryColor()
+                                          .withOpacity(0.2),
+                                      checkmarkColor: _getPrimaryColor(),
+                                      labelStyle: TextStyle(
+                                        color: isSelected
+                                            ? _getPrimaryColor()
+                                            : Colors.grey.shade700,
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                      ),
+                                    );
+                                  }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Apply Button
+              Container(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(color: _getPrimaryColor()),
+                        ),
+                        child: Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Cancel',
+                            'id': 'Batal',
+                          }),
+                          style: TextStyle(color: _getPrimaryColor()),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          setState(() {
+                            _selectedStatusFilter = tempSelectedStatus;
+                            _selectedPeriodeFilter = tempSelectedPeriode;
+                            _checkActiveFilter();
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: _getPrimaryColor(),
+                        ),
+                        child: Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Apply',
+                            'id': 'Terapkan',
+                          }),
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadData() async {
@@ -1941,12 +2287,21 @@ class KeuanganScreenState extends State<KeuanganScreen>
           nama.contains(searchTerm) ||
           deskripsi.contains(searchTerm);
 
-      final matchesFilter =
-          _selectedFilter == 'All' ||
-          (_selectedFilter == 'Aktif' && item['status'] == 'aktif') ||
-          (_selectedFilter == 'Non-Aktif' && item['status'] == 'non-aktif');
+      // Status filter
+      final matchesStatus =
+          _selectedStatusFilter == null ||
+          (_selectedStatusFilter == 'aktif' && item['status'] == 'aktif') ||
+          (_selectedStatusFilter == 'non_aktif' &&
+              item['status'] == 'non-aktif');
 
-      return matchesSearch && matchesFilter;
+      // Periode filter
+      final matchesPeriode =
+          _selectedPeriodeFilter == null ||
+          (_selectedPeriodeFilter == 'bulanan' &&
+              item['periode'] == 'bulanan') ||
+          (_selectedPeriodeFilter == 'tahunan' && item['periode'] == 'tahunan');
+
+      return matchesSearch && matchesStatus && matchesPeriode;
     }).toList();
   }
 
@@ -1961,7 +2316,7 @@ class KeuanganScreenState extends State<KeuanganScreen>
             parent: _animationController,
             curve: Interval(delay, 1.0, curve: Curves.easeOut),
           );
-      
+
           return FadeTransition(
             opacity: animation,
             child: Transform.translate(
@@ -2005,7 +2360,7 @@ class KeuanganScreenState extends State<KeuanganScreen>
                       ),
                     ),
                   ),
-      
+
                   // Background pattern effect
                   Positioned(
                     right: -8,
@@ -2019,7 +2374,7 @@ class KeuanganScreenState extends State<KeuanganScreen>
                       ),
                     ),
                   ),
-      
+
                   Padding(
                     padding: EdgeInsets.all(16),
                     child: Column(
@@ -2077,9 +2432,9 @@ class KeuanganScreenState extends State<KeuanganScreen>
                             ),
                           ],
                         ),
-      
+
                         SizedBox(height: 8),
-      
+
                         if (item['deskripsi'] != null &&
                             item['deskripsi'].isNotEmpty)
                           Text(
@@ -2091,7 +2446,7 @@ class KeuanganScreenState extends State<KeuanganScreen>
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
-      
+
                         if (item['tujuan'] != null)
                           Container(
                             margin: EdgeInsets.only(top: 8),
@@ -2125,9 +2480,9 @@ class KeuanganScreenState extends State<KeuanganScreen>
                               ],
                             ),
                           ),
-      
+
                         SizedBox(height: 12),
-      
+
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -2152,7 +2507,9 @@ class KeuanganScreenState extends State<KeuanganScreen>
                                 ),
                               ),
                               child: Text(
-                                item['status'] == 'aktif' ? 'Aktif' : 'Non-Aktif',
+                                item['status'] == 'aktif'
+                                    ? 'Aktif'
+                                    : 'Non-Aktif',
                                 style: TextStyle(
                                   color: item['status'] == 'aktif'
                                       ? Colors.green
@@ -2162,7 +2519,7 @@ class KeuanganScreenState extends State<KeuanganScreen>
                                 ),
                               ),
                             ),
-      
+
                             Row(
                               children: [
                                 _buildActionButton(
@@ -2368,7 +2725,7 @@ class KeuanganScreenState extends State<KeuanganScreen>
   }
 
   Color _getPrimaryColor() {
-    return Color(0xFF4361EE); // Blue untuk admin
+    return ColorUtils.getRoleColor('admin');
   }
 
   LinearGradient _getCardGradient() {
@@ -2500,29 +2857,175 @@ class KeuanganScreenState extends State<KeuanganScreen>
                 // Tab Jenis Pembayaran
                 Column(
                   children: [
-                    EnhancedSearchBar(
-                      controller: _searchController,
-                      hintText: 'Cari jenis pembayaran...',
-                      onChanged: (value) {
-                        setState(() {});
-                      },
-                      filterOptions: ['Semua', 'Aktif', 'Non-Aktif'],
-                      selectedFilter: _selectedFilter == 'All'
-                          ? 'Semua'
-                          : _selectedFilter == 'Aktif'
-                          ? 'Aktif'
-                          : 'Non-Aktif',
-                      onFilterChanged: (filter) {
-                        setState(() {
-                          _selectedFilter = filter == 'Semua'
-                              ? 'All'
-                              : filter == 'Aktif'
-                              ? 'Aktif'
-                              : 'Non-Aktif';
-                        });
-                      },
-                      showFilter: true,
+                    // Search Bar and Filter
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: TextField(
+                                controller: _searchController,
+                                onChanged: (value) => setState(() {}),
+                                decoration: InputDecoration(
+                                  hintText: 'Cari jenis pembayaran...',
+                                  prefixIcon: Icon(
+                                    Icons.search,
+                                    color: Colors.grey,
+                                  ),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          // Filter Button
+                          Container(
+                            decoration: BoxDecoration(
+                              color: _hasActiveFilter
+                                  ? _getPrimaryColor()
+                                  : Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _hasActiveFilter
+                                    ? _getPrimaryColor()
+                                    : Colors.grey.shade200,
+                              ),
+                            ),
+                            child: Stack(
+                              children: [
+                                IconButton(
+                                  onPressed: _showFilterSheet,
+                                  icon: Icon(
+                                    Icons.tune,
+                                    color: _hasActiveFilter
+                                        ? Colors.white
+                                        : Colors.grey.shade700,
+                                  ),
+                                  tooltip: 'Filter',
+                                ),
+                                if (_hasActiveFilter)
+                                  Positioned(
+                                    right: 8,
+                                    top: 8,
+                                    child: Container(
+                                      padding: EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      constraints: BoxConstraints(
+                                        minWidth: 8,
+                                        minHeight: 8,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+
+                    // Filter Chips
+                    if (_hasActiveFilter) ...[
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: SizedBox(
+                          height: 32,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: ListView(
+                                  scrollDirection: Axis.horizontal,
+                                  children: [
+                                    ..._buildFilterChips(
+                                      context.read<LanguageProvider>(),
+                                    ).map((filter) {
+                                      return Container(
+                                        margin: EdgeInsets.only(right: 6),
+                                        child: Chip(
+                                          label: Text(
+                                            filter['label'],
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: _getPrimaryColor(),
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          deleteIcon: Icon(
+                                            Icons.close,
+                                            size: 16,
+                                            color: _getPrimaryColor(),
+                                          ),
+                                          onDeleted: filter['onRemove'],
+                                          backgroundColor: _getPrimaryColor()
+                                              .withOpacity(0.1),
+                                          side: BorderSide(
+                                            color: _getPrimaryColor()
+                                                .withOpacity(0.3),
+                                            width: 1,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          labelPadding: EdgeInsets.only(
+                                            left: 4,
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              InkWell(
+                                onTap: _clearAllFilters,
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.red.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Hapus Semua',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                    ],
+
                     if (filteredJenisPembayaran.isNotEmpty)
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 16),
@@ -2545,7 +3048,7 @@ class KeuanganScreenState extends State<KeuanganScreen>
                               title: 'Tidak ada jenis pembayaran',
                               subtitle:
                                   _searchController.text.isEmpty &&
-                                      _selectedFilter == 'All'
+                                      !_hasActiveFilter
                                   ? 'Tap + untuk menambah jenis pembayaran'
                                   : 'Tidak ditemukan hasil pencarian',
                               icon: Icons.payment,

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
-import 'package:manajemensekolah/components/enhanced_search_bar.dart';
 import 'package:manajemensekolah/models/siswa.dart';
 import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
@@ -57,8 +56,16 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen>
 
   // Search dan Filter
   final TextEditingController _searchController = TextEditingController();
-  final List<String> _filterOptions = ['All', 'Today', 'This Week'];
-  String _selectedFilter = 'All';
+  
+  // Filter States
+  String? _selectedDateFilter; // 'today', 'week', 'month', atau null untuk semua
+  List<String> _selectedSubjectIds = [];
+  List<String> _selectedClassIds = [];
+  bool _hasActiveFilter = false;
+  
+  // Data for filters
+  List<dynamic> _subjectList = [];
+  List<dynamic> _classList = [];
 
   // Animations
   late AnimationController _animationController;
@@ -83,6 +90,94 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen>
     );
 
     _loadAbsensiSummary();
+    _loadFilterData();
+  }
+
+  Future<void> _loadFilterData() async {
+    try {
+      final subjects = await ApiSubjectService().getSubject();
+      final classes = await ApiClassService().getClass();
+      
+      if (mounted) {
+        setState(() {
+          _subjectList = subjects;
+          _classList = classes;
+        });
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading filter data: $e');
+      }
+    }
+  }
+
+  void _checkActiveFilter() {
+    setState(() {
+      _hasActiveFilter = _selectedDateFilter != null ||
+          _selectedSubjectIds.isNotEmpty ||
+          _selectedClassIds.isNotEmpty;
+    });
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _selectedDateFilter = null;
+      _selectedSubjectIds.clear();
+      _selectedClassIds.clear();
+      _hasActiveFilter = false;
+    });
+  }
+
+  List<Map<String, dynamic>> _buildFilterChips(
+    LanguageProvider languageProvider,
+  ) {
+    List<Map<String, dynamic>> filterChips = [];
+
+    if (_selectedDateFilter != null) {
+      final label = _selectedDateFilter == 'today'
+          ? languageProvider.getTranslatedText({'en': 'Today', 'id': 'Hari Ini'})
+          : _selectedDateFilter == 'week'
+              ? languageProvider.getTranslatedText({'en': 'This Week', 'id': 'Minggu Ini'})
+              : languageProvider.getTranslatedText({'en': 'This Month', 'id': 'Bulan Ini'});
+      filterChips.add({
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Date', 'id': 'Tanggal'})}: $label',
+        'onRemove': () {
+          setState(() {
+            _selectedDateFilter = null;
+            _checkActiveFilter();
+          });
+        },
+      });
+    }
+
+    if (_selectedSubjectIds.isNotEmpty) {
+      filterChips.add({
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Subject', 'id': 'Mata Pelajaran'})}: ${_selectedSubjectIds.length}',
+        'onRemove': () {
+          setState(() {
+            _selectedSubjectIds.clear();
+            _checkActiveFilter();
+          });
+        },
+      });
+    }
+
+    if (_selectedClassIds.isNotEmpty) {
+      filterChips.add({
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Class', 'id': 'Kelas'})}: ${_selectedClassIds.length}',
+        'onRemove': () {
+          setState(() {
+            _selectedClassIds.clear();
+            _checkActiveFilter();
+          });
+        },
+      });
+    }
+
+    return filterChips;
   }
 
   @override
@@ -233,115 +328,285 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen>
     );
   }
 
-  // ========== VIEW RESULTS ==========
-  Widget _buildResultsMode() {
-    return Consumer<LanguageProvider>(
-      builder: (context, languageProvider, child) {
-        if (_isLoadingSummary) {
-          return LoadingScreen(
-            message: languageProvider.getTranslatedText({
-              'en': 'Loading attendance data...',
-              'id': 'Memuat data absensi...',
-            }),
-          );
-        }
+  void _showFilterSheet() {
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
 
-        final filteredSummaries = _getFilteredSummaries();
+    String? tempSelectedDate = _selectedDateFilter;
+    List<String> tempSelectedSubjects = List.from(_selectedSubjectIds);
+    List<String> tempSelectedClasses = List.from(_selectedClassIds);
 
-        // Terjemahan filter options
-        final translatedFilterOptions = [
-          languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
-          languageProvider.getTranslatedText({'en': 'Today', 'id': 'Hari Ini'}),
-          languageProvider.getTranslatedText({
-            'en': 'This Week',
-            'id': 'Minggu Ini',
-          }),
-        ];
-
-        return Column(
-          children: [
-            // Search Bar dengan Filter
-            EnhancedSearchBar(
-              controller: _searchController,
-              hintText: languageProvider.getTranslatedText({
-                'en': 'Search attendance...',
-                'id': 'Cari absensi...',
-              }),
-              onChanged: (value) {
-                setState(() {});
-              },
-              filterOptions: translatedFilterOptions,
-              selectedFilter:
-                  translatedFilterOptions[_selectedFilter == 'All'
-                      ? 0
-                      : _selectedFilter == 'Today'
-                      ? 1
-                      : 2],
-              onFilterChanged: (filter) {
-                final index = translatedFilterOptions.indexOf(filter);
-                setState(() {
-                  _selectedFilter = index == 0
-                      ? 'All'
-                      : index == 1
-                      ? 'Today'
-                      : 'This Week';
-                });
-              },
-              showFilter: true,
-            ),
-
-            if (filteredSummaries.isNotEmpty)
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade200),
+                  ),
+                ),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '${filteredSummaries.length} ${languageProvider.getTranslatedText({'en': 'attendance records found', 'id': 'catatan absensi ditemukan'})}',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      languageProvider.getTranslatedText({
+                        'en': 'Filter',
+                        'id': 'Filter',
+                      }),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        setModalState(() {
+                          tempSelectedDate = null;
+                          tempSelectedSubjects.clear();
+                          tempSelectedClasses.clear();
+                        });
+                      },
+                      child: Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Reset',
+                          'id': 'Reset',
+                        }),
+                        style: TextStyle(color: _getPrimaryColor()),
+                      ),
                     ),
                   ],
                 ),
               ),
-            SizedBox(height: 4),
+              // Filter Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Date Filter
+                      Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Date Range',
+                          'id': 'Rentang Tanggal',
+                        }),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: ['today', 'week', 'month'].map((period) {
+                          final isSelected = tempSelectedDate == period;
+                          final label = period == 'today'
+                              ? languageProvider.getTranslatedText({
+                                  'en': 'Today',
+                                  'id': 'Hari Ini',
+                                })
+                              : period == 'week'
+                                  ? languageProvider.getTranslatedText({
+                                      'en': 'This Week',
+                                      'id': 'Minggu Ini',
+                                    })
+                                  : languageProvider.getTranslatedText({
+                                      'en': 'This Month',
+                                      'id': 'Bulan Ini',
+                                    });
+                          return FilterChip(
+                            label: Text(label),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setModalState(() {
+                                tempSelectedDate = selected ? period : null;
+                              });
+                            },
+                            backgroundColor: Colors.grey.shade100,
+                            selectedColor: _getPrimaryColor().withOpacity(0.2),
+                            checkmarkColor: _getPrimaryColor(),
+                            labelStyle: TextStyle(
+                              color: isSelected
+                                  ? _getPrimaryColor()
+                                  : Colors.grey.shade700,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      SizedBox(height: 24),
 
-            Expanded(
-              child: filteredSummaries.isEmpty
-                  ? EmptyState(
-                      title: languageProvider.getTranslatedText({
-                        'en': 'No attendance records',
-                        'id': 'Belum ada data absensi',
-                      }),
-                      subtitle:
-                          _searchController.text.isEmpty &&
-                              _selectedFilter == 'All'
-                          ? languageProvider.getTranslatedText({
-                              'en': 'No attendance data available',
-                              'id': 'Tidak ada data absensi tersedia',
-                            })
-                          : languageProvider.getTranslatedText({
-                              'en': 'No search results found',
-                              'id': 'Tidak ditemukan hasil pencarian',
-                            }),
-                      icon: Icons.list_alt,
-                    )
-                  : ListView.builder(
-                      padding: EdgeInsets.only(bottom: 16),
-                      itemCount: filteredSummaries.length,
-                      itemBuilder: (context, index) {
-                        final summary = filteredSummaries[index];
-                        return _buildSummaryCard(
-                          summary,
-                          languageProvider,
-                          index,
-                        );
-                      },
+                      // Subject Filter
+                      Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Subject',
+                          'id': 'Mata Pelajaran',
+                        }),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _subjectList.map<Widget>((subject) {
+                          final subjectId = subject['id'].toString();
+                          final subjectName = subject['nama'] ?? 'Subject';
+                          final isSelected =
+                              tempSelectedSubjects.contains(subjectId);
+                          return FilterChip(
+                            label: Text(subjectName),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setModalState(() {
+                                if (selected) {
+                                  tempSelectedSubjects.add(subjectId);
+                                } else {
+                                  tempSelectedSubjects.remove(subjectId);
+                                }
+                              });
+                            },
+                            backgroundColor: Colors.grey.shade100,
+                            selectedColor: _getPrimaryColor().withOpacity(0.2),
+                            checkmarkColor: _getPrimaryColor(),
+                            labelStyle: TextStyle(
+                              color: isSelected
+                                  ? _getPrimaryColor()
+                                  : Colors.grey.shade700,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      SizedBox(height: 24),
+
+                      // Class Filter
+                      Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Class',
+                          'id': 'Kelas',
+                        }),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _classList.map<Widget>((classItem) {
+                          final classId = classItem['id'].toString();
+                          final className = classItem['nama'] ?? 'Class';
+                          final isSelected =
+                              tempSelectedClasses.contains(classId);
+                          return FilterChip(
+                            label: Text(className),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setModalState(() {
+                                if (selected) {
+                                  tempSelectedClasses.add(classId);
+                                } else {
+                                  tempSelectedClasses.remove(classId);
+                                }
+                              });
+                            },
+                            backgroundColor: Colors.grey.shade100,
+                            selectedColor: _getPrimaryColor().withOpacity(0.2),
+                            checkmarkColor: _getPrimaryColor(),
+                            labelStyle: TextStyle(
+                              color: isSelected
+                                  ? _getPrimaryColor()
+                                  : Colors.grey.shade700,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Apply Button
+              Container(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(color: _getPrimaryColor()),
+                        ),
+                        child: Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Cancel',
+                            'id': 'Batal',
+                          }),
+                          style: TextStyle(color: _getPrimaryColor()),
+                        ),
+                      ),
                     ),
-            ),
-          ],
-        );
-      },
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          setState(() {
+                            _selectedDateFilter = tempSelectedDate;
+                            _selectedSubjectIds = tempSelectedSubjects;
+                            _selectedClassIds = tempSelectedClasses;
+                            _checkActiveFilter();
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: _getPrimaryColor(),
+                        ),
+                        child: Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Apply',
+                            'id': 'Terapkan',
+                          }),
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
+
 
   Widget _buildSummaryCard(
     AbsensiSummary summary,
@@ -643,22 +908,45 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen>
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     final endOfWeek = startOfWeek.add(Duration(days: 6));
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    final endOfMonth = DateTime(now.year, now.month + 1, 0);
 
     return _absensiSummaryList.where((summary) {
-      final matchesSearch =
-          searchTerm.isEmpty ||
-          summary.mataPelajaranNama.toLowerCase().contains(searchTerm);
+      // Search filter
+      final matchesSearch = searchTerm.isEmpty ||
+          summary.mataPelajaranNama.toLowerCase().contains(searchTerm) ||
+          summary.kelasNama.toLowerCase().contains(searchTerm);
 
-      final matchesFilter =
-          _selectedFilter == 'All' ||
-          (_selectedFilter == 'Today' && _isSameDay(summary.tanggal, now)) ||
-          (_selectedFilter == 'This Week' &&
-              summary.tanggal.isAfter(
+      // Date filter
+      bool matchesDateFilter = true;
+      if (_selectedDateFilter != null) {
+        if (_selectedDateFilter == 'today') {
+          matchesDateFilter = _isSameDay(summary.tanggal, now);
+        } else if (_selectedDateFilter == 'week') {
+          matchesDateFilter = summary.tanggal.isAfter(
                 startOfWeek.subtract(Duration(days: 1)),
               ) &&
-              summary.tanggal.isBefore(endOfWeek.add(Duration(days: 1))));
+              summary.tanggal.isBefore(endOfWeek.add(Duration(days: 1)));
+        } else if (_selectedDateFilter == 'month') {
+          matchesDateFilter = summary.tanggal.isAfter(
+                startOfMonth.subtract(Duration(days: 1)),
+              ) &&
+              summary.tanggal.isBefore(endOfMonth.add(Duration(days: 1)));
+        }
+      }
 
-      return matchesSearch && matchesFilter;
+      // Subject filter
+      final matchesSubject = _selectedSubjectIds.isEmpty ||
+          _selectedSubjectIds.contains(summary.mataPelajaranId);
+
+      // Class filter
+      final matchesClass = _selectedClassIds.isEmpty ||
+          _selectedClassIds.contains(summary.kelasId);
+
+      return matchesSearch &&
+          matchesDateFilter &&
+          matchesSubject &&
+          matchesClass;
     }).toList();
   }
 
@@ -687,60 +975,338 @@ class _AdminPresenceReportScreenState extends State<AdminPresenceReportScreen>
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
+        if (_isLoadingSummary) {
+          return LoadingScreen(
+            message: languageProvider.getTranslatedText({
+              'en': 'Loading attendance data...',
+              'id': 'Memuat data absensi...',
+            }),
+          );
+        }
+
+        final filteredSummaries = _getFilteredSummaries();
+
         return Scaffold(
           backgroundColor: Color(0xFFF8F9FA),
-          // Dalam build method, update AppBar actions:
-          appBar: AppBar(
-            title: Text(
-              languageProvider.getTranslatedText({
-                'en': 'Attendance Report',
-                'id': 'Laporan Absensi',
-              }),
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            backgroundColor: _getPrimaryColor(),
-            elevation: 0,
-            centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.white),
-            leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            actions: [
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: Colors.white),
-                onSelected: (value) {
-                  switch (value) {
-                    case 'refresh':
-                      _loadAbsensiSummary();
-                      break;
-                  }
-                },
-                itemBuilder: (BuildContext context) => [
-                  PopupMenuItem<String>(
-                    value: 'refresh',
-                    child: Row(
+          body: Column(
+            children: [
+              // Header dengan gradient
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 16,
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                ),
+                decoration: BoxDecoration(
+                  gradient: _getCardGradient(),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getPrimaryColor().withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Icon(Icons.refresh, color: _getPrimaryColor()),
-                        SizedBox(width: 8),
-                        Text(
-                          languageProvider.getTranslatedText({
-                            'en': 'Refresh',
-                            'id': 'Refresh',
-                          }),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                languageProvider.getTranslatedText({
+                                  'en': 'Attendance Report',
+                                  'id': 'Laporan Absensi',
+                                }),
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                languageProvider.getTranslatedText({
+                                  'en': 'View attendance reports',
+                                  'id': 'Lihat laporan absensi',
+                                }),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        PopupMenuButton<String>(
+                          onSelected: (value) {
+                            switch (value) {
+                              case 'refresh':
+                                _loadAbsensiSummary();
+                                break;
+                            }
+                          },
+                          icon: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.more_vert,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          itemBuilder: (BuildContext context) => [
+                            PopupMenuItem<String>(
+                              value: 'refresh',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.refresh, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Refresh',
+                                      'id': 'Refresh',
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ),
-                ],
+                    SizedBox(height: 16),
+
+                    // Search Bar with Filter Button
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: (value) => setState(() {}),
+                              style: TextStyle(color: Colors.black87),
+                              decoration: InputDecoration(
+                                hintText: languageProvider.getTranslatedText({
+                                  'en': 'Search attendance...',
+                                  'id': 'Cari absensi...',
+                                }),
+                                hintStyle: TextStyle(color: Colors.grey),
+                                prefixIcon: Icon(
+                                  Icons.search,
+                                  color: Colors.grey,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        // Filter Button
+                        Container(
+                          decoration: BoxDecoration(
+                            color: _hasActiveFilter
+                                ? Colors.white
+                                : Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              IconButton(
+                                onPressed: _showFilterSheet,
+                                icon: Icon(
+                                  Icons.tune,
+                                  color: _hasActiveFilter
+                                      ? _getPrimaryColor()
+                                      : Colors.white,
+                                ),
+                                tooltip: languageProvider.getTranslatedText({
+                                  'en': 'Filter',
+                                  'id': 'Filter',
+                                }),
+                              ),
+                              if (_hasActiveFilter)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    padding: EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: BoxConstraints(
+                                      minWidth: 8,
+                                      minHeight: 8,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Filter Chips
+                    if (_hasActiveFilter) ...[
+                      SizedBox(height: 12),
+                      SizedBox(
+                        height: 32,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ListView(
+                                scrollDirection: Axis.horizontal,
+                                children: [
+                                  ..._buildFilterChips(languageProvider).map((
+                                    filter,
+                                  ) {
+                                    return Container(
+                                      margin: EdgeInsets.only(right: 6),
+                                      child: Chip(
+                                        label: Text(
+                                          filter['label'],
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        deleteIcon: Icon(
+                                          Icons.close,
+                                          size: 16,
+                                          color: Colors.white,
+                                        ),
+                                        onDeleted: filter['onRemove'],
+                                        backgroundColor: Colors.white
+                                            .withOpacity(0.2),
+                                        side: BorderSide(
+                                          color: Colors.white.withOpacity(0.3),
+                                          width: 1,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        labelPadding: EdgeInsets.only(left: 4),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            InkWell(
+                              onTap: _clearAllFilters,
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.red.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  languageProvider.getTranslatedText({
+                                    'en': 'Clear All',
+                                    'id': 'Hapus Semua',
+                                  }),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Expanded(
+                child: filteredSummaries.isEmpty
+                    ? EmptyState(
+                        title: languageProvider.getTranslatedText({
+                          'en': 'No attendance records',
+                          'id': 'Belum ada data absensi',
+                        }),
+                        subtitle: _searchController.text.isEmpty &&
+                                !_hasActiveFilter
+                            ? languageProvider.getTranslatedText({
+                                'en': 'No attendance data available',
+                                'id': 'Tidak ada data absensi tersedia',
+                              })
+                            : languageProvider.getTranslatedText({
+                                'en': 'No search results found',
+                                'id': 'Tidak ditemukan hasil pencarian',
+                              }),
+                        icon: Icons.list_alt,
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        itemCount: filteredSummaries.length,
+                        itemBuilder: (context, index) {
+                          final summary = filteredSummaries[index];
+                          return _buildSummaryCard(
+                            summary,
+                            languageProvider,
+                            index,
+                          );
+                        },
+                      ),
               ),
             ],
           ),
-          body: _buildResultsMode(),
         );
       },
     );
@@ -881,14 +1447,14 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
   }
 
   Color _getPrimaryColor() {
-    return Color(0xFF4361EE); // Blue untuk admin
+    return ColorUtils.getRoleColor('admin');
   }
 
   LinearGradient _getCardGradient() {
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
+      colors: [_getPrimaryColor(), _getPrimaryColor()],
     );
   }
 
@@ -1365,7 +1931,7 @@ class _AdminAbsensiDetailPageState extends State<AdminAbsensiDetailPage>
                     ),
 
                     // Statistics Cards
-                    Container(
+                    SizedBox(
                       height: 120,
                       child: ListView(
                         scrollDirection: Axis.horizontal,

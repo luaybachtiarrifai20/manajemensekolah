@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/excel_rpp_service.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
-import 'package:manajemensekolah/components/enhanced_search_bar.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/error_screen.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
@@ -22,19 +21,13 @@ class AdminRppScreen extends StatefulWidget {
 class _AdminRppScreenState extends State<AdminRppScreen>
     with SingleTickerProviderStateMixin {
   List<dynamic> _rppList = [];
-  List<dynamic> _filteredRppList = [];
   bool _isLoading = true;
   String? _errorMessage;
-  String _filterStatus = 'Semua';
   final TextEditingController _searchController = TextEditingController();
 
-  // Filter options untuk EnhancedSearchBar
-  final List<String> _filterOptions = [
-    'Semua',
-    'Menunggu',
-    'Disetujui',
-    'Ditolak',
-  ];
+  // Filter States
+  String? _selectedStatusFilter; // 'Menunggu', 'Disetujui', 'Ditolak', atau null untuk semua
+  bool _hasActiveFilter = false;
 
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -63,7 +56,260 @@ class _AdminRppScreenState extends State<AdminRppScreen>
   @override
   void dispose() {
     _animationController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  void _checkActiveFilter() {
+    setState(() {
+      _hasActiveFilter = _selectedStatusFilter != null;
+    });
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _selectedStatusFilter = null;
+      _hasActiveFilter = false;
+    });
+  }
+
+  String _buildFilterSummary(LanguageProvider languageProvider) {
+    List<String> filters = [];
+    
+    if (_selectedStatusFilter != null) {
+      filters.add('${languageProvider.getTranslatedText({'en': 'Status', 'id': 'Status'})}: $_selectedStatusFilter');
+    }
+    
+    return filters.join(' • ');
+  }
+
+  void _showFilterSheet() {
+    final languageProvider = context.read<LanguageProvider>();
+    
+    // Temporary state for bottom sheet
+    String? tempSelectedStatus = _selectedStatusFilter;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.5,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+            ),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Colors.grey.shade200),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Filter',
+                          'id': 'Filter',
+                        }),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setModalState(() {
+                            tempSelectedStatus = null;
+                          });
+                        },
+                        child: Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Reset',
+                            'id': 'Reset',
+                          }),
+                          style: TextStyle(color: _getPrimaryColor()),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Scrollable Content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Status Filter
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Status',
+                            'id': 'Status',
+                          }),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            _buildStatusChip(
+                              label: languageProvider.getTranslatedText({
+                                'en': 'All',
+                                'id': 'Semua',
+                              }),
+                              value: null,
+                              selectedValue: tempSelectedStatus,
+                              onSelected: () {
+                                setModalState(() {
+                                  tempSelectedStatus = null;
+                                });
+                              },
+                            ),
+                            _buildStatusChip(
+                              label: 'Menunggu',
+                              value: 'Menunggu',
+                              selectedValue: tempSelectedStatus,
+                              onSelected: () {
+                                setModalState(() {
+                                  tempSelectedStatus = 'Menunggu';
+                                });
+                              },
+                            ),
+                            _buildStatusChip(
+                              label: 'Disetujui',
+                              value: 'Disetujui',
+                              selectedValue: tempSelectedStatus,
+                              onSelected: () {
+                                setModalState(() {
+                                  tempSelectedStatus = 'Disetujui';
+                                });
+                              },
+                            ),
+                            _buildStatusChip(
+                              label: 'Ditolak',
+                              value: 'Ditolak',
+                              selectedValue: tempSelectedStatus,
+                              onSelected: () {
+                                setModalState(() {
+                                  tempSelectedStatus = 'Ditolak';
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Bottom Action Buttons
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.shade300,
+                        offset: Offset(0, -2),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            side: BorderSide(color: _getPrimaryColor()),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            languageProvider.getTranslatedText({
+                              'en': 'Cancel',
+                              'id': 'Batal',
+                            }),
+                            style: TextStyle(color: _getPrimaryColor()),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedStatusFilter = tempSelectedStatus;
+                            });
+                            _checkActiveFilter();
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _getPrimaryColor(),
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            languageProvider.getTranslatedText({
+                              'en': 'Apply Filter',
+                              'id': 'Terapkan Filter',
+                            }),
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildStatusChip({
+    required String label,
+    required String? value,
+    required String? selectedValue,
+    required VoidCallback onSelected,
+  }) {
+    final isSelected = selectedValue == value;
+    
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onSelected(),
+      selectedColor: _getPrimaryColor().withOpacity(0.2),
+      labelStyle: TextStyle(
+        color: isSelected ? _getPrimaryColor() : Colors.grey.shade700,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      side: BorderSide(
+        color: isSelected ? _getPrimaryColor() : Colors.grey.shade300,
+      ),
+    );
   }
 
   Future<void> _exportToExcel() async {
@@ -90,7 +336,6 @@ class _AdminRppScreenState extends State<AdminRppScreen>
 
       setState(() {
         _rppList = filteredData;
-        _filteredRppList = filteredData;
         _isLoading = false;
       });
 
@@ -114,7 +359,6 @@ class _AdminRppScreenState extends State<AdminRppScreen>
 
       setState(() {
         _rppList = rppData;
-        _filteredRppList = rppData;
         _isLoading = false;
       });
 
@@ -127,18 +371,6 @@ class _AdminRppScreenState extends State<AdminRppScreen>
     }
   }
 
-  void _filterRpp(String status) {
-    setState(() {
-      _filterStatus = status;
-      if (status == 'Semua') {
-        _filteredRppList = _rppList;
-      } else {
-        _filteredRppList = _rppList
-            .where((rpp) => rpp['status'] == status)
-            .toList();
-      }
-    });
-  }
 
   void _updateStatus(String rppId, String status) {
     showDialog(
@@ -187,14 +419,14 @@ class _AdminRppScreenState extends State<AdminRppScreen>
   }
 
   Color _getPrimaryColor() {
-    return Color(0xFF4361EE); // Blue untuk admin
+    return ColorUtils.getRoleColor('admin');
   }
 
   LinearGradient _getCardGradient() {
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
+      colors: [_getPrimaryColor(), _getPrimaryColor()],
     );
   }
 
@@ -517,122 +749,295 @@ class _AdminRppScreenState extends State<AdminRppScreen>
           );
         }
 
-        final filteredRpp = _filteredRppList.where((rpp) {
+        final filteredRpp = _rppList.where((rpp) {
           final searchTerm = _searchController.text.toLowerCase();
-          return searchTerm.isEmpty ||
+          final matchesSearch = searchTerm.isEmpty ||
               (rpp['judul']?.toLowerCase().contains(searchTerm) ?? false) ||
-              (rpp['mata_pelajaran_nama']?.toLowerCase().contains(searchTerm) ??
-                  false) ||
+              (rpp['mata_pelajaran_nama']?.toLowerCase().contains(searchTerm) ?? false) ||
               (rpp['guru_nama']?.toLowerCase().contains(searchTerm) ?? false) ||
               (rpp['kelas_nama']?.toLowerCase().contains(searchTerm) ?? false);
+
+          // Status filter
+          final matchesStatusFilter =
+              _selectedStatusFilter == null ||
+              rpp['status'] == _selectedStatusFilter;
+
+          return matchesSearch && matchesStatusFilter;
         }).toList();
 
         return Scaffold(
           backgroundColor: Color(0xFFF8F9FA),
-          appBar: AppBar(
-            title: Text(
-              widget.teacherName != null
-                  ? 'RPP - ${widget.teacherName}'
-                  : languageProvider.getTranslatedText({
-                      'en': 'Manage RPP',
-                      'id': 'Kelola RPP',
-                    }),
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            backgroundColor: _getPrimaryColor(),
-            elevation: 0,
-            centerTitle: true,
-            iconTheme: IconThemeData(color: Colors.white),
-            leading: widget.teacherId != null
-                ? IconButton(
-                    icon: Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  )
-                : null,
-            actions: [
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: Colors.white),
-                onSelected: (value) {
-                  switch (value) {
-                    case 'export':
-                      _exportToExcel();
-                      break;
-                    case 'refresh':
-                      _loadRppByTeacher();
-                      break;
-                  }
-                },
-                itemBuilder: (BuildContext context) => [
-                  PopupMenuItem<String>(
-                    value: 'export',
-                    child: Row(
-                      children: [
-                        Icon(Icons.file_download, color: _getPrimaryColor()),
-                        SizedBox(width: 8),
-                        Text(
-                          languageProvider.getTranslatedText({
-                            'en': 'Export to Excel',
-                            'id': 'Export ke Excel',
-                          }),
-                        ),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: 'refresh',
-                    child: Row(
-                      children: [
-                        Icon(Icons.refresh, color: _getPrimaryColor()),
-                        SizedBox(width: 8),
-                        Text(
-                          languageProvider.getTranslatedText({
-                            'en': 'Refresh',
-                            'id': 'Refresh',
-                          }),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
           body: Column(
             children: [
-              EnhancedSearchBar(
-                controller: _searchController,
-                hintText: languageProvider.getTranslatedText({
-                  'en': 'Search RPP...',
-                  'id': 'Cari RPP...',
-                }),
-                onChanged: (value) => setState(() {}),
-                filterOptions: _filterOptions,
-                selectedFilter: _filterStatus,
-                onFilterChanged: (filter) {
-                  setState(() {
-                    _filterStatus = filter;
-                    _filterRpp(filter);
-                  });
-                },
-                showFilter: true,
-              ),
-              if (filteredRpp.isNotEmpty)
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${filteredRpp.length} ${languageProvider.getTranslatedText({'en': 'RPP found', 'id': 'RPP ditemukan'})}',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              // Header dengan gradient
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 16,
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                ),
+                decoration: BoxDecoration(
+                  gradient: _getCardGradient(),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _getPrimaryColor().withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.arrow_back,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.teacherName != null
+                                    ? 'RPP - ${widget.teacherName}'
+                                    : languageProvider.getTranslatedText({
+                                        'en': 'Manage RPP',
+                                        'id': 'Kelola RPP',
+                                      }),
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                languageProvider.getTranslatedText({
+                                  'en': 'Manage lesson plans',
+                                  'id': 'Kelola rencana pelaksanaan pembelajaran',
+                                }),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        PopupMenuButton<String>(
+                          onSelected: (value) {
+                            switch (value) {
+                              case 'export':
+                                _exportToExcel();
+                                break;
+                              case 'refresh':
+                                _loadRppByTeacher();
+                                break;
+                            }
+                          },
+                          icon: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.more_vert,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          itemBuilder: (BuildContext context) => [
+                            PopupMenuItem<String>(
+                              value: 'export',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.download, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Export to Excel',
+                                      'id': 'Export ke Excel',
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem<String>(
+                              value: 'refresh',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.refresh, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Refresh',
+                                      'id': 'Refresh',
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+
+                    // Search Bar with Filter Button
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.9),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: (value) => setState(() {}),
+                              style: TextStyle(color: Colors.black87),
+                              decoration: InputDecoration(
+                                hintText: languageProvider.getTranslatedText({
+                                  'en': 'Search RPP...',
+                                  'id': 'Cari RPP...',
+                                }),
+                                hintStyle: TextStyle(color: Colors.grey),
+                                prefixIcon: Icon(
+                                  Icons.search,
+                                  color: Colors.grey,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        // Filter Button
+                        Container(
+                          decoration: BoxDecoration(
+                            color: _hasActiveFilter
+                                ? Colors.white
+                                : Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              IconButton(
+                                onPressed: _showFilterSheet,
+                                icon: Icon(
+                                  Icons.tune,
+                                  color: _hasActiveFilter
+                                      ? _getPrimaryColor()
+                                      : Colors.white,
+                                ),
+                                tooltip: languageProvider.getTranslatedText({
+                                  'en': 'Filter',
+                                  'id': 'Filter',
+                                }),
+                              ),
+                              if (_hasActiveFilter)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    padding: EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: BoxConstraints(
+                                      minWidth: 8,
+                                      minHeight: 8,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Filter Chips
+                    if (_hasActiveFilter) ...[
+                      SizedBox(height: 12),
+                      SizedBox(
+                        height: 32,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ListView(
+                                scrollDirection: Axis.horizontal,
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.5),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          _buildFilterSummary(languageProvider),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        SizedBox(width: 8),
+                                        GestureDetector(
+                                          onTap: _clearAllFilters,
+                                          child: Icon(
+                                            Icons.close,
+                                            size: 16,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
-              SizedBox(height: 4),
+              ),
               Expanded(
                 child: filteredRpp.isEmpty
                     ? EmptyState(
@@ -642,7 +1047,7 @@ class _AdminRppScreenState extends State<AdminRppScreen>
                         }),
                         subtitle:
                             _searchController.text.isEmpty &&
-                                _filterStatus == 'Semua'
+                                !_hasActiveFilter
                             ? languageProvider.getTranslatedText({
                                 'en': 'No RPP data available',
                                 'id': 'Tidak ada data RPP',
@@ -653,12 +1058,16 @@ class _AdminRppScreenState extends State<AdminRppScreen>
                               }),
                         icon: Icons.description,
                       )
-                    : ListView.builder(
-                        itemCount: filteredRpp.length,
-                        itemBuilder: (context, index) {
-                          final rpp = filteredRpp[index];
-                          return _buildRppCard(rpp, index);
-                        },
+                    : RefreshIndicator(
+                        onRefresh: _loadRppByTeacher,
+                        child: ListView.builder(
+                          padding: EdgeInsets.only(top: 16, bottom: 16, left: 5, right: 5),
+                          itemCount: filteredRpp.length,
+                          itemBuilder: (context, index) {
+                            final rpp = filteredRpp[index];
+                            return _buildRppCard(rpp, index);
+                          },
+                        ),
                       ),
               ),
             ],
@@ -804,7 +1213,7 @@ class RppAdminDetailPage extends StatelessWidget {
 
   const RppAdminDetailPage({super.key, required this.rpp});
   Color _getPrimaryColor() {
-    return Color(0xFF4361EE); // Blue untuk admin
+    return ColorUtils.getRoleColor('admin');
   }
 
   @override
