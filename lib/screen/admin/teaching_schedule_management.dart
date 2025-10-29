@@ -124,18 +124,20 @@ class TeachingScheduleManagementScreenState
     if (_semesterList.isEmpty) return null;
 
     final isOdd = _isCurrentSemesterOdd();
-    
+
     // Try to find semester by name containing 'Ganjil' or 'Genap'
     for (var semester in _semesterList) {
       final semesterName = semester['nama']?.toString().toLowerCase() ?? '';
-      
-      if (isOdd && (semesterName.contains('ganjil') || semesterName.contains('1'))) {
+
+      if (isOdd &&
+          (semesterName.contains('ganjil') || semesterName.contains('1'))) {
         return semester['id'].toString();
-      } else if (!isOdd && (semesterName.contains('genap') || semesterName.contains('2'))) {
+      } else if (!isOdd &&
+          (semesterName.contains('genap') || semesterName.contains('2'))) {
         return semester['id'].toString();
       }
     }
-    
+
     // If not found by name, return first semester as fallback
     return _semesterList.isNotEmpty ? _semesterList[0]['id'].toString() : '1';
   }
@@ -247,7 +249,7 @@ class TeachingScheduleManagementScreenState
       _updateGridData();
 
       _animationController.forward();
-      
+
       // Update semester selection based on loaded semester list
       // This may trigger reload if semester is different
       if (_semesterList.isNotEmpty) {
@@ -284,7 +286,7 @@ class TeachingScheduleManagementScreenState
 
         // Reload data
         _loadData();
-        
+
         if (!mounted) return;
         _showInfoSnackBar(
           languageProvider.getTranslatedText({
@@ -611,14 +613,14 @@ class TeachingScheduleManagementScreenState
   }
 
   Color _getPrimaryColor() {
-    return Color(0xFF4361EE); // Blue untuk admin
+    return ColorUtils.getRoleColor('admin');
   }
 
   LinearGradient _getCardGradient() {
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
+      colors: [_getPrimaryColor(), _getPrimaryColor()],
     );
   }
 
@@ -645,15 +647,24 @@ class TeachingScheduleManagementScreenState
     _loadData(); // Reload data untuk menampilkan data default
   }
 
-  List<Map<String, dynamic>> _buildFilterChips(LanguageProvider languageProvider) {
+  List<Map<String, dynamic>> _buildFilterChips(
+    LanguageProvider languageProvider,
+  ) {
     List<Map<String, dynamic>> filterChips = [];
-    
+
     if (_selectedFilterConflict != null) {
       final label = _selectedFilterConflict == 'With Conflicts'
-          ? languageProvider.getTranslatedText({'en': 'With Conflicts', 'id': 'Dengan Konflik'})
-          : languageProvider.getTranslatedText({'en': 'Without Conflicts', 'id': 'Tanpa Konflik'});
+          ? languageProvider.getTranslatedText({
+              'en': 'With Conflicts',
+              'id': 'Dengan Konflik',
+            })
+          : languageProvider.getTranslatedText({
+              'en': 'Without Conflicts',
+              'id': 'Tanpa Konflik',
+            });
       filterChips.add({
-        'label': '${languageProvider.getTranslatedText({'en': 'Conflict', 'id': 'Konflik'})}: $label',
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Conflict', 'id': 'Konflik'})}: $label',
         'onRemove': () {
           setState(() {
             _selectedFilterConflict = null;
@@ -662,7 +673,7 @@ class TeachingScheduleManagementScreenState
         },
       });
     }
-    
+
     return filterChips;
   }
 
@@ -1066,8 +1077,8 @@ class TeachingScheduleManagementScreenState
                   headingRowHeight: 80, // Tinggi header tetap
                   dataRowMinHeight: 60, // Tinggi minimum row
                   dataRowMaxHeight: 120, // Tinggi maksimum row
-                  headingRowColor: MaterialStateProperty.resolveWith<Color?>(
-                    (Set<MaterialState> states) => _getPrimaryColor(),
+                  headingRowColor: WidgetStateProperty.resolveWith<Color?>(
+                    (states) => _getPrimaryColor(),
                   ),
                   dataRowColor: MaterialStateProperty.resolveWith<Color?>(
                     (Set<MaterialState> states) =>
@@ -1576,7 +1587,7 @@ class TeachingScheduleManagementScreenState
                         ),
                       ],
                     ),
-                    
+
                     // Filter Chips
                     if (_hasActiveFilter) ...[
                       SizedBox(height: 12),
@@ -1588,7 +1599,9 @@ class TeachingScheduleManagementScreenState
                               child: ListView(
                                 scrollDirection: Axis.horizontal,
                                 children: [
-                                  ..._buildFilterChips(languageProvider).map((filter) {
+                                  ..._buildFilterChips(languageProvider).map((
+                                    filter,
+                                  ) {
                                     return Container(
                                       margin: EdgeInsets.only(right: 6),
                                       child: Chip(
@@ -1606,15 +1619,21 @@ class TeachingScheduleManagementScreenState
                                           color: Colors.white,
                                         ),
                                         onDeleted: filter['onRemove'],
-                                        backgroundColor: Colors.white.withOpacity(0.2),
+                                        backgroundColor: Colors.white
+                                            .withOpacity(0.2),
                                         side: BorderSide(
                                           color: Colors.white.withOpacity(0.3),
                                           width: 1,
                                         ),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
-                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
                                         labelPadding: EdgeInsets.only(left: 4),
                                       ),
                                     );
@@ -1626,7 +1645,10 @@ class TeachingScheduleManagementScreenState
                             InkWell(
                               onTap: _clearAllFilters,
                               child: Container(
-                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.red.withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(8),
@@ -1731,6 +1753,7 @@ class TeachingScheduleManagementScreenState
           onTap: () => _showScheduleDetail(schedule),
           borderRadius: BorderRadius.circular(16),
           child: Container(
+            margin: EdgeInsets.only(bottom: 12),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),

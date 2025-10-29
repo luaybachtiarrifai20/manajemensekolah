@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:manajemensekolah/utils/color_utils.dart';
 import 'package:provider/provider.dart';
 import 'package:manajemensekolah/components/confirmation_dialog.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
@@ -67,10 +68,11 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
 
   void _checkActiveFilter() {
     setState(() {
-      _hasActiveFilter = _selectedTingkatFilter != null || 
-                         _selectedKelasFilter != null ||
-                         _selectedHomeroomFilter != null || 
-                         _selectedSiswaFilter != null;
+      _hasActiveFilter =
+          _selectedTingkatFilter != null ||
+          _selectedKelasFilter != null ||
+          _selectedHomeroomFilter != null ||
+          _selectedSiswaFilter != null;
     });
   }
 
@@ -84,12 +86,15 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
     });
   }
 
-  List<Map<String, dynamic>> _buildFilterChips(LanguageProvider languageProvider) {
+  List<Map<String, dynamic>> _buildFilterChips(
+    LanguageProvider languageProvider,
+  ) {
     List<Map<String, dynamic>> filterChips = [];
-    
+
     if (_selectedTingkatFilter != null) {
       filterChips.add({
-        'label': '${languageProvider.getTranslatedText({'en': 'Level', 'id': 'Tingkat'})}: $_selectedTingkatFilter',
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Level', 'id': 'Tingkat'})}: $_selectedTingkatFilter',
         'onRemove': () {
           setState(() {
             _selectedTingkatFilter = null;
@@ -98,10 +103,11 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
         },
       });
     }
-    
+
     if (_selectedKelasFilter != null) {
       filterChips.add({
-        'label': '${languageProvider.getTranslatedText({'en': 'Grade', 'id': 'Kelas'})}: $_selectedKelasFilter',
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Grade', 'id': 'Kelas'})}: $_selectedKelasFilter',
         'onRemove': () {
           setState(() {
             _selectedKelasFilter = null;
@@ -110,13 +116,20 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
         },
       });
     }
-    
+
     if (_selectedHomeroomFilter != null) {
       final statusText = _selectedHomeroomFilter == 'ada'
-          ? languageProvider.getTranslatedText({'en': 'Has Homeroom', 'id': 'Ada Wali Kelas'})
-          : languageProvider.getTranslatedText({'en': 'No Homeroom', 'id': 'Tanpa Wali Kelas'});
+          ? languageProvider.getTranslatedText({
+              'en': 'Has Homeroom',
+              'id': 'Ada Wali Kelas',
+            })
+          : languageProvider.getTranslatedText({
+              'en': 'No Homeroom',
+              'id': 'Tanpa Wali Kelas',
+            });
       filterChips.add({
-        'label': '${languageProvider.getTranslatedText({'en': 'Homeroom', 'id': 'Wali Kelas'})}: $statusText',
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Homeroom', 'id': 'Wali Kelas'})}: $statusText',
         'onRemove': () {
           setState(() {
             _selectedHomeroomFilter = null;
@@ -125,13 +138,17 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
         },
       });
     }
-    
+
     if (_selectedSiswaFilter != null) {
       final siswaText = _selectedSiswaFilter == 'ada'
-          ? languageProvider.getTranslatedText({'en': 'Has Students', 'id': 'Ada Siswa'})
+          ? languageProvider.getTranslatedText({
+              'en': 'Has Students',
+              'id': 'Ada Siswa',
+            })
           : languageProvider.getTranslatedText({'en': 'Empty', 'id': 'Kosong'});
       filterChips.add({
-        'label': '${languageProvider.getTranslatedText({'en': 'Students', 'id': 'Siswa'})}: $siswaText',
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Students', 'id': 'Siswa'})}: $siswaText',
         'onRemove': () {
           setState(() {
             _selectedSiswaFilter = null;
@@ -140,13 +157,13 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
         },
       });
     }
-    
+
     return filterChips;
   }
 
   void _showFilterSheet() {
     final languageProvider = context.read<LanguageProvider>();
-    
+
     // Temporary state for bottom sheet
     String? tempSelectedTingkat = _selectedTingkatFilter;
     String? tempSelectedKelas = _selectedKelasFilter;
@@ -243,8 +260,12 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                             selectedColor: _getPrimaryColor().withOpacity(0.2),
                             checkmarkColor: _getPrimaryColor(),
                             labelStyle: TextStyle(
-                              color: isSelected ? _getPrimaryColor() : Colors.grey.shade700,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected
+                                  ? _getPrimaryColor()
+                                  : Colors.grey.shade700,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           );
                         }).toList(),
@@ -282,8 +303,12 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                             selectedColor: _getPrimaryColor().withOpacity(0.2),
                             checkmarkColor: _getPrimaryColor(),
                             labelStyle: TextStyle(
-                              color: isSelected ? _getPrimaryColor() : Colors.grey.shade700,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected
+                                  ? _getPrimaryColor()
+                                  : Colors.grey.shade700,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           );
                         }).toList(),
@@ -306,40 +331,50 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: [
-                          {
-                            'value': 'ada',
-                            'label': languageProvider.getTranslatedText({
-                              'en': 'Has Homeroom',
-                              'id': 'Ada Wali Kelas',
-                            }),
-                          },
-                          {
-                            'value': 'tidak_ada',
-                            'label': languageProvider.getTranslatedText({
-                              'en': 'No Homeroom',
-                              'id': 'Tanpa Wali Kelas',
-                            }),
-                          },
-                        ].map((item) {
-                          final isSelected = tempSelectedHomeroom == item['value'];
-                          return FilterChip(
-                            label: Text(item['label']!),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setModalState(() {
-                                tempSelectedHomeroom = selected ? item['value'] : null;
-                              });
-                            },
-                            backgroundColor: Colors.grey.shade100,
-                            selectedColor: _getPrimaryColor().withOpacity(0.2),
-                            checkmarkColor: _getPrimaryColor(),
-                            labelStyle: TextStyle(
-                              color: isSelected ? _getPrimaryColor() : Colors.grey.shade700,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          );
-                        }).toList(),
+                        children:
+                            [
+                              {
+                                'value': 'ada',
+                                'label': languageProvider.getTranslatedText({
+                                  'en': 'Has Homeroom',
+                                  'id': 'Ada Wali Kelas',
+                                }),
+                              },
+                              {
+                                'value': 'tidak_ada',
+                                'label': languageProvider.getTranslatedText({
+                                  'en': 'No Homeroom',
+                                  'id': 'Tanpa Wali Kelas',
+                                }),
+                              },
+                            ].map((item) {
+                              final isSelected =
+                                  tempSelectedHomeroom == item['value'];
+                              return FilterChip(
+                                label: Text(item['label']!),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  setModalState(() {
+                                    tempSelectedHomeroom = selected
+                                        ? item['value']
+                                        : null;
+                                  });
+                                },
+                                backgroundColor: Colors.grey.shade100,
+                                selectedColor: _getPrimaryColor().withOpacity(
+                                  0.2,
+                                ),
+                                checkmarkColor: _getPrimaryColor(),
+                                labelStyle: TextStyle(
+                                  color: isSelected
+                                      ? _getPrimaryColor()
+                                      : Colors.grey.shade700,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              );
+                            }).toList(),
                       ),
 
                       SizedBox(height: 24),
@@ -359,40 +394,50 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: [
-                          {
-                            'value': 'ada',
-                            'label': languageProvider.getTranslatedText({
-                              'en': 'Has Students',
-                              'id': 'Ada Siswa',
-                            }),
-                          },
-                          {
-                            'value': 'kosong',
-                            'label': languageProvider.getTranslatedText({
-                              'en': 'Empty',
-                              'id': 'Kosong',
-                            }),
-                          },
-                        ].map((item) {
-                          final isSelected = tempSelectedSiswa == item['value'];
-                          return FilterChip(
-                            label: Text(item['label']!),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setModalState(() {
-                                tempSelectedSiswa = selected ? item['value'] : null;
-                              });
-                            },
-                            backgroundColor: Colors.grey.shade100,
-                            selectedColor: _getPrimaryColor().withOpacity(0.2),
-                            checkmarkColor: _getPrimaryColor(),
-                            labelStyle: TextStyle(
-                              color: isSelected ? _getPrimaryColor() : Colors.grey.shade700,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          );
-                        }).toList(),
+                        children:
+                            [
+                              {
+                                'value': 'ada',
+                                'label': languageProvider.getTranslatedText({
+                                  'en': 'Has Students',
+                                  'id': 'Ada Siswa',
+                                }),
+                              },
+                              {
+                                'value': 'kosong',
+                                'label': languageProvider.getTranslatedText({
+                                  'en': 'Empty',
+                                  'id': 'Kosong',
+                                }),
+                              },
+                            ].map((item) {
+                              final isSelected =
+                                  tempSelectedSiswa == item['value'];
+                              return FilterChip(
+                                label: Text(item['label']!),
+                                selected: isSelected,
+                                onSelected: (selected) {
+                                  setModalState(() {
+                                    tempSelectedSiswa = selected
+                                        ? item['value']
+                                        : null;
+                                  });
+                                },
+                                backgroundColor: Colors.grey.shade100,
+                                selectedColor: _getPrimaryColor().withOpacity(
+                                  0.2,
+                                ),
+                                checkmarkColor: _getPrimaryColor(),
+                                labelStyle: TextStyle(
+                                  color: isSelected
+                                      ? _getPrimaryColor()
+                                      : Colors.grey.shade700,
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              );
+                            }).toList(),
                       ),
                     ],
                   ),
@@ -535,8 +580,27 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
     final nameController = TextEditingController(
       text: classData?['nama'] ?? '',
     );
-    String? selectedGradeLevel = classData?['grade_level']?.toString();
-    String? selectedHomeroomTeacher = classData?['wali_kelas_id']?.toString();
+
+    // Validate grade level - must be between 1-12 or null
+    String? selectedGradeLevel;
+    if (classData?['grade_level'] != null) {
+      final gradeValue = classData!['grade_level'].toString();
+      if (gradeValue.isNotEmpty) {
+        final gradeInt = int.tryParse(gradeValue);
+        if (gradeInt != null && gradeInt >= 1 && gradeInt <= 12) {
+          selectedGradeLevel = gradeValue;
+        }
+      }
+    }
+
+    // Validate wali_kelas_id - must not be empty string
+    String? selectedHomeroomTeacher;
+    if (classData?['wali_kelas_id'] != null) {
+      final teacherId = classData!['wali_kelas_id'].toString();
+      if (teacherId.isNotEmpty) {
+        selectedHomeroomTeacher = teacherId;
+      }
+    }
 
     final isEdit = classData != null;
 
@@ -544,218 +608,235 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
       context: context,
       builder: (context) => Consumer<LanguageProvider>(
         builder: (context, languageProvider, child) {
-          return Dialog(
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Header dengan gradient
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: _getCardGradient(),
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            isEdit ? Icons.edit : Icons.add,
-                            color: Colors.white,
-                            size: 20,
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return Dialog(
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Header dengan gradient
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: _getCardGradient(),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20),
                           ),
                         ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            isEdit
-                                ? languageProvider.getTranslatedText({
-                                    'en': 'Edit Class',
-                                    'id': 'Edit Kelas',
-                                  })
-                                : languageProvider.getTranslatedText({
-                                    'en': 'Add Class',
-                                    'id': 'Tambah Kelas',
-                                  }),
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildDialogTextField(
-                          controller: nameController,
-                          label: languageProvider.getTranslatedText({
-                            'en': 'Class Name',
-                            'id': 'Nama Kelas',
-                          }),
-                          icon: Icons.school,
-                        ),
-                        SizedBox(height: 12),
-                        _buildGradeLevelDropdown(
-                          value: selectedGradeLevel,
-                          onChanged: (value) {
-                            setState(() {
-                              selectedGradeLevel = value;
-                            });
-                          },
-                          languageProvider: languageProvider,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Actions
-                  Container(
-                    padding: EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(context),
-                            style: OutlinedButton.styleFrom(
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                              padding: EdgeInsets.symmetric(vertical: 12),
-                              side: BorderSide(color: Colors.grey.shade300),
+                              child: Icon(
+                                isEdit ? Icons.edit : Icons.add,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
-                            child: Text(
-                              AppLocalizations.cancel.tr,
-                              style: TextStyle(color: Colors.grey.shade700),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              final nama = nameController.text.trim();
-
-                              if (nama.isEmpty || selectedGradeLevel == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      languageProvider.getTranslatedText({
-                                        'en':
-                                            'Class name and grade level must be filled',
-                                        'id':
-                                            'Nama kelas dan grade level harus diisi',
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                isEdit
+                                    ? languageProvider.getTranslatedText({
+                                        'en': 'Edit Class',
+                                        'id': 'Edit Kelas',
+                                      })
+                                    : languageProvider.getTranslatedText({
+                                        'en': 'Add Class',
+                                        'id': 'Tambah Kelas',
                                       }),
-                                    ),
-                                    backgroundColor: Colors.orange,
-                                  ),
-                                );
-                                return;
-                              }
-
-                              try {
-                                final data = {
-                                  'nama': nama,
-                                  'grade_level': int.parse(selectedGradeLevel!),
-                                };
-
-                                if (isEdit) {
-                                  await _classService.updateClass(
-                                    classData!['id'],
-                                    data,
-                                  );
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          languageProvider.getTranslatedText({
-                                            'en': 'Class successfully updated',
-                                            'id': 'Kelas berhasil diperbarui',
-                                          }),
-                                        ),
-                                        backgroundColor: Colors.green,
-                                      ),
-                                    );
-                                    Navigator.pop(context);
-                                  }
-                                } else {
-                                  await _classService.addClass(data);
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          languageProvider.getTranslatedText({
-                                            'en': 'Class successfully added',
-                                            'id': 'Kelas berhasil ditambahkan',
-                                          }),
-                                        ),
-                                        backgroundColor: Colors.green,
-                                      ),
-                                    );
-                                    Navigator.pop(context);
-                                  }
-                                }
-                                _loadData();
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        languageProvider.getTranslatedText({
-                                          'en': 'Failed to save class: $e',
-                                          'id': 'Gagal menyimpan kelas: $e',
-                                        }),
-                                      ),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _getPrimaryColor(),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
                               ),
-                              padding: EdgeInsets.symmetric(vertical: 12),
                             ),
-                            child: Text(
-                              isEdit
-                                  ? languageProvider.getTranslatedText({
-                                      'en': 'Update',
-                                      'id': 'Perbarui',
-                                    })
-                                  : AppLocalizations.save.tr,
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+
+                      Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildDialogTextField(
+                              controller: nameController,
+                              label: languageProvider.getTranslatedText({
+                                'en': 'Class Name',
+                                'id': 'Nama Kelas',
+                              }),
+                              icon: Icons.school,
+                            ),
+                            SizedBox(height: 12),
+                            _buildGradeLevelDropdown(
+                              value: selectedGradeLevel,
+                              onChanged: (value) {
+                                setDialogState(() {
+                                  selectedGradeLevel = value;
+                                });
+                              },
+                              languageProvider: languageProvider,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Actions
+                      Container(
+                        padding: EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.pop(context),
+                                style: OutlinedButton.styleFrom(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  side: BorderSide(color: Colors.grey.shade300),
+                                ),
+                                child: Text(
+                                  AppLocalizations.cancel.tr,
+                                  style: TextStyle(color: Colors.grey.shade700),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  final nama = nameController.text.trim();
+
+                                  if (nama.isEmpty ||
+                                      selectedGradeLevel == null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          languageProvider.getTranslatedText({
+                                            'en':
+                                                'Class name and grade level must be filled',
+                                            'id':
+                                                'Nama kelas dan grade level harus diisi',
+                                          }),
+                                        ),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  try {
+                                    final data = {
+                                      'nama': nama,
+                                      'grade_level': int.parse(
+                                        selectedGradeLevel!,
+                                      ),
+                                    };
+
+                                    if (isEdit) {
+                                      await _classService.updateClass(
+                                        classData!['id'],
+                                        data,
+                                      );
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              languageProvider.getTranslatedText({
+                                                'en':
+                                                    'Class successfully updated',
+                                                'id':
+                                                    'Kelas berhasil diperbarui',
+                                              }),
+                                            ),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                        Navigator.pop(context);
+                                      }
+                                    } else {
+                                      await _classService.addClass(data);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              languageProvider.getTranslatedText({
+                                                'en':
+                                                    'Class successfully added',
+                                                'id':
+                                                    'Kelas berhasil ditambahkan',
+                                              }),
+                                            ),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                        Navigator.pop(context);
+                                      }
+                                    }
+                                    _loadData();
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            languageProvider.getTranslatedText({
+                                              'en': 'Failed to save class: $e',
+                                              'id': 'Gagal menyimpan kelas: $e',
+                                            }),
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _getPrimaryColor(),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                child: Text(
+                                  isEdit
+                                      ? languageProvider.getTranslatedText({
+                                          'en': 'Update',
+                                          'id': 'Perbarui',
+                                        })
+                                      : AppLocalizations.save.tr,
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           );
         },
       ),
@@ -1379,14 +1460,14 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
   }
 
   Color _getPrimaryColor() {
-    return Color(0xFF4361EE); // Blue untuk admin
+    return ColorUtils.getRoleColor('admin');
   }
 
   LinearGradient _getCardGradient() {
     return LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
-      colors: [_getPrimaryColor(), _getPrimaryColor().withOpacity(0.7)],
+      colors: [_getPrimaryColor(), _getPrimaryColor()],
     );
   }
 
@@ -1433,16 +1514,19 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
               }
             }
           }
-          final matchesTingkatFilter = _selectedTingkatFilter == null ||
+          final matchesTingkatFilter =
+              _selectedTingkatFilter == null ||
               tingkat == _selectedTingkatFilter;
 
           // Kelas filter (1-12 berdasarkan grade_level)
-          final matchesKelasFilter = _selectedKelasFilter == null ||
+          final matchesKelasFilter =
+              _selectedKelasFilter == null ||
               gradeLevel?.toString() == _selectedKelasFilter;
 
           // Homeroom filter
-          final hasHomeroom = classItem['wali_kelas_nama'] != null && 
-                              classItem['wali_kelas_nama'].toString().isNotEmpty;
+          final hasHomeroom =
+              classItem['wali_kelas_nama'] != null &&
+              classItem['wali_kelas_nama'].toString().isNotEmpty;
           final matchesHomeroomFilter =
               _selectedHomeroomFilter == null ||
               (_selectedHomeroomFilter == 'ada' && hasHomeroom) ||
@@ -1455,7 +1539,11 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
               (_selectedSiswaFilter == 'ada' && jumlahSiswa > 0) ||
               (_selectedSiswaFilter == 'kosong' && jumlahSiswa == 0);
 
-          return matchesSearch && matchesTingkatFilter && matchesKelasFilter && matchesHomeroomFilter && matchesSiswaFilter;
+          return matchesSearch &&
+              matchesTingkatFilter &&
+              matchesKelasFilter &&
+              matchesHomeroomFilter &&
+              matchesSiswaFilter;
         }).toList();
 
         return Scaffold(
@@ -1536,18 +1624,80 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                             ],
                           ),
                         ),
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(10),
+                        PopupMenuButton<String>(
+                          onSelected: (value) {
+                            switch (value) {
+                              case 'export':
+                                _exportToExcel();
+                                break;
+                              case 'import':
+                                _importFromExcel();
+                                break;
+                              case 'template':
+                                _downloadTemplate();
+                                break;
+                            }
+                          },
+                          icon: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.more_vert,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
-                          child: Icon(
-                            Icons.class_,
-                            color: Colors.white,
-                            size: 20,
-                          ),
+                          itemBuilder: (BuildContext context) => [
+                            PopupMenuItem<String>(
+                              value: 'export',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.download, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Export to Excel',
+                                      'id': 'Export ke Excel',
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem<String>(
+                              value: 'import',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.upload, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Import from Excel',
+                                      'id': 'Import dari Excel',
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem<String>(
+                              value: 'template',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.file_download, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Download Template',
+                                      'id': 'Download Template',
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -1572,7 +1722,10 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                                   'id': 'Cari kelas...',
                                 }),
                                 hintStyle: TextStyle(color: Colors.grey),
-                                prefixIcon: Icon(Icons.search, color: Colors.grey),
+                                prefixIcon: Icon(
+                                  Icons.search,
+                                  color: Colors.grey,
+                                ),
                                 border: InputBorder.none,
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: 16,
@@ -1630,7 +1783,7 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                         ),
                       ],
                     ),
-                    
+
                     // Show active filters as chips
                     if (_hasActiveFilter) ...[
                       SizedBox(height: 12),
@@ -1655,33 +1808,43 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                               child: ListView(
                                 scrollDirection: Axis.horizontal,
                                 children: [
-                                  ..._buildFilterChips(languageProvider).map((filter) {
+                                  ..._buildFilterChips(languageProvider).map((
+                                    filter,
+                                  ) {
                                     return Container(
                                       margin: EdgeInsets.only(right: 6),
-                                child: Chip(
-                                  label: Text(
-                                    filter['label'],
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: _getPrimaryColor(),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  deleteIcon: Icon(
-                                    Icons.close,
-                                    size: 16,
-                                    color: _getPrimaryColor(),
-                                  ),
-                                  onDeleted: filter['onRemove'],
-                                  backgroundColor: _getPrimaryColor().withOpacity(0.1),
-                                  side: BorderSide(
-                                    color: _getPrimaryColor().withOpacity(0.3),
-                                    width: 1,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      child: Chip(
+                                        label: Text(
+                                          filter['label'],
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: _getPrimaryColor(),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        deleteIcon: Icon(
+                                          Icons.close,
+                                          size: 16,
+                                          color: _getPrimaryColor(),
+                                        ),
+                                        onDeleted: filter['onRemove'],
+                                        backgroundColor: _getPrimaryColor()
+                                            .withOpacity(0.1),
+                                        side: BorderSide(
+                                          color: _getPrimaryColor().withOpacity(
+                                            0.3,
+                                          ),
+                                          width: 1,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
                                         labelPadding: EdgeInsets.only(left: 4),
                                       ),
                                     );
@@ -1739,8 +1902,7 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                           'id': 'Tidak ada kelas',
                         }),
                         subtitle:
-                            _searchController.text.isEmpty &&
-                                !_hasActiveFilter
+                            _searchController.text.isEmpty && !_hasActiveFilter
                             ? languageProvider.getTranslatedText({
                                 'en': 'Tap + to add a class',
                                 'id': 'Tap + untuk menambah kelas',
@@ -1751,12 +1913,16 @@ class ClassManagementScreenState extends State<ClassManagementScreen>
                               }),
                         icon: Icons.school_outlined,
                       )
-                    : ListView.builder(
-                        itemCount: filteredClasses.length,
-                        itemBuilder: (context, index) {
-                          final classData = filteredClasses[index];
-                          return _buildClassCard(classData, index);
-                        },
+                    : RefreshIndicator(
+                        onRefresh: _loadData,
+                        child: ListView.builder(
+                          padding: EdgeInsets.all(16),
+                          itemCount: filteredClasses.length,
+                          itemBuilder: (context, index) {
+                            final classData = filteredClasses[index];
+                            return _buildClassCard(classData, index);
+                          },
+                        ),
                       ),
               ),
             ],

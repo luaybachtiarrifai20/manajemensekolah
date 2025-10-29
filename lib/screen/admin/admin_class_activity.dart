@@ -6,6 +6,7 @@ import 'package:manajemensekolah/components/loading_screen.dart';
 import 'package:manajemensekolah/services/api_class_activity_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
 import 'package:manajemensekolah/services/excel_class_activity_service.dart';
+import 'package:manajemensekolah/utils/color_utils.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
 import 'package:provider/provider.dart';
 
@@ -1078,7 +1079,7 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
   }
 
   Color _getPrimaryColor() {
-    return Color(0xFF2563EB); // Blue untuk admin
+    return ColorUtils.getRoleColor('admin');
   }
 
   LinearGradient _getCardGradient() {
@@ -1199,8 +1200,10 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                         'id': 'Kegiatan Kelas',
                                       })
                                     : languageProvider.getTranslatedText({
-                                        'en': 'Activities - $_selectedTeacherName',
-                                        'id': 'Kegiatan - $_selectedTeacherName',
+                                        'en':
+                                            'Activities - $_selectedTeacherName',
+                                        'id':
+                                            'Kegiatan - $_selectedTeacherName',
                                       }),
                                 style: TextStyle(
                                   fontSize: 20,
@@ -1268,7 +1271,10 @@ class AdminClassActivityScreenState extends State<AdminClassActivityScreen>
                                         'id': 'Cari kegiatan...',
                                       }),
                                 hintStyle: TextStyle(color: Colors.grey),
-                                prefixIcon: Icon(Icons.search, color: Colors.grey),
+                                prefixIcon: Icon(
+                                  Icons.search,
+                                  color: Colors.grey,
+                                ),
                                 border: InputBorder.none,
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: 16,
