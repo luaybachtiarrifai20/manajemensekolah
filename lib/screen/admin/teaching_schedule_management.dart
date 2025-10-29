@@ -48,7 +48,8 @@ class TeachingScheduleManagementScreenState
 
   bool _isLoading = true;
   String _selectedSemester = '1'; // Will be set by _setDefaultAcademicPeriod()
-  String _selectedAcademicYear = '2024/2025'; // Will be set by _setDefaultAcademicPeriod()
+  String _selectedAcademicYear =
+      '2024/2025'; // Will be set by _setDefaultAcademicPeriod()
   final TextEditingController _searchController = TextEditingController();
 
   late AnimationController _animationController;
@@ -106,26 +107,56 @@ class TeachingScheduleManagementScreenState
     }
   }
 
-  /// Calculate current semester based on current date
+  /// Determine if current period is odd semester (Ganjil) or even semester (Genap)
   /// Semester 1 (Ganjil): July - December
   /// Semester 2 (Genap): January - June
-  String _getCurrentSemester() {
+  bool _isCurrentSemesterOdd() {
     final now = DateTime.now();
     final currentMonth = now.month;
 
     // Semester 1 (Ganjil) = July to December (months 7-12)
     // Semester 2 (Genap) = January to June (months 1-6)
-    if (currentMonth >= 7 && currentMonth <= 12) {
-      return '1'; // Semester Ganjil
-    } else {
-      return '2'; // Semester Genap
+    return currentMonth >= 7 && currentMonth <= 12;
+  }
+
+  /// Find semester ID from semester list based on current period
+  String? _findCurrentSemesterId() {
+    if (_semesterList.isEmpty) return null;
+
+    final isOdd = _isCurrentSemesterOdd();
+    
+    // Try to find semester by name containing 'Ganjil' or 'Genap'
+    for (var semester in _semesterList) {
+      final semesterName = semester['nama']?.toString().toLowerCase() ?? '';
+      
+      if (isOdd && (semesterName.contains('ganjil') || semesterName.contains('1'))) {
+        return semester['id'].toString();
+      } else if (!isOdd && (semesterName.contains('genap') || semesterName.contains('2'))) {
+        return semester['id'].toString();
+      }
     }
+    
+    // If not found by name, return first semester as fallback
+    return _semesterList.isNotEmpty ? _semesterList[0]['id'].toString() : '1';
   }
 
   /// Set default academic period based on current date
   void _setDefaultAcademicPeriod() {
     _selectedAcademicYear = _getCurrentAcademicYear();
-    _selectedSemester = _getCurrentSemester();
+    // Semester will be set after loading semester list
+  }
+
+  /// Update semester selection after semester list is loaded
+  void _updateCurrentSemester() {
+    final semesterId = _findCurrentSemesterId();
+    if (semesterId != null && semesterId != _selectedSemester) {
+      // Semester changed, need to reload data
+      setState(() {
+        _selectedSemester = semesterId;
+      });
+      // Reload data with correct semester
+      _loadData();
+    }
   }
 
   /// Generate list of academic years (current year ± 2 years)
@@ -134,10 +165,10 @@ class TeachingScheduleManagementScreenState
     final now = DateTime.now();
     final currentYear = now.year;
     final currentMonth = now.month;
-    
+
     // Determine the starting year of current academic year
     final academicStartYear = currentMonth >= 7 ? currentYear : currentYear - 1;
-    
+
     // Generate list: 2 years before to 2 years after current academic year
     final years = <String>[];
     for (int i = -2; i <= 2; i++) {
@@ -145,7 +176,7 @@ class TeachingScheduleManagementScreenState
       final endYear = startYear + 1;
       years.add('$startYear/$endYear');
     }
-    
+
     return years;
   }
 
@@ -156,11 +187,27 @@ class TeachingScheduleManagementScreenState
     super.dispose();
   }
 
+  void _showInfoSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.blue,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   Future<void> _loadData() async {
     try {
       setState(() {
         _isLoading = true;
       });
+
+      // Gunakan nilai semester dan tahun ajaran yang sudah diset
+      final semesterToUse = _selectedFilterSemester ?? _selectedSemester;
+      final academicYearToUse =
+          _selectedFilterAcademicYear ?? _selectedAcademicYear;
 
       final [
         schedule,
@@ -172,8 +219,8 @@ class TeachingScheduleManagementScreenState
         jamPelajaran,
       ] = await Future.wait([
         ApiScheduleService.getSchedule(
-          semesterId: _selectedSemester,
-          tahunAjaran: _selectedAcademicYear,
+          semesterId: semesterToUse,
+          tahunAjaran: academicYearToUse,
         ),
         apiTeacherService.getTeacher(),
         _apiSubjectService.getSubject(),
@@ -200,6 +247,12 @@ class TeachingScheduleManagementScreenState
       _updateGridData();
 
       _animationController.forward();
+      
+      // Update semester selection based on loaded semester list
+      // This may trigger reload if semester is different
+      if (_semesterList.isNotEmpty) {
+        _updateCurrentSemester();
+      }
     } catch (e) {
       if (kDebugMode) {
         print('Error loading data: $e');
@@ -225,37 +278,42 @@ class TeachingScheduleManagementScreenState
       if (result != null && result.files.single.path != null) {
         setState(() => _isLoading = true);
 
-        await (result != null && result.files.single.path != null
-            ? ApiScheduleService.importSchedulesFromExcel(
-                File(result.files.single.path!),
-              )
-            : Future.value());
+        await ApiScheduleService.importSchedulesFromExcel(
+          File(result.files.single.path!),
+        );
 
         // Reload data
         _loadData();
+        
+        if (!mounted) return;
+        _showInfoSnackBar(
+          languageProvider.getTranslatedText({
+            'en': 'Import successful',
+            'id': 'Import berhasil',
+          }),
+        );
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            languageProvider.getTranslatedText({
-              'en': 'Failed to import file: $e',
-              'id': 'Gagal mengimpor file: $e',
-            }),
-          ),
-          backgroundColor: Colors.red,
-        ),
+      _showErrorSnackBar(
+        languageProvider.getTranslatedText({
+          'en': 'Failed to import file: $e',
+          'id': 'Gagal mengimpor file: $e',
+        }),
       );
     }
   }
 
   // Export jadwal ke Excel
   Future<void> _exportToExcel() async {
-    await ExcelScheduleService.exportSchedulesToExcel(
-      schedules: _scheduleList,
-      context: context,
-    );
+    try {
+      await ExcelScheduleService.exportSchedulesToExcel(
+        schedules: _scheduleList,
+        context: context,
+      );
+    } catch (e) {
+      _showErrorSnackBar('Export failed: $e');
+    }
   }
 
   // Download template
@@ -566,27 +624,59 @@ class TeachingScheduleManagementScreenState
 
   void _checkActiveFilter() {
     setState(() {
-      _hasActiveFilter = _selectedFilterConflict != null ||
-          _selectedFilterSemester != null ||
-          _selectedFilterAcademicYear != null;
+      _hasActiveFilter =
+          _selectedFilterConflict != null ||
+          (_selectedFilterSemester != null &&
+              _selectedFilterSemester != _selectedSemester) ||
+          (_selectedFilterAcademicYear != null &&
+              _selectedFilterAcademicYear != _selectedAcademicYear);
     });
   }
 
   void _clearAllFilters() {
     setState(() {
       _selectedFilterConflict = null;
-      _selectedFilterSemester = null;
-      _selectedFilterAcademicYear = null;
+      _selectedFilterSemester =
+          _selectedSemester; // Kembali ke semester default
+      _selectedFilterAcademicYear =
+          _selectedAcademicYear; // Kembali ke tahun ajaran default
     });
     _checkActiveFilter();
+    _loadData(); // Reload data untuk menampilkan data default
+  }
+
+  List<Map<String, dynamic>> _buildFilterChips(LanguageProvider languageProvider) {
+    List<Map<String, dynamic>> filterChips = [];
+    
+    if (_selectedFilterConflict != null) {
+      final label = _selectedFilterConflict == 'With Conflicts'
+          ? languageProvider.getTranslatedText({'en': 'With Conflicts', 'id': 'Dengan Konflik'})
+          : languageProvider.getTranslatedText({'en': 'Without Conflicts', 'id': 'Tanpa Konflik'});
+      filterChips.add({
+        'label': '${languageProvider.getTranslatedText({'en': 'Conflict', 'id': 'Konflik'})}: $label',
+        'onRemove': () {
+          setState(() {
+            _selectedFilterConflict = null;
+            _checkActiveFilter();
+          });
+        },
+      });
+    }
+    
+    return filterChips;
   }
 
   void _showFilterSheet() {
-    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
-    
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
+
     String? tempSelectedConflict = _selectedFilterConflict;
-    String? tempSelectedSemester = _selectedFilterSemester;
-    String? tempSelectedAcademicYear = _selectedFilterAcademicYear;
+    // Gunakan nilai default jika filter belum diset
+    String? tempSelectedSemester = _selectedFilterSemester ?? _selectedSemester;
+    String? tempSelectedAcademicYear =
+        _selectedFilterAcademicYear ?? _selectedAcademicYear;
 
     showModalBottomSheet(
       context: context,
@@ -626,8 +716,9 @@ class TeachingScheduleManagementScreenState
                       onPressed: () {
                         setModalState(() {
                           tempSelectedConflict = null;
-                          tempSelectedSemester = null;
-                          tempSelectedAcademicYear = null;
+                          // Reset ke nilai default saat ini
+                          tempSelectedSemester = _selectedSemester;
+                          tempSelectedAcademicYear = _selectedAcademicYear;
                         });
                       },
                       child: Text(
@@ -663,11 +754,19 @@ class TeachingScheduleManagementScreenState
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: ['With Conflicts', 'Without Conflicts'].map((status) {
+                        children: ['With Conflicts', 'Without Conflicts'].map((
+                          status,
+                        ) {
                           final isSelected = tempSelectedConflict == status;
                           final label = status == 'With Conflicts'
-                              ? languageProvider.getTranslatedText({'en': 'With Conflicts', 'id': 'Dengan Konflik'})
-                              : languageProvider.getTranslatedText({'en': 'Without Conflicts', 'id': 'Tanpa Konflik'});
+                              ? languageProvider.getTranslatedText({
+                                  'en': 'With Conflicts',
+                                  'id': 'Dengan Konflik',
+                                })
+                              : languageProvider.getTranslatedText({
+                                  'en': 'Without Conflicts',
+                                  'id': 'Tanpa Konflik',
+                                });
                           return FilterChip(
                             label: Text(label),
                             selected: isSelected,
@@ -680,8 +779,12 @@ class TeachingScheduleManagementScreenState
                             selectedColor: _getPrimaryColor().withOpacity(0.2),
                             checkmarkColor: _getPrimaryColor(),
                             labelStyle: TextStyle(
-                              color: isSelected ? _getPrimaryColor() : Colors.grey.shade700,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected
+                                  ? _getPrimaryColor()
+                                  : Colors.grey.shade700,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           );
                         }).toList(),
@@ -705,22 +808,29 @@ class TeachingScheduleManagementScreenState
                         runSpacing: 8,
                         children: _semesterList.map<Widget>((semester) {
                           final semesterId = semester['id'].toString();
-                          final semesterName = semester['nama'] ?? 'Semester $semesterId';
+                          final semesterName =
+                              semester['nama'] ?? 'Semester $semesterId';
                           final isSelected = tempSelectedSemester == semesterId;
                           return FilterChip(
                             label: Text(semesterName),
                             selected: isSelected,
                             onSelected: (selected) {
                               setModalState(() {
-                                tempSelectedSemester = selected ? semesterId : null;
+                                tempSelectedSemester = selected
+                                    ? semesterId
+                                    : null;
                               });
                             },
                             backgroundColor: Colors.grey.shade100,
                             selectedColor: _getPrimaryColor().withOpacity(0.2),
                             checkmarkColor: _getPrimaryColor(),
                             labelStyle: TextStyle(
-                              color: isSelected ? _getPrimaryColor() : Colors.grey.shade700,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected
+                                  ? _getPrimaryColor()
+                                  : Colors.grey.shade700,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           );
                         }).toList(),
@@ -749,15 +859,21 @@ class TeachingScheduleManagementScreenState
                             selected: isSelected,
                             onSelected: (selected) {
                               setModalState(() {
-                                tempSelectedAcademicYear = selected ? year : null;
+                                tempSelectedAcademicYear = selected
+                                    ? year
+                                    : null;
                               });
                             },
                             backgroundColor: Colors.grey.shade100,
                             selectedColor: _getPrimaryColor().withOpacity(0.2),
                             checkmarkColor: _getPrimaryColor(),
                             labelStyle: TextStyle(
-                              color: isSelected ? _getPrimaryColor() : Colors.grey.shade700,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected
+                                  ? _getPrimaryColor()
+                                  : Colors.grey.shade700,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                           );
                         }).toList(),
@@ -792,24 +908,33 @@ class TeachingScheduleManagementScreenState
                       child: ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
-                          
+
                           // Check if semester or academic year changed - need to reload data
                           bool needsReload = false;
-                          if (tempSelectedSemester != null && tempSelectedSemester != _selectedSemester) {
+                          if (tempSelectedSemester != null &&
+                              tempSelectedSemester != _selectedSemester) {
                             needsReload = true;
                           }
-                          if (tempSelectedAcademicYear != null && tempSelectedAcademicYear != _selectedAcademicYear) {
+                          if (tempSelectedAcademicYear != null &&
+                              tempSelectedAcademicYear !=
+                                  _selectedAcademicYear) {
                             needsReload = true;
                           }
-                          
+
                           setState(() {
                             _selectedFilterConflict = tempSelectedConflict;
                             _selectedFilterSemester = tempSelectedSemester;
-                            _selectedFilterAcademicYear = tempSelectedAcademicYear;
-                            _hasActiveFilter = _selectedFilterConflict != null ||
-                                _selectedFilterSemester != null ||
-                                _selectedFilterAcademicYear != null;
-                            
+                            _selectedFilterAcademicYear =
+                                tempSelectedAcademicYear;
+                            _hasActiveFilter =
+                                _selectedFilterConflict != null ||
+                                (_selectedFilterSemester != null &&
+                                    _selectedFilterSemester !=
+                                        _selectedSemester) ||
+                                (_selectedFilterAcademicYear != null &&
+                                    _selectedFilterAcademicYear !=
+                                        _selectedAcademicYear);
+
                             // Update main semester/year if filtered
                             if (tempSelectedSemester != null) {
                               _selectedSemester = tempSelectedSemester!;
@@ -817,12 +942,12 @@ class TeachingScheduleManagementScreenState
                             if (tempSelectedAcademicYear != null) {
                               _selectedAcademicYear = tempSelectedAcademicYear!;
                             }
-                            
+
                             if (_showTableView) {
                               _updateGridData();
                             }
                           });
-                          
+
                           // Reload data if semester or academic year changed
                           if (needsReload) {
                             _loadData();
@@ -883,120 +1008,6 @@ class TeachingScheduleManagementScreenState
       return matchesSearch && matchesConflictFilter;
     }).toList();
   }
-
-  // Method untuk export ke Excel
-  // Future<void> _exportToExcel() async {
-  //   try {
-  //     final languageProvider = context.read<LanguageProvider>();
-
-  //     // Create a new Excel document
-  //     final xlsio.Workbook workbook = xlsio.Workbook();
-  //     final xlsio.Worksheet sheet = workbook.worksheets[0];
-
-  //     // Set header
-  //     sheet
-  //         .getRangeByIndex(1, 1)
-  //         .setText(
-  //           languageProvider.getTranslatedText({
-  //             'en': 'Teaching Schedule',
-  //             'id': 'Jadwal Mengajar',
-  //           }),
-  //         );
-  //     sheet.getRangeByIndex(1, 1).cellStyle.fontSize = 16;
-  //     sheet.getRangeByIndex(1, 1).cellStyle.bold = true;
-
-  //     // Set column headers untuk format timetable
-  //     final List<String> headers = [
-  //       languageProvider.getTranslatedText({'en': 'Time', 'id': 'Waktu'}),
-  //     ];
-
-  //     // Add day headers with class subheaders
-  //     final days = _hariList.map((day) => day['nama'] ?? '').toList();
-  //     final classes = _classList.map((cls) => cls['nama'] ?? '').toList();
-
-  //     for (var day in days) {
-  //       for (var className in classes) {
-  //         headers.add('$day - $className');
-  //       }
-  //     }
-
-  //     for (int i = 0; i < headers.length; i++) {
-  //       sheet.getRangeByIndex(3, i + 1).setText(headers[i]);
-  //       sheet.getRangeByIndex(3, i + 1).cellStyle.bold = true;
-  //       sheet.getRangeByIndex(3, i + 1).cellStyle.backColor = '#4361EE';
-  //       sheet.getRangeByIndex(3, i + 1).cellStyle.fontColor = '#FFFFFF';
-  //     }
-
-  //     // Fill data dalam format timetable
-  //     final timeSlots = _jamPelajaranList
-  //         .map((jam) => '${jam['jam_mulai'] ?? ''}-${jam['jam_selesai'] ?? ''}')
-  //         .toList();
-
-  //     for (int i = 0; i < timeSlots.length; i++) {
-  //       final timeSlot = timeSlots[i];
-  //       sheet.getRangeByIndex(i + 4, 1).setText(timeSlot);
-
-  //       int colIndex = 2;
-  //       for (var day in days) {
-  //         for (var className in classes) {
-  //           final schedule = _gridData.firstWhere(
-  //             (data) =>
-  //                 data.waktu == timeSlot &&
-  //                 data.hari == day &&
-  //                 data.kelas == className,
-  //             orElse: () => ScheduleGridData(
-  //               id: '',
-  //               waktu: '',
-  //               hari: '',
-  //               kelas: '',
-  //               mataPelajaran: '-',
-  //               guru: '',
-  //             ),
-  //           );
-
-  //           final cellValue = schedule.mataPelajaran != '-'
-  //               ? '${schedule.mataPelajaran}\n(${schedule.guru})'
-  //               : '-';
-
-  //           sheet.getRangeByIndex(i + 4, colIndex).setText(cellValue);
-  //           colIndex++;
-  //         }
-  //       }
-  //     }
-
-  //     // Auto fit columns
-  //     for (int i = 1; i <= headers.length; i++) {
-  //       sheet.autoFitColumn(i);
-  //     }
-
-  //     // Save the document
-  //     final List<int> bytes = workbook.saveAsStream();
-  //     workbook.dispose();
-
-  //     // Get directory
-  //     final Directory directory = await getApplicationDocumentsDirectory();
-  //     final String path =
-  //         '${directory.path}/Jadwal_Mengajar_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-  //     final File file = File(path);
-
-  //     await file.writeAsBytes(bytes, flush: true);
-
-  //     // Open the file
-  //     await OpenFile.open(path);
-
-  //     _showSuccessSnackBar(
-  //       languageProvider.getTranslatedText({
-  //         'en': 'Schedule exported successfully',
-  //         'id': 'Jadwal berhasil diekspor',
-  //       }),
-  //     );
-  //   } catch (e) {
-  //     if (kDebugMode) {
-  //       print('Error exporting to Excel: $e');
-  //     }
-  //     _showErrorSnackBar('Failed to export schedule: $e');
-  //   }
-  // }
 
   Widget _buildTableView() {
     final languageProvider = context.read<LanguageProvider>();
@@ -1397,25 +1408,89 @@ class TeachingScheduleManagementScreenState
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
-                              _showTableView ? Icons.view_list : Icons.table_chart,
+                              _showTableView
+                                  ? Icons.view_list
+                                  : Icons.table_chart,
                               color: Colors.white,
                               size: 20,
                             ),
                           ),
                         ),
                         SizedBox(width: 8),
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(10),
+                        PopupMenuButton<String>(
+                          onSelected: (value) {
+                            switch (value) {
+                              case 'export':
+                                _exportToExcel();
+                                break;
+                              case 'import':
+                                _importFromExcel();
+                                break;
+                              case 'template':
+                                _downloadTemplate();
+                                break;
+                            }
+                          },
+                          icon: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.more_vert,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
-                          child: Icon(
-                            Icons.schedule,
-                            color: Colors.white,
-                            size: 20,
-                          ),
+                          itemBuilder: (BuildContext context) => [
+                            PopupMenuItem<String>(
+                              value: 'export',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.download, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Export to Excel',
+                                      'id': 'Export ke Excel',
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem<String>(
+                              value: 'import',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.upload, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Import from Excel',
+                                      'id': 'Import dari Excel',
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem<String>(
+                              value: 'template',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.file_download, size: 20),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Download Template',
+                                      'id': 'Download Template',
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -1440,7 +1515,10 @@ class TeachingScheduleManagementScreenState
                                   'id': 'Cari jadwal...',
                                 }),
                                 hintStyle: TextStyle(color: Colors.grey),
-                                prefixIcon: Icon(Icons.search, color: Colors.grey),
+                                prefixIcon: Icon(
+                                  Icons.search,
+                                  color: Colors.grey,
+                                ),
                                 border: InputBorder.none,
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: 16,
@@ -1498,22 +1576,85 @@ class TeachingScheduleManagementScreenState
                         ),
                       ],
                     ),
+                    
+                    // Filter Chips
+                    if (_hasActiveFilter) ...[
+                      SizedBox(height: 12),
+                      SizedBox(
+                        height: 32,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ListView(
+                                scrollDirection: Axis.horizontal,
+                                children: [
+                                  ..._buildFilterChips(languageProvider).map((filter) {
+                                    return Container(
+                                      margin: EdgeInsets.only(right: 6),
+                                      child: Chip(
+                                        label: Text(
+                                          filter['label'],
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        deleteIcon: Icon(
+                                          Icons.close,
+                                          size: 16,
+                                          color: Colors.white,
+                                        ),
+                                        onDeleted: filter['onRemove'],
+                                        backgroundColor: Colors.white.withOpacity(0.2),
+                                        side: BorderSide(
+                                          color: Colors.white.withOpacity(0.3),
+                                          width: 1,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        labelPadding: EdgeInsets.only(left: 4),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            InkWell(
+                              onTap: _clearAllFilters,
+                              child: Container(
+                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.red.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  languageProvider.getTranslatedText({
+                                    'en': 'Clear All',
+                                    'id': 'Hapus Semua',
+                                  }),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              if (!_showTableView && filteredSchedules.isNotEmpty)
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Text(
-                        '${filteredSchedules.length} ${languageProvider.getTranslatedText({'en': 'schedules found', 'id': 'jadwal ditemukan'})}',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              SizedBox(height: 4),
               Expanded(
                 child: _showTableView
                     ? _buildTableView()
