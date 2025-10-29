@@ -59,14 +59,17 @@ class PresencePageState extends State<PresencePage> {
   DateTime _selectedDate = DateTime.now();
   String? _selectedMataPelajaran;
   String? _selectedKelas;
+  String? _selectedDateFilter;
   List<dynamic> _mataPelajaranList = [];
   List<dynamic> _mataPelajaranDiampu = [];
   List<dynamic> _kelasList = [];
   List<Siswa> _siswaList = [];
   List<Siswa> _filteredSiswaList = [];
+  List<String> _selectedSubjectIds = [];
   final Map<String, String> _absensiStatus = {};
   bool _isLoadingInput = true;
   bool _isSubmitting = false;
+  bool _hasActiveFilter = false;
 
   // Search dan Filter
   final TextEditingController _searchController = TextEditingController();
@@ -224,6 +227,21 @@ class PresencePageState extends State<PresencePage> {
     }
   }
 
+  void _checkActiveFilter() {
+    setState(() {
+      _hasActiveFilter =
+          _selectedDateFilter != null || _selectedSubjectIds.isNotEmpty;
+    });
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _selectedDateFilter = null;
+      _selectedSubjectIds.clear();
+      _hasActiveFilter = false;
+    });
+  }
+
   // ========== MODE SWITCHER ==========
   Widget _buildModeSwitcher() {
     return Consumer<LanguageProvider>(
@@ -268,7 +286,9 @@ class PresencePageState extends State<PresencePage> {
     final isSelected = _currentMode == mode;
 
     return Material(
-      color: isSelected ? _getPrimaryColor().withValues(alpha: 0.85) : Colors.transparent,
+      color: isSelected
+          ? _getPrimaryColor().withValues(alpha: 0.85)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -308,6 +328,7 @@ class PresencePageState extends State<PresencePage> {
   }
 
   // ========== MODE 0: VIEW RESULTS ==========
+  // ========== MODIFIKASI BUILD RESULTS MODE ==========
   Widget _buildResultsMode() {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
@@ -322,47 +343,92 @@ class PresencePageState extends State<PresencePage> {
 
         final filteredSummaries = _getFilteredSummaries();
 
-        // Terjemahan filter options
-        final translatedFilterOptions = [
-          languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
-          languageProvider.getTranslatedText({'en': 'Today', 'id': 'Hari Ini'}),
-          languageProvider.getTranslatedText({
-            'en': 'This Week',
-            'id': 'Minggu Ini',
-          }),
-        ];
-
         return Column(
           children: [
-            // Search Bar dengan Filter
-            EnhancedSearchBar(
-              controller: _searchController,
-              hintText: languageProvider.getTranslatedText({
-                'en': 'Search attendance...',
-                'id': 'Cari absensi...',
-              }),
-              onChanged: (value) {
-                setState(() {});
-              },
-              filterOptions: translatedFilterOptions,
-              selectedFilter:
-                  translatedFilterOptions[_selectedFilter == 'All'
-                      ? 0
-                      : _selectedFilter == 'Today'
-                      ? 1
-                      : 2],
-              onFilterChanged: (filter) {
-                final index = translatedFilterOptions.indexOf(filter);
-                setState(() {
-                  _selectedFilter = index == 0
-                      ? 'All'
-                      : index == 1
-                      ? 'Today'
-                      : 'This Week';
-                });
-              },
-              showFilter: true,
-            ),
+            // Search dan Filter Bar
+            _buildSearchAndFilter(languageProvider),
+
+            // Filter Chips
+            if (_hasActiveFilter) ...[
+              SizedBox(height: 8),
+              SizedBox(
+                height: 32,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        children: [
+                          ..._buildFilterChips(languageProvider).map((filter) {
+                            return Container(
+                              margin: EdgeInsets.only(right: 6),
+                              child: Chip(
+                                label: Text(
+                                  filter['label'],
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                deleteIcon: Icon(
+                                  Icons.close,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                                onDeleted: filter['onRemove'],
+                                backgroundColor: _getPrimaryColor().withOpacity(
+                                  0.7,
+                                ),
+                                side: BorderSide.none,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                labelPadding: EdgeInsets.only(left: 4),
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Padding(
+                      padding: EdgeInsets.only(right: 16),
+                      child: InkWell(
+                        onTap: _clearAllFilters,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            languageProvider.getTranslatedText({
+                              'en': 'Clear All',
+                              'id': 'Hapus Semua',
+                            }),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 8),
+            ],
 
             if (filteredSummaries.isNotEmpty)
               Padding(
@@ -386,8 +452,7 @@ class PresencePageState extends State<PresencePage> {
                         'id': 'Belum ada data absensi',
                       }),
                       subtitle:
-                          _searchController.text.isEmpty &&
-                              _selectedFilter == 'All'
+                          _searchController.text.isEmpty && !_hasActiveFilter
                           ? languageProvider.getTranslatedText({
                               'en': 'No attendance data available',
                               'id': 'Tidak ada data absensi tersedia',
@@ -413,27 +478,47 @@ class PresencePageState extends State<PresencePage> {
     );
   }
 
+  // ========== MODIFIKASI GET FILTERED SUMMARIES ==========
   List<AbsensiSummary> _getFilteredSummaries() {
     final searchTerm = _searchController.text.toLowerCase();
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     final endOfWeek = startOfWeek.add(Duration(days: 6));
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    final endOfMonth = DateTime(now.year, now.month + 1, 0);
 
     return _absensiSummaryList.where((summary) {
+      // Search filter
       final matchesSearch =
           searchTerm.isEmpty ||
           summary.mataPelajaranNama.toLowerCase().contains(searchTerm);
 
-      final matchesFilter =
-          _selectedFilter == 'All' ||
-          (_selectedFilter == 'Today' && _isSameDay(summary.tanggal, now)) ||
-          (_selectedFilter == 'This Week' &&
+      // Date filter
+      bool matchesDateFilter = true;
+      if (_selectedDateFilter != null) {
+        if (_selectedDateFilter == 'today') {
+          matchesDateFilter = _isSameDay(summary.tanggal, now);
+        } else if (_selectedDateFilter == 'week') {
+          matchesDateFilter =
               summary.tanggal.isAfter(
                 startOfWeek.subtract(Duration(days: 1)),
               ) &&
-              summary.tanggal.isBefore(endOfWeek.add(Duration(days: 1))));
+              summary.tanggal.isBefore(endOfWeek.add(Duration(days: 1)));
+        } else if (_selectedDateFilter == 'month') {
+          matchesDateFilter =
+              summary.tanggal.isAfter(
+                startOfMonth.subtract(Duration(days: 1)),
+              ) &&
+              summary.tanggal.isBefore(endOfMonth.add(Duration(days: 1)));
+        }
+      }
 
-      return matchesSearch && matchesFilter;
+      // Subject filter
+      final matchesSubject =
+          _selectedSubjectIds.isEmpty ||
+          _selectedSubjectIds.contains(summary.mataPelajaranId);
+
+      return matchesSearch && matchesDateFilter && matchesSubject;
     }).toList();
   }
 
@@ -443,7 +528,7 @@ class PresencePageState extends State<PresencePage> {
         date1.day == date2.day;
   }
 
-  // ========== HEADER BARU SEPERTI PENGUMUMAN ==========
+  // ========== HEADER BARU SEPERTI ADMIN PRESENCE ==========
   Widget _buildHeader(LanguageProvider languageProvider) {
     return Container(
       width: double.infinity,
@@ -520,18 +605,42 @@ class PresencePageState extends State<PresencePage> {
                   ],
                 ),
               ),
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  switch (value) {
+                    case 'refresh':
+                      if (_currentMode == 0) {
+                        _loadAbsensiSummary();
+                      }
+                      break;
+                  }
+                },
+                icon: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.more_vert, color: Colors.white, size: 20),
                 ),
-                child: Icon(
-                  _currentMode == 0 ? Icons.list_alt : Icons.add_circle,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                itemBuilder: (BuildContext context) => [
+                  PopupMenuItem<String>(
+                    value: 'refresh',
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Refresh',
+                            'id': 'Refresh',
+                          }),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -542,6 +651,389 @@ class PresencePageState extends State<PresencePage> {
         ],
       ),
     );
+  }
+
+  // ========== SEARCH BAR DENGAN FILTER SEPERTI ADMIN ==========
+  Widget _buildSearchAndFilter(LanguageProvider languageProvider) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _getPrimaryColor().withOpacity(
+          0.1,
+        ), // Background hijau transparan
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white, // Background putih untuk kontras
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) => setState(() {}),
+                style: TextStyle(color: Colors.black87),
+                decoration: InputDecoration(
+                  hintText: languageProvider.getTranslatedText({
+                    'en': 'Search attendance...',
+                    'id': 'Cari absensi...',
+                  }),
+                  hintStyle: TextStyle(color: Colors.grey),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: _getPrimaryColor(), // Ikon dengan warna hijau
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: 8),
+          // Filter Button (hanya untuk mode Results)
+          if (_currentMode == 0)
+            Container(
+              decoration: BoxDecoration(
+                color: _hasActiveFilter
+                    ? _getPrimaryColor() // Hijau solid ketika ada filter aktif
+                    : _getPrimaryColor().withOpacity(0.8), // Hijau transparan
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: _getPrimaryColor().withOpacity(0.3),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  IconButton(
+                    onPressed: _showFilterSheet,
+                    icon: Icon(
+                      Icons.tune,
+                      color: Colors.white, // Ikon putih untuk kontras
+                    ),
+                    tooltip: languageProvider.getTranslatedText({
+                      'en': 'Filter',
+                      'id': 'Filter',
+                    }),
+                  ),
+                  if (_hasActiveFilter)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                        constraints: BoxConstraints(minWidth: 8, minHeight: 8),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ========== FILTER SHEET SEPERTI ADMIN ==========
+  void _showFilterSheet() {
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
+
+    String? tempSelectedDate = _selectedDateFilter;
+    List<String> tempSelectedSubjects = List.from(_selectedSubjectIds);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade200),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      languageProvider.getTranslatedText({
+                        'en': 'Filter',
+                        'id': 'Filter',
+                      }),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        setModalState(() {
+                          tempSelectedDate = null;
+                          tempSelectedSubjects.clear();
+                        });
+                      },
+                      child: Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Reset',
+                          'id': 'Reset',
+                        }),
+                        style: TextStyle(color: _getPrimaryColor()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Filter Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Date Filter
+                      Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Date Range',
+                          'id': 'Rentang Tanggal',
+                        }),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: ['today', 'week', 'month'].map((period) {
+                          final isSelected = tempSelectedDate == period;
+                          final label = period == 'today'
+                              ? languageProvider.getTranslatedText({
+                                  'en': 'Today',
+                                  'id': 'Hari Ini',
+                                })
+                              : period == 'week'
+                              ? languageProvider.getTranslatedText({
+                                  'en': 'This Week',
+                                  'id': 'Minggu Ini',
+                                })
+                              : languageProvider.getTranslatedText({
+                                  'en': 'This Month',
+                                  'id': 'Bulan Ini',
+                                });
+                          return FilterChip(
+                            label: Text(label),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setModalState(() {
+                                tempSelectedDate = selected ? period : null;
+                              });
+                            },
+                            backgroundColor: Colors.grey.shade100,
+                            selectedColor: _getPrimaryColor().withOpacity(0.2),
+                            checkmarkColor: _getPrimaryColor(),
+                            labelStyle: TextStyle(
+                              color: isSelected
+                                  ? _getPrimaryColor()
+                                  : Colors.grey.shade700,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      SizedBox(height: 24),
+
+                      // Subject Filter (hanya mata pelajaran yang diampu)
+                      Text(
+                        languageProvider.getTranslatedText({
+                          'en': 'Subject',
+                          'id': 'Mata Pelajaran',
+                        }),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _mataPelajaranDiampu.map<Widget>((subject) {
+                          final subjectId = subject['id'].toString();
+                          final subjectName =
+                              subject['nama'] ??
+                              subject['mata_pelajaran_nama'] ??
+                              'Subject';
+                          final isSelected = tempSelectedSubjects.contains(
+                            subjectId,
+                          );
+                          return FilterChip(
+                            label: Text(subjectName),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setModalState(() {
+                                if (selected) {
+                                  tempSelectedSubjects.add(subjectId);
+                                } else {
+                                  tempSelectedSubjects.remove(subjectId);
+                                }
+                              });
+                            },
+                            backgroundColor: Colors.grey.shade100,
+                            selectedColor: _getPrimaryColor().withOpacity(0.2),
+                            checkmarkColor: _getPrimaryColor(),
+                            labelStyle: TextStyle(
+                              color: isSelected
+                                  ? _getPrimaryColor()
+                                  : Colors.grey.shade700,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              // Apply Button
+              Container(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(color: _getPrimaryColor()),
+                        ),
+                        child: Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Cancel',
+                            'id': 'Batal',
+                          }),
+                          style: TextStyle(color: _getPrimaryColor()),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          setState(() {
+                            _selectedDateFilter = tempSelectedDate;
+                            _selectedSubjectIds = tempSelectedSubjects;
+                            _checkActiveFilter();
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: _getPrimaryColor(),
+                        ),
+                        child: Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Apply',
+                            'id': 'Terapkan',
+                          }),
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ========== FILTER CHIPS SEPERTI ADMIN ==========
+  List<Map<String, dynamic>> _buildFilterChips(
+    LanguageProvider languageProvider,
+  ) {
+    List<Map<String, dynamic>> filterChips = [];
+
+    if (_selectedDateFilter != null) {
+      final label = _selectedDateFilter == 'today'
+          ? languageProvider.getTranslatedText({
+              'en': 'Today',
+              'id': 'Hari Ini',
+            })
+          : _selectedDateFilter == 'week'
+          ? languageProvider.getTranslatedText({
+              'en': 'This Week',
+              'id': 'Minggu Ini',
+            })
+          : languageProvider.getTranslatedText({
+              'en': 'This Month',
+              'id': 'Bulan Ini',
+            });
+      filterChips.add({
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Date', 'id': 'Tanggal'})}: $label',
+        'onRemove': () {
+          setState(() {
+            _selectedDateFilter = null;
+            _checkActiveFilter();
+          });
+        },
+      });
+    }
+
+    if (_selectedSubjectIds.isNotEmpty) {
+      filterChips.add({
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Subject', 'id': 'Mata Pelajaran'})}: ${_selectedSubjectIds.length}',
+        'onRemove': () {
+          setState(() {
+            _selectedSubjectIds.clear();
+            _checkActiveFilter();
+          });
+        },
+      });
+    }
+
+    return filterChips;
   }
 
   // ========== CARD BARU SEPERTI PENGUMUMAN ==========
@@ -1630,12 +2122,14 @@ class PresencePageState extends State<PresencePage> {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
         return Scaffold(
-          backgroundColor: Color(0xFFF8F9FA), // Background sama dengan pengumuman
+          backgroundColor: Color(
+            0xFFF8F9FA,
+          ), // Background sama dengan pengumuman
           body: Column(
             children: [
               // Header baru seperti pengumuman
               _buildHeader(languageProvider),
-              
+
               // Content
               Expanded(
                 child: _currentMode == 0
@@ -2139,16 +2633,16 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
   }
 }
 
- // ========== HELPER FUNCTIONS UNTUK STYLING ==========
-  Color _getPrimaryColor() {
-    return ColorUtils.getRoleColor('guru'); // Gunakan primary color dari ColorUtils
-  }
+// ========== HELPER FUNCTIONS UNTUK STYLING ==========
+Color _getPrimaryColor() {
+  return ColorUtils.getRoleColor('guru');
+}
 
-  LinearGradient _getCardGradient() {
-    final primaryColor = _getPrimaryColor();
-    return LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [primaryColor, primaryColor.withOpacity(0.7)],
-    );
-  }
+LinearGradient _getCardGradient() {
+  final primaryColor = _getPrimaryColor();
+  return LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [primaryColor, primaryColor.withOpacity(0.7)],
+  );
+}
