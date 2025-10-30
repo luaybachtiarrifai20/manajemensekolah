@@ -421,18 +421,24 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
       final subjectName =
           schedule['mata_pelajaran_nama']?.toString().toLowerCase() ?? '';
       final className = schedule['kelas_nama']?.toString().toLowerCase() ?? '';
-      final dayName = schedule['hari_nama']?.toString().toLowerCase() ?? '';
-      final hariId = schedule['hari_id']?.toString() ?? '';
+      final dayName = schedule['hari_nama']?.toString() ?? '';
 
       final matchesSearch =
           searchTerm.isEmpty ||
           subjectName.contains(searchTerm) ||
           className.contains(searchTerm) ||
-          dayName.contains(searchTerm);
+          dayName.toLowerCase().contains(searchTerm);
 
-      // Filter by hari
+      // Filter by hari - match by hari_nama
       final matchesHari = _selectedHariIds.isEmpty ||
-          _selectedHariIds.contains(hariId);
+          _selectedHariIds.any((selectedId) {
+            // Get the hari name from the selected ID
+            final selectedHariName = _hariIdMap.entries
+                .firstWhere((entry) => entry.value == selectedId,
+                    orElse: () => MapEntry('', ''))
+                .key;
+            return dayName == selectedHariName;
+          });
 
       return matchesSearch && matchesHari;
     }).toList();
