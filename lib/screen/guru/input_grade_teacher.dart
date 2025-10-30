@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
+import 'package:manajemensekolah/components/separated_search_filter.dart';
+import 'package:manajemensekolah/components/filter_sheet.dart';
 import 'package:manajemensekolah/models/siswa.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_student_services.dart';
@@ -27,6 +29,10 @@ class GradePageState extends State<GradePage> {
   List<dynamic> _filteredMataPelajaranList = [];
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
+
+  // Filter States
+  List<String> _selectedSubjectIds = [];
+  bool _hasActiveFilter = false;
 
   @override
   void initState() {
@@ -147,6 +153,102 @@ class GradePageState extends State<GradePage> {
       end: Alignment.bottomRight,
       colors: [primaryColor, primaryColor.withOpacity(0.8)],
     );
+  }
+
+  // Filter Methods
+  void _checkActiveFilter() {
+    setState(() {
+      _hasActiveFilter = _selectedSubjectIds.isNotEmpty;
+    });
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _selectedSubjectIds.clear();
+      _hasActiveFilter = false;
+    });
+  }
+
+  List<Map<String, dynamic>> _buildFilterChips(
+    LanguageProvider languageProvider,
+  ) {
+    List<Map<String, dynamic>> filterChips = [];
+
+    if (_selectedSubjectIds.isNotEmpty) {
+      filterChips.add({
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Subject', 'id': 'Mata Pelajaran'})}: ${_selectedSubjectIds.length}',
+        'onRemove': () {
+          setState(() {
+            _selectedSubjectIds.clear();
+            _checkActiveFilter();
+          });
+        },
+      });
+    }
+
+    return filterChips;
+  }
+
+  void _showFilterSheet() {
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => FilterSheet(
+        primaryColor: _getPrimaryColor(),
+        config: FilterConfig(
+          sections: [
+            FilterSection(
+              key: 'subjectIds',
+              title: languageProvider.getTranslatedText({
+                'en': 'Subjects',
+                'id': 'Mata Pelajaran',
+              }),
+              options: _mataPelajaranList.map((subject) {
+                return FilterOption(
+                  label: subject['nama'] ?? 'Subject',
+                  value: subject['id'].toString(),
+                );
+              }).toList(),
+              multiSelect: true,
+            ),
+          ],
+        ),
+        initialFilters: {
+          'subjectIds': _selectedSubjectIds,
+        },
+        onApplyFilters: (filters) {
+          setState(() {
+            _selectedSubjectIds = List<String>.from(filters['subjectIds'] ?? []);
+            _checkActiveFilter();
+          });
+        },
+      ),
+    );
+  }
+
+  List<dynamic> _getFilteredSubjects() {
+    final searchTerm = _searchController.text.toLowerCase();
+
+    return _mataPelajaranList.where((subject) {
+      // Search filter
+      final matchesSearch = searchTerm.isEmpty ||
+          subject['nama'].toLowerCase().contains(searchTerm) ||
+          (subject['kode']?.toString().toLowerCase().contains(searchTerm) ??
+              false);
+
+      // Subject filter
+      final matchesSubject = _selectedSubjectIds.isEmpty ||
+          _selectedSubjectIds.contains(subject['id'].toString());
+
+      return matchesSearch && matchesSubject;
+    }).toList();
   }
 
   Widget _buildSubjectCard(
@@ -329,6 +431,8 @@ class GradePageState extends State<GradePage> {
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
+        final filteredSubjects = _getFilteredSubjects();
+
         return Scaffold(
           backgroundColor: Color(0xFFF8F9FA),
           body: Column(
@@ -481,31 +585,120 @@ class GradePageState extends State<GradePage> {
                     ),
                     SizedBox(height: 16),
 
-                    // Search Bar
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (value) => setState(() {}),
-                        style: TextStyle(color: Colors.black87),
-                        decoration: InputDecoration(
-                          hintText: languageProvider.getTranslatedText({
-                            'en': 'Search subjects...',
-                            'id': 'Cari mata pelajaran...',
-                          }),
-                          hintStyle: TextStyle(color: Colors.grey),
-                          prefixIcon: Icon(Icons.search, color: Colors.grey),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
+                    // Search Bar with Filter Button using SeparatedSearchFilter
+                    SeparatedSearchFilter(
+                      controller: _searchController,
+                      onChanged: (value) => setState(() {}),
+                      hintText: languageProvider.getTranslatedText({
+                        'en': 'Search subjects...',
+                        'id': 'Cari mata pelajaran...',
+                      }),
+                      showFilter: true,
+                      hasActiveFilter: _hasActiveFilter,
+                      onFilterPressed: _showFilterSheet,
+                      // Custom search styling - longer with white background
+                      searchBackgroundColor: Colors.white.withOpacity(0.95),
+                      searchIconColor: Colors.grey.shade600,
+                      searchTextColor: Colors.black87,
+                      searchHintColor: Colors.grey.shade500,
+                      searchBorderRadius: 14,
+                      // Custom filter styling - compact with primary color
+                      filterActiveColor: _getPrimaryColor(),
+                      filterInactiveColor: Colors.white.withOpacity(0.9),
+                      filterIconColor: _hasActiveFilter ? Colors.white : _getPrimaryColor(),
+                      filterBorderRadius: 14,
+                      filterWidth: 56,
+                      filterHeight: 48, // Match search bar height
+                      spacing: 12,
+                      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+                    ),
+
+                    // Filter Chips
+                    if (_hasActiveFilter) ...[
+                      SizedBox(height: 12),
+                      SizedBox(
+                        height: 32,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ListView(
+                                scrollDirection: Axis.horizontal,
+                                children: [
+                                  ..._buildFilterChips(languageProvider).map((
+                                    filter,
+                                  ) {
+                                    return Container(
+                                      margin: EdgeInsets.only(right: 6),
+                                      child: Chip(
+                                        label: Text(
+                                          filter['label'],
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        deleteIcon: Icon(
+                                          Icons.close,
+                                          size: 16,
+                                          color: Colors.white,
+                                        ),
+                                        onDeleted: filter['onRemove'],
+                                        backgroundColor: Colors.white
+                                            .withOpacity(0.2),
+                                        side: BorderSide(
+                                          color: Colors.white.withOpacity(0.3),
+                                          width: 1,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        labelPadding: EdgeInsets.only(left: 4),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            InkWell(
+                              onTap: _clearAllFilters,
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.red.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  languageProvider.getTranslatedText({
+                                    'en': 'Clear All',
+                                    'id': 'Hapus Semua',
+                                  }),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -519,7 +712,7 @@ class GradePageState extends State<GradePage> {
                           'id': 'Memuat mata pelajaran...',
                         }),
                       )
-                    : _filteredMataPelajaranList.isEmpty
+                    : filteredSubjects.isEmpty
                     ? EmptyState(
                         icon: Icons.menu_book,
                         title: languageProvider.getTranslatedText({
@@ -527,12 +720,12 @@ class GradePageState extends State<GradePage> {
                           'id': 'Tidak Ada Mata Pelajaran',
                         }),
                         subtitle: languageProvider.getTranslatedText({
-                          'en': _searchController.text.isNotEmpty
+                          'en': _searchController.text.isNotEmpty || _hasActiveFilter
                               ? 'No subjects found for your search'
                               : widget.guru['role'] == 'guru'
                               ? 'No subjects assigned to you'
                               : 'No subjects available',
-                          'id': _searchController.text.isNotEmpty
+                          'id': _searchController.text.isNotEmpty || _hasActiveFilter
                               ? 'Tidak ada mata pelajaran yang sesuai dengan pencarian'
                               : widget.guru['role'] == 'guru'
                               ? 'Tidak ada mata pelajaran yang diajarkan'
@@ -550,7 +743,7 @@ class GradePageState extends State<GradePage> {
                         backgroundColor: Colors.white,
                         child: Column(
                           children: [
-                            if (_filteredMataPelajaranList.isNotEmpty)
+                            if (filteredSubjects.isNotEmpty)
                               Padding(
                                 padding: EdgeInsets.symmetric(
                                   horizontal: 16,
@@ -559,7 +752,7 @@ class GradePageState extends State<GradePage> {
                                 child: Row(
                                   children: [
                                     Text(
-                                      '${_filteredMataPelajaranList.length} ${languageProvider.getTranslatedText({'en': 'subjects found', 'id': 'mata pelajaran ditemukan'})}',
+                                      '${filteredSubjects.length} ${languageProvider.getTranslatedText({'en': 'subjects found', 'id': 'mata pelajaran ditemukan'})}',
                                       style: TextStyle(
                                         color: Colors.grey[600],
                                         fontSize: 12,
@@ -571,10 +764,10 @@ class GradePageState extends State<GradePage> {
                             Expanded(
                               child: ListView.builder(
                                 padding: EdgeInsets.only(top: 8, bottom: 16),
-                                itemCount: _filteredMataPelajaranList.length,
+                                itemCount: filteredSubjects.length,
                                 itemBuilder: (context, index) {
                                   return _buildSubjectCard(
-                                    _filteredMataPelajaranList[index],
+                                    filteredSubjects[index],
                                     languageProvider,
                                     index,
                                   );
@@ -593,7 +786,7 @@ class GradePageState extends State<GradePage> {
   }
 }
 
-// Halaman Pemilihan Kelas - Diperbarui dengan UI yang konsisten
+// Halaman Pemilihan Kelas - Diperbaiki agar langsung ke tabel nilai
 class ClassSelectionPage extends StatefulWidget {
   final Map<String, dynamic> guru;
   final Map<String, dynamic> mataPelajaran;
@@ -613,6 +806,10 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
   List<dynamic> _filteredKelasList = [];
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
+
+  // Filter States
+  List<String> _selectedClassIds = [];
+  bool _hasActiveFilter = false;
 
   @override
   void initState() {
@@ -715,6 +912,102 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
     );
   }
 
+  // Filter Methods untuk Class Selection
+  void _checkActiveFilter() {
+    setState(() {
+      _hasActiveFilter = _selectedClassIds.isNotEmpty;
+    });
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _selectedClassIds.clear();
+      _hasActiveFilter = false;
+    });
+  }
+
+  List<Map<String, dynamic>> _buildFilterChips(
+    LanguageProvider languageProvider,
+  ) {
+    List<Map<String, dynamic>> filterChips = [];
+
+    if (_selectedClassIds.isNotEmpty) {
+      filterChips.add({
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Class', 'id': 'Kelas'})}: ${_selectedClassIds.length}',
+        'onRemove': () {
+          setState(() {
+            _selectedClassIds.clear();
+            _checkActiveFilter();
+          });
+        },
+      });
+    }
+
+    return filterChips;
+  }
+
+  void _showFilterSheet() {
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => FilterSheet(
+        primaryColor: _getPrimaryColor(),
+        config: FilterConfig(
+          sections: [
+            FilterSection(
+              key: 'classIds',
+              title: languageProvider.getTranslatedText({
+                'en': 'Classes',
+                'id': 'Kelas',
+              }),
+              options: _kelasList.map((classItem) {
+                return FilterOption(
+                  label: classItem['nama'] ?? 'Class',
+                  value: classItem['id'].toString(),
+                );
+              }).toList(),
+              multiSelect: true,
+            ),
+          ],
+        ),
+        initialFilters: {
+          'classIds': _selectedClassIds,
+        },
+        onApplyFilters: (filters) {
+          setState(() {
+            _selectedClassIds = List<String>.from(filters['classIds'] ?? []);
+            _checkActiveFilter();
+          });
+        },
+      ),
+    );
+  }
+
+  List<dynamic> _getFilteredClasses() {
+    final searchTerm = _searchController.text.toLowerCase();
+
+    return _kelasList.where((kelas) {
+      // Search filter
+      final matchesSearch = searchTerm.isEmpty ||
+          kelas['nama'].toLowerCase().contains(searchTerm) ||
+          (kelas['tingkat']?.toString().toLowerCase().contains(searchTerm) ??
+              false);
+
+      // Class filter
+      final matchesClass = _selectedClassIds.isEmpty ||
+          _selectedClassIds.contains(kelas['id'].toString());
+
+      return matchesSearch && matchesClass;
+    }).toList();
+  }
+
   Widget _buildClassCard(
     Map<String, dynamic> kelas,
     LanguageProvider languageProvider,
@@ -796,18 +1089,17 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black,
                                   ),
-                                  maxLines: 1,
+                                  maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 SizedBox(height: 2),
-                                if (kelas['tingkat'] != null)
-                                  Text(
-                                    '${languageProvider.getTranslatedText({'en': 'Level', 'id': 'Tingkat'})}: ${kelas['tingkat']}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
+                                Text(
+                                  '${languageProvider.getTranslatedText({'en': 'Grade', 'id': 'Tingkat'})}: ${kelas['tingkat'] ?? '-'}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
                                   ),
+                                ),
                               ],
                             ),
                           ),
@@ -829,7 +1121,7 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
 
                       SizedBox(height: 12),
 
-                      // Informasi tambahan
+                      // Konten preview
                       Row(
                         children: [
                           Container(
@@ -852,8 +1144,8 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                               children: [
                                 Text(
                                   languageProvider.getTranslatedText({
-                                    'en': 'Tap to view students',
-                                    'id': 'Ketuk untuk melihat siswa',
+                                    'en': 'Subject',
+                                    'id': 'Mata Pelajaran',
                                   }),
                                   style: TextStyle(
                                     fontSize: 10,
@@ -863,15 +1155,18 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                                 ),
                                 SizedBox(height: 1),
                                 Text(
-                                  languageProvider.getTranslatedText({
-                                    'en': 'Manage Grades',
-                                    'id': 'Kelola Nilai',
-                                  }),
+                                  widget.mataPelajaran['nama'] ??
+                                      languageProvider.getTranslatedText({
+                                        'en': 'No subject',
+                                        'id': 'Tidak ada mata pelajaran',
+                                      }),
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                     color: Colors.black,
                                   ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
@@ -893,6 +1188,8 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
+        final filteredClasses = _getFilteredClasses();
+
         return Scaffold(
           backgroundColor: Color(0xFFF8F9FA),
           body: Column(
@@ -955,7 +1252,10 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                               ),
                               SizedBox(height: 2),
                               Text(
-                                widget.mataPelajaran['nama'] ?? '',
+                                languageProvider.getTranslatedText({
+                                  'en': 'Choose class to input grades',
+                                  'id': 'Pilih kelas untuk input nilai',
+                                }),
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.white.withOpacity(0.9),
@@ -1009,25 +1309,20 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  widget.mataPelajaran['nama'] ??
-                                      languageProvider.getTranslatedText({
-                                        'en': 'Subject',
-                                        'id': 'Mata Pelajaran',
-                                      }),
+                                  widget.mataPelajaran['nama'] ?? 'Subject',
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
                                 ),
-                                if (widget.mataPelajaran['kode'] != null)
-                                  Text(
-                                    '${languageProvider.getTranslatedText({'en': 'Code', 'id': 'Kode'})}: ${widget.mataPelajaran['kode']}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.white.withOpacity(0.8),
-                                    ),
+                                Text(
+                                  '${languageProvider.getTranslatedText({'en': 'Code', 'id': 'Kode'})}: ${widget.mataPelajaran['kode'] ?? '-'}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.8),
                                   ),
+                                ),
                               ],
                             ),
                           ),
@@ -1036,31 +1331,120 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                     ),
                     SizedBox(height: 16),
 
-                    // Search Bar
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (value) => setState(() {}),
-                        style: TextStyle(color: Colors.black87),
-                        decoration: InputDecoration(
-                          hintText: languageProvider.getTranslatedText({
-                            'en': 'Search classes...',
-                            'id': 'Cari kelas...',
-                          }),
-                          hintStyle: TextStyle(color: Colors.grey),
-                          prefixIcon: Icon(Icons.search, color: Colors.grey),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
+                    // Search Bar with Filter Button using SeparatedSearchFilter
+                    SeparatedSearchFilter(
+                      controller: _searchController,
+                      onChanged: (value) => setState(() {}),
+                      hintText: languageProvider.getTranslatedText({
+                        'en': 'Search classes...',
+                        'id': 'Cari kelas...',
+                      }),
+                      showFilter: true,
+                      hasActiveFilter: _hasActiveFilter,
+                      onFilterPressed: _showFilterSheet,
+                      // Different styling for ClassSelectionPage - more compact
+                      searchBackgroundColor: Colors.white.withOpacity(0.92),
+                      searchIconColor: _getPrimaryColor().withOpacity(0.7),
+                      searchTextColor: Colors.black,
+                      searchHintColor: Colors.grey.shade400,
+                      searchBorderRadius: 12,
+                      // Filter with accent color
+                      filterActiveColor: Colors.orange.shade600,
+                      filterInactiveColor: Colors.white.withOpacity(0.85),
+                      filterIconColor: _hasActiveFilter ? Colors.white : Colors.orange.shade600,
+                      filterBorderRadius: 12,
+                      filterWidth: 52,
+                      filterHeight: 48, // Match search bar height
+                      spacing: 10,
+                      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+                    ),
+
+                    // Filter Chips
+                    if (_hasActiveFilter) ...[
+                      SizedBox(height: 12),
+                      SizedBox(
+                        height: 32,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ListView(
+                                scrollDirection: Axis.horizontal,
+                                children: [
+                                  ..._buildFilterChips(languageProvider).map((
+                                    filter,
+                                  ) {
+                                    return Container(
+                                      margin: EdgeInsets.only(right: 6),
+                                      child: Chip(
+                                        label: Text(
+                                          filter['label'],
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        deleteIcon: Icon(
+                                          Icons.close,
+                                          size: 16,
+                                          color: Colors.white,
+                                        ),
+                                        onDeleted: filter['onRemove'],
+                                        backgroundColor: Colors.white
+                                            .withOpacity(0.2),
+                                        side: BorderSide(
+                                          color: Colors.white.withOpacity(0.3),
+                                          width: 1,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        labelPadding: EdgeInsets.only(left: 4),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            InkWell(
+                              onTap: _clearAllFilters,
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.red.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  languageProvider.getTranslatedText({
+                                    'en': 'Clear All',
+                                    'id': 'Hapus Semua',
+                                  }),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -1074,7 +1458,7 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                           'id': 'Memuat kelas...',
                         }),
                       )
-                    : _filteredKelasList.isEmpty
+                    : filteredClasses.isEmpty
                     ? EmptyState(
                         icon: Icons.class_,
                         title: languageProvider.getTranslatedText({
@@ -1082,12 +1466,12 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                           'id': 'Tidak Ada Kelas',
                         }),
                         subtitle: languageProvider.getTranslatedText({
-                          'en': _searchController.text.isNotEmpty
+                          'en': _searchController.text.isNotEmpty || _hasActiveFilter
                               ? 'No classes found for your search'
                               : 'No classes available for this subject',
-                          'id': _searchController.text.isNotEmpty
+                          'id': _searchController.text.isNotEmpty || _hasActiveFilter
                               ? 'Tidak ada kelas yang sesuai dengan pencarian'
-                              : 'Tidak ada kelas untuk mata pelajaran ini',
+                              : 'Tidak ada kelas tersedia untuk mata pelajaran ini',
                         }),
                         buttonText: languageProvider.getTranslatedText({
                           'en': 'Refresh',
@@ -1101,7 +1485,7 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                         backgroundColor: Colors.white,
                         child: Column(
                           children: [
-                            if (_filteredKelasList.isNotEmpty)
+                            if (filteredClasses.isNotEmpty)
                               Padding(
                                 padding: EdgeInsets.symmetric(
                                   horizontal: 16,
@@ -1110,7 +1494,7 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                                 child: Row(
                                   children: [
                                     Text(
-                                      '${_filteredKelasList.length} ${languageProvider.getTranslatedText({'en': 'classes found', 'id': 'kelas ditemukan'})}',
+                                      '${filteredClasses.length} ${languageProvider.getTranslatedText({'en': 'classes found', 'id': 'kelas ditemukan'})}',
                                       style: TextStyle(
                                         color: Colors.grey[600],
                                         fontSize: 12,
@@ -1122,10 +1506,10 @@ class ClassSelectionPageState extends State<ClassSelectionPage> {
                             Expanded(
                               child: ListView.builder(
                                 padding: EdgeInsets.only(top: 8, bottom: 16),
-                                itemCount: _filteredKelasList.length,
+                                itemCount: filteredClasses.length,
                                 itemBuilder: (context, index) {
                                   return _buildClassCard(
-                                    _filteredKelasList[index],
+                                    filteredClasses[index],
                                     languageProvider,
                                     index,
                                   );
@@ -1299,7 +1683,7 @@ class GradeBookPageState extends State<GradeBookPage> {
         return AlertDialog(
           title: Row(
             children: [
-              Icon(Icons.filter_list, color: ColorUtils.primaryColor),
+              Icon(Icons.filter_list, color: _getPrimaryColor()),
               SizedBox(width: 8),
               Text(
                 languageProvider.getTranslatedText({
@@ -1351,7 +1735,7 @@ class GradeBookPageState extends State<GradeBookPage> {
                 }),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: ColorUtils.primaryColor,
+                backgroundColor: _getPrimaryColor(),
                 foregroundColor: Colors.white,
               ),
             ),
@@ -1593,6 +1977,10 @@ class GradeBookPageState extends State<GradeBookPage> {
     }
   }
 
+  Color _getPrimaryColor() {
+    return ColorUtils.getRoleColor(widget.guru['role'] ?? 'guru');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
@@ -1817,7 +2205,7 @@ class GradeBookPageState extends State<GradeBookPage> {
                 ),
           floatingActionButton: FloatingActionButton(
             onPressed: () => _openNewInputForm(languageProvider),
-            backgroundColor: ColorUtils.primaryColor,
+            backgroundColor: _getPrimaryColor(),
             foregroundColor: Colors.white,
             child: Icon(Icons.add),
           ),
@@ -1827,7 +2215,7 @@ class GradeBookPageState extends State<GradeBookPage> {
   }
 }
 
-// Form Input Nilai (Tetap sama seperti sebelumnya, hanya tambahkan LanguageProvider)
+// Form Input Nilai Individual
 class GradeInputForm extends StatefulWidget {
   final Map<String, dynamic> guru;
   final Map<String, dynamic> mataPelajaran;
@@ -1970,6 +2358,10 @@ class GradeInputFormState extends State<GradeInputForm> {
     }
   }
 
+  Color _getPrimaryColor() {
+    return ColorUtils.getRoleColor(widget.guru['role'] ?? 'guru');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
@@ -2028,13 +2420,13 @@ class GradeInputFormState extends State<GradeInputForm> {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.person, color: ColorUtils.primaryColor),
+                            Icon(Icons.person, color: _getPrimaryColor()),
                             SizedBox(width: 8),
                             Text(
                               '${languageProvider.getTranslatedText({'en': 'Student', 'id': 'Siswa'})}: ${widget.siswa.nama}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: ColorUtils.primaryColor,
+                                color: _getPrimaryColor(),
                               ),
                             ),
                           ],
@@ -2042,7 +2434,7 @@ class GradeInputFormState extends State<GradeInputForm> {
                         SizedBox(height: 8),
                         Row(
                           children: [
-                            Icon(Icons.badge, color: ColorUtils.primaryColor),
+                            Icon(Icons.badge, color: _getPrimaryColor()),
                             SizedBox(width: 8),
                             Text(
                               '${languageProvider.getTranslatedText({'en': 'NIS', 'id': 'NIS'})}: ${widget.siswa.nis}',
@@ -2054,7 +2446,7 @@ class GradeInputFormState extends State<GradeInputForm> {
                           children: [
                             Icon(
                               Icons.menu_book,
-                              color: ColorUtils.primaryColor,
+                              color: _getPrimaryColor(),
                             ),
                             SizedBox(width: 8),
                             Text(
@@ -2067,7 +2459,7 @@ class GradeInputFormState extends State<GradeInputForm> {
                           children: [
                             Icon(
                               Icons.assignment,
-                              color: ColorUtils.primaryColor,
+                              color: _getPrimaryColor(),
                             ),
                             SizedBox(width: 8),
                             Text(
@@ -2092,7 +2484,7 @@ class GradeInputFormState extends State<GradeInputForm> {
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(
                         Icons.score,
-                        color: ColorUtils.primaryColor,
+                        color: _getPrimaryColor(),
                       ),
                     ),
                     keyboardType: TextInputType.number,
@@ -2133,7 +2525,7 @@ class GradeInputFormState extends State<GradeInputForm> {
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(
                         Icons.description,
-                        color: ColorUtils.primaryColor,
+                        color: _getPrimaryColor(),
                       ),
                     ),
                     maxLines: 3,
@@ -2160,7 +2552,7 @@ class GradeInputFormState extends State<GradeInputForm> {
                       children: [
                         Icon(
                           Icons.calendar_today,
-                          color: ColorUtils.primaryColor,
+                          color: _getPrimaryColor(),
                         ),
                         SizedBox(width: 12),
                         Text(
@@ -2177,7 +2569,7 @@ class GradeInputFormState extends State<GradeInputForm> {
                             '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
                             style: TextStyle(
                               fontSize: 16,
-                              color: ColorUtils.primaryColor,
+                              color: _getPrimaryColor(),
                             ),
                           ),
                         ),
@@ -2191,7 +2583,7 @@ class GradeInputFormState extends State<GradeInputForm> {
                   ElevatedButton(
                     onPressed: _submitNilai,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: ColorUtils.primaryColor,
+                      backgroundColor: _getPrimaryColor(),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -2224,7 +2616,7 @@ class GradeInputFormState extends State<GradeInputForm> {
   }
 }
 
-// Form Input Nilai Baru (Tetap sama seperti sebelumnya, hanya tambahkan LanguageProvider)
+// Form Input Nilai Baru untuk Multiple Siswa
 class GradeInputFormNew extends StatefulWidget {
   final Map<String, dynamic> guru;
   final Map<String, dynamic> mataPelajaran;
@@ -2413,6 +2805,10 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
     }
   }
 
+  Color _getPrimaryColor() {
+    return ColorUtils.getRoleColor(widget.guru['role'] ?? 'guru');
+  }
+
   Widget _buildSiswaInputCard(Siswa siswa, LanguageProvider languageProvider) {
     final nilaiData = _nilaiSiswaMap[siswa.id!] ?? {};
     final nilaiController = TextEditingController(
@@ -2428,10 +2824,10 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ExpansionTile(
         leading: CircleAvatar(
-          backgroundColor: ColorUtils.primaryColor.withOpacity(0.1),
+          backgroundColor: _getPrimaryColor().withOpacity(0.1),
           child: Text(
             siswa.nama?.substring(0, 1).toUpperCase() ?? '?',
-            style: TextStyle(color: ColorUtils.primaryColor),
+            style: TextStyle(color: _getPrimaryColor()),
           ),
         ),
         title: Text(
@@ -2461,7 +2857,7 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(
                       Icons.score,
-                      color: ColorUtils.primaryColor,
+                      color: _getPrimaryColor(),
                     ),
                     hintText: languageProvider.getTranslatedText({
                       'en': 'Enter grade 0-100',
@@ -2503,7 +2899,7 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(
                       Icons.description,
-                      color: ColorUtils.primaryColor,
+                      color: _getPrimaryColor(),
                     ),
                     hintText: languageProvider.getTranslatedText({
                       'en': 'Enter grade description',
@@ -2610,7 +3006,7 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                         children: [
                           Icon(
                             Icons.menu_book,
-                            color: ColorUtils.primaryColor,
+                            color: _getPrimaryColor(),
                             size: 40,
                           ),
                           const SizedBox(width: 12),
@@ -2623,7 +3019,7 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
-                                    color: ColorUtils.primaryColor,
+                                    color: _getPrimaryColor(),
                                   ),
                                 ),
                                 if (widget.mataPelajaran['kode'] != null)
@@ -2664,7 +3060,7 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                             border: InputBorder.none,
                             prefixIcon: Icon(
                               Icons.assignment,
-                              color: ColorUtils.primaryColor,
+                              color: _getPrimaryColor(),
                             ),
                             hintText: languageProvider.getTranslatedText({
                               'en': 'Select grade type',
@@ -2718,7 +3114,7 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                           children: [
                             Icon(
                               Icons.calendar_today,
-                              color: ColorUtils.primaryColor,
+                              color: _getPrimaryColor(),
                             ),
                             const SizedBox(width: 12),
                             Text(
@@ -2738,7 +3134,7 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                                 '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
                                 style: TextStyle(
                                   fontSize: 16,
-                                  color: ColorUtils.primaryColor,
+                                  color: _getPrimaryColor(),
                                 ),
                               ),
                             ),
@@ -2852,7 +3248,7 @@ class GradeInputFormNewState extends State<GradeInputFormNew> {
                     child: ElevatedButton(
                       onPressed: _submitNilai,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: ColorUtils.primaryColor,
+                        backgroundColor: _getPrimaryColor(),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         minimumSize: const Size(double.infinity, 50),

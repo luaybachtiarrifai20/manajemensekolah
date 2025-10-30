@@ -2,13 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
+import 'package:manajemensekolah/components/filter_sheet.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
-import 'package:manajemensekolah/components/enhanced_search_bar.dart';
+import 'package:manajemensekolah/components/new_enhanced_search_bar.dart';
+import 'package:manajemensekolah/components/tab_switcher.dart';
 import 'package:manajemensekolah/models/siswa.dart';
 import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_student_services.dart';
-import 'package:manajemensekolah/services/api_subject_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
@@ -47,9 +48,10 @@ class PresencePage extends StatefulWidget {
   PresencePageState createState() => PresencePageState();
 }
 
-class PresencePageState extends State<PresencePage> {
-  // Mode: 0 = View Results, 1 = Input Absensi
-  int _currentMode = 0;
+class PresencePageState extends State<PresencePage>
+    with SingleTickerProviderStateMixin {
+  // Tab Controller for TabSwitcher
+  late TabController _tabController;
 
   // Data untuk mode View Results
   List<AbsensiSummary> _absensiSummaryList = [];
@@ -74,16 +76,27 @@ class PresencePageState extends State<PresencePage> {
   // Search dan Filter
   final TextEditingController _searchController = TextEditingController();
   final List<String> _filterOptions = ['All', 'Today', 'This Week'];
-  String _selectedFilter = 'All';
+  final String _selectedFilter = 'All';
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (!mounted) return;
+      setState(() {
+        // Trigger rebuild when tab changes
+        if (_tabController.index == 0) {
+          _loadAbsensiSummary();
+        }
+      });
+    });
     _loadInitialData();
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -163,7 +176,10 @@ class PresencePageState extends State<PresencePage> {
       final Map<String, AbsensiSummary> summaryMap = {};
 
       for (var absen in absensiData) {
-        final key = '${absen['mata_pelajaran_id']}-${absen['tanggal']}';
+        // Include kelas_id in the grouping key
+        final kelasId = absen['kelas_id']?.toString() ?? '';
+        final key =
+            '${absen['mata_pelajaran_id']}-${absen['tanggal']}-$kelasId';
         final mataPelajaranNama = _getMataPelajaranName(
           absen['mata_pelajaran_id'],
         );
@@ -172,10 +188,11 @@ class PresencePageState extends State<PresencePage> {
           summaryMap[key] = AbsensiSummary(
             mataPelajaranId: absen['mata_pelajaran_id'],
             mataPelajaranNama: mataPelajaranNama,
-            tanggal: DateTime.parse(absen['tanggal']),
+            tanggal: _parseLocalDate(absen['tanggal']),
             totalSiswa: 0,
             hadir: 0,
             tidakHadir: 0,
+            kelasId: kelasId.isNotEmpty ? kelasId : null,
           );
         }
 
@@ -187,6 +204,7 @@ class PresencePageState extends State<PresencePage> {
           totalSiswa: summary.totalSiswa + 1,
           hadir: summary.hadir + (absen['status'] == 'hadir' ? 1 : 0),
           tidakHadir: summary.tidakHadir + (absen['status'] != 'hadir' ? 1 : 0),
+          kelasId: summary.kelasId,
         );
       }
 
@@ -227,6 +245,39 @@ class PresencePageState extends State<PresencePage> {
     }
   }
 
+  String _getKelasName(String kelasId) {
+    try {
+      final kelas = _kelasList.firstWhere(
+        (k) => k['id'].toString() == kelasId,
+        orElse: () => {'nama': 'Unknown Class'},
+      );
+      return kelas['nama'] ?? 'Unknown Class';
+    } catch (e) {
+      return 'Unknown Class';
+    }
+  }
+
+  // Helper function to parse date string as local date (not UTC)
+  DateTime _parseLocalDate(String dateString) {
+    // Handle ISO datetime format (e.g., "2025-10-29T17:00:00.000Z")
+    // Extract just the date part before 'T'
+    String datePart = dateString.contains('T') 
+        ? dateString.split('T')[0] 
+        : dateString;
+    
+    // Parse YYYY-MM-DD as local date to avoid timezone conversion
+    final parts = datePart.split('-');
+    if (parts.length == 3) {
+      return DateTime(
+        int.parse(parts[0]), // year
+        int.parse(parts[1]), // month
+        int.parse(parts[2]), // day
+      );
+    }
+    // Fallback to normal parsing if format is unexpected
+    return DateTime.parse(dateString);
+  }
+
   void _checkActiveFilter() {
     setState(() {
       _hasActiveFilter =
@@ -243,86 +294,28 @@ class PresencePageState extends State<PresencePage> {
   }
 
   // ========== MODE SWITCHER ==========
-  Widget _buildModeSwitcher() {
-    return Consumer<LanguageProvider>(
-      builder: (context, languageProvider, child) {
-        return Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
+  Widget _buildModeSwitcher(LanguageProvider languageProvider) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      child: TabSwitcher(
+        tabController: _tabController,
+        primaryColor: _getPrimaryColor(),
+        tabs: [
+          TabItem(
+            label: languageProvider.getTranslatedText({
+              'en': 'Attendance Results',
+              'id': 'Hasil Absensi',
+            }),
+            icon: Icons.list_alt,
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: _buildModeButton(
-                  0,
-                  languageProvider.getTranslatedText({
-                    'en': 'Attendance Results',
-                    'id': 'Hasil Absensi',
-                  }),
-                  Icons.list_alt,
-                ),
-              ),
-              Expanded(
-                child: _buildModeButton(
-                  1,
-                  languageProvider.getTranslatedText({
-                    'en': 'Add Attendance',
-                    'id': 'Tambah Absensi',
-                  }),
-                  Icons.add_circle,
-                ),
-              ),
-            ],
+          TabItem(
+            label: languageProvider.getTranslatedText({
+              'en': 'Add Attendance',
+              'id': 'Tambah Absensi',
+            }),
+            icon: Icons.add_circle,
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildModeButton(int mode, String text, IconData icon) {
-    final isSelected = _currentMode == mode;
-
-    return Material(
-      color: isSelected
-          ? _getPrimaryColor().withValues(alpha: 0.85)
-          : Colors.transparent,
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: () {
-          setState(() {
-            _currentMode = mode;
-          });
-          if (mode == 0) {
-            _loadAbsensiSummary();
-          }
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                color: isSelected ? Colors.white : Colors.grey,
-                size: 20,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                text,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: isSelected ? Colors.white : Colors.grey,
-                ),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -392,7 +385,7 @@ class PresencePageState extends State<PresencePage> {
                                 labelPadding: EdgeInsets.only(left: 4),
                               ),
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
                     ),
@@ -571,7 +564,7 @@ class PresencePageState extends State<PresencePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _currentMode == 0
+                      _tabController.index == 0
                           ? languageProvider.getTranslatedText({
                               'en': 'Attendance Results',
                               'id': 'Hasil Absensi',
@@ -588,7 +581,7 @@ class PresencePageState extends State<PresencePage> {
                     ),
                     SizedBox(height: 2),
                     Text(
-                      _currentMode == 0
+                      _tabController.index == 0
                           ? languageProvider.getTranslatedText({
                               'en': 'View attendance records',
                               'id': 'Lihat catatan kehadiran',
@@ -609,7 +602,7 @@ class PresencePageState extends State<PresencePage> {
                 onSelected: (value) {
                   switch (value) {
                     case 'refresh':
-                      if (_currentMode == 0) {
+                      if (_tabController.index == 0) {
                         _loadAbsensiSummary();
                       }
                       break;
@@ -647,7 +640,7 @@ class PresencePageState extends State<PresencePage> {
           SizedBox(height: 16),
 
           // Mode Switcher di dalam header
-          _buildModeSwitcher(),
+          _buildModeSwitcher(languageProvider),
         ],
       ),
     );
@@ -655,102 +648,17 @@ class PresencePageState extends State<PresencePage> {
 
   // ========== SEARCH BAR DENGAN FILTER SEPERTI ADMIN ==========
   Widget _buildSearchAndFilter(LanguageProvider languageProvider) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: _getPrimaryColor().withOpacity(
-          0.1,
-        ), // Background hijau transparan
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white, // Background putih untuk kontras
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: TextField(
-                controller: _searchController,
-                onChanged: (value) => setState(() {}),
-                style: TextStyle(color: Colors.black87),
-                decoration: InputDecoration(
-                  hintText: languageProvider.getTranslatedText({
-                    'en': 'Search attendance...',
-                    'id': 'Cari absensi...',
-                  }),
-                  hintStyle: TextStyle(color: Colors.grey),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: _getPrimaryColor(), // Ikon dengan warna hijau
-                  ),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          SizedBox(width: 8),
-          // Filter Button (hanya untuk mode Results)
-          if (_currentMode == 0)
-            Container(
-              decoration: BoxDecoration(
-                color: _hasActiveFilter
-                    ? _getPrimaryColor() // Hijau solid ketika ada filter aktif
-                    : _getPrimaryColor().withOpacity(0.8), // Hijau transparan
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: _getPrimaryColor().withOpacity(0.3),
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Stack(
-                children: [
-                  IconButton(
-                    onPressed: _showFilterSheet,
-                    icon: Icon(
-                      Icons.tune,
-                      color: Colors.white, // Ikon putih untuk kontras
-                    ),
-                    tooltip: languageProvider.getTranslatedText({
-                      'en': 'Filter',
-                      'id': 'Filter',
-                    }),
-                  ),
-                  if (_hasActiveFilter)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
-                        ),
-                        constraints: BoxConstraints(minWidth: 8, minHeight: 8),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-        ],
-      ),
+    return NewEnhancedSearchBar(
+      controller: _searchController,
+      onChanged: (value) => setState(() {}),
+      hintText: languageProvider.getTranslatedText({
+        'en': 'Search attendance...',
+        'id': 'Cari absensi...',
+      }),
+      showFilter: _tabController.index == 0,
+      hasActiveFilter: _hasActiveFilter,
+      onFilterPressed: _showFilterSheet,
+      primaryColor: _getPrimaryColor(),
     );
   }
 
@@ -761,228 +669,77 @@ class PresencePageState extends State<PresencePage> {
       listen: false,
     );
 
-    String? tempSelectedDate = _selectedDateFilter;
-    List<String> tempSelectedSubjects = List.from(_selectedSubjectIds);
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Container(
-          height: MediaQuery.of(context).size.height * 0.6,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Header
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: Colors.grey.shade200),
-                  ),
+      builder: (context) => FilterSheet(
+        primaryColor: _getPrimaryColor(),
+        config: FilterConfig(
+          sections: [
+            FilterSection(
+              key: 'dateFilter',
+              title: languageProvider.getTranslatedText({
+                'en': 'Date Range',
+                'id': 'Rentang Tanggal',
+              }),
+              options: [
+                FilterOption(
+                  label: languageProvider.getTranslatedText({
+                    'en': 'Today',
+                    'id': 'Hari Ini',
+                  }),
+                  value: 'today',
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      languageProvider.getTranslatedText({
-                        'en': 'Filter',
-                        'id': 'Filter',
-                      }),
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        setModalState(() {
-                          tempSelectedDate = null;
-                          tempSelectedSubjects.clear();
-                        });
-                      },
-                      child: Text(
-                        languageProvider.getTranslatedText({
-                          'en': 'Reset',
-                          'id': 'Reset',
-                        }),
-                        style: TextStyle(color: _getPrimaryColor()),
-                      ),
-                    ),
-                  ],
+                FilterOption(
+                  label: languageProvider.getTranslatedText({
+                    'en': 'This Week',
+                    'id': 'Minggu Ini',
+                  }),
+                  value: 'week',
                 ),
-              ),
-              // Filter Content
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Date Filter
-                      Text(
-                        languageProvider.getTranslatedText({
-                          'en': 'Date Range',
-                          'id': 'Rentang Tanggal',
-                        }),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: ['today', 'week', 'month'].map((period) {
-                          final isSelected = tempSelectedDate == period;
-                          final label = period == 'today'
-                              ? languageProvider.getTranslatedText({
-                                  'en': 'Today',
-                                  'id': 'Hari Ini',
-                                })
-                              : period == 'week'
-                              ? languageProvider.getTranslatedText({
-                                  'en': 'This Week',
-                                  'id': 'Minggu Ini',
-                                })
-                              : languageProvider.getTranslatedText({
-                                  'en': 'This Month',
-                                  'id': 'Bulan Ini',
-                                });
-                          return FilterChip(
-                            label: Text(label),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setModalState(() {
-                                tempSelectedDate = selected ? period : null;
-                              });
-                            },
-                            backgroundColor: Colors.grey.shade100,
-                            selectedColor: _getPrimaryColor().withOpacity(0.2),
-                            checkmarkColor: _getPrimaryColor(),
-                            labelStyle: TextStyle(
-                              color: isSelected
-                                  ? _getPrimaryColor()
-                                  : Colors.grey.shade700,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                      SizedBox(height: 24),
-
-                      // Subject Filter (hanya mata pelajaran yang diampu)
-                      Text(
-                        languageProvider.getTranslatedText({
-                          'en': 'Subject',
-                          'id': 'Mata Pelajaran',
-                        }),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _mataPelajaranDiampu.map<Widget>((subject) {
-                          final subjectId = subject['id'].toString();
-                          final subjectName =
-                              subject['nama'] ??
-                              subject['mata_pelajaran_nama'] ??
-                              'Subject';
-                          final isSelected = tempSelectedSubjects.contains(
-                            subjectId,
-                          );
-                          return FilterChip(
-                            label: Text(subjectName),
-                            selected: isSelected,
-                            onSelected: (selected) {
-                              setModalState(() {
-                                if (selected) {
-                                  tempSelectedSubjects.add(subjectId);
-                                } else {
-                                  tempSelectedSubjects.remove(subjectId);
-                                }
-                              });
-                            },
-                            backgroundColor: Colors.grey.shade100,
-                            selectedColor: _getPrimaryColor().withOpacity(0.2),
-                            checkmarkColor: _getPrimaryColor(),
-                            labelStyle: TextStyle(
-                              color: isSelected
-                                  ? _getPrimaryColor()
-                                  : Colors.grey.shade700,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
+                FilterOption(
+                  label: languageProvider.getTranslatedText({
+                    'en': 'This Month',
+                    'id': 'Bulan Ini',
+                  }),
+                  value: 'month',
                 ),
-              ),
-              // Apply Button
-              Container(
-                padding: EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: OutlinedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          side: BorderSide(color: _getPrimaryColor()),
-                        ),
-                        child: Text(
-                          languageProvider.getTranslatedText({
-                            'en': 'Cancel',
-                            'id': 'Batal',
-                          }),
-                          style: TextStyle(color: _getPrimaryColor()),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          setState(() {
-                            _selectedDateFilter = tempSelectedDate;
-                            _selectedSubjectIds = tempSelectedSubjects;
-                            _checkActiveFilter();
-                          });
-                        },
-                        style: ElevatedButton.styleFrom(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          backgroundColor: _getPrimaryColor(),
-                        ),
-                        child: Text(
-                          languageProvider.getTranslatedText({
-                            'en': 'Apply',
-                            'id': 'Terapkan',
-                          }),
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+              ],
+              multiSelect: false,
+            ),
+            FilterSection(
+              key: 'subjectIds',
+              title: languageProvider.getTranslatedText({
+                'en': 'Subject',
+                'id': 'Mata Pelajaran',
+              }),
+              options: _mataPelajaranDiampu.map((subject) {
+                return FilterOption(
+                  label:
+                      subject['nama'] ??
+                      subject['mata_pelajaran_nama'] ??
+                      'Subject',
+                  value: subject['id'].toString(),
+                );
+              }).toList(),
+              multiSelect: true,
+            ),
+          ],
         ),
+        initialFilters: {
+          'dateFilter': _selectedDateFilter,
+          'subjectIds': _selectedSubjectIds,
+        },
+        onApplyFilters: (filters) {
+          setState(() {
+            _selectedDateFilter = filters['dateFilter'];
+            _selectedSubjectIds = List<String>.from(
+              filters['subjectIds'] ?? [],
+            );
+            _checkActiveFilter();
+          });
+        },
       ),
     );
   }
@@ -1149,6 +906,16 @@ class PresencePageState extends State<PresencePage> {
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
+                                  SizedBox(height: 2),
+                                  if (summary.kelasId != null)
+                                    Text(
+                                      _getKelasName(summary.kelasId!),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: _getPrimaryColor(),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   SizedBox(height: 2),
                                   Text(
                                     DateFormat(
@@ -1364,6 +1131,7 @@ class PresencePageState extends State<PresencePage> {
           mataPelajaranId: summary.mataPelajaranId,
           mataPelajaranNama: summary.mataPelajaranNama,
           tanggal: summary.tanggal,
+          kelasId: summary.kelasId,
         ),
       ),
     );
@@ -1926,6 +1694,7 @@ class PresencePageState extends State<PresencePage> {
             'siswa_id': siswa.id,
             'guru_id': guruId,
             'mata_pelajaran_id': _selectedMataPelajaran,
+            'kelas_id': siswa.kelasId, // Add kelas_id from student data
             'tanggal': tanggal,
             'status': status,
             'keterangan': '',
@@ -1963,7 +1732,10 @@ class PresencePageState extends State<PresencePage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '${languageProvider.getTranslatedText({'en': '$successCount successful, $errorCount failed', 'id': '$successCount berhasil, $errorCount gagal'})}',
+              languageProvider.getTranslatedText({
+                'en': '$successCount successful, $errorCount failed',
+                'id': '$successCount berhasil, $errorCount gagal',
+              }),
             ),
             backgroundColor: Colors.orange.shade400,
             behavior: SnackBarBehavior.floating,
@@ -2016,17 +1788,12 @@ class PresencePageState extends State<PresencePage> {
                 }),
               ),
               const SizedBox(height: 16),
-              ...errors
-                  .map(
-                    (error) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        '• $error',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  )
-                  .toList(),
+              ...errors.map(
+                (error) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text('• $error', style: const TextStyle(fontSize: 12)),
+                ),
+              ),
             ],
           ),
         ),
@@ -2132,7 +1899,7 @@ class PresencePageState extends State<PresencePage> {
 
               // Content
               Expanded(
-                child: _currentMode == 0
+                child: _tabController.index == 0
                     ? _buildResultsMode()
                     : _buildInputMode(),
               ),
@@ -2150,6 +1917,7 @@ class AbsensiDetailPage extends StatefulWidget {
   final String mataPelajaranId;
   final String mataPelajaranNama;
   final DateTime tanggal;
+  final String? kelasId;
 
   const AbsensiDetailPage({
     super.key,
@@ -2157,6 +1925,7 @@ class AbsensiDetailPage extends StatefulWidget {
     required this.mataPelajaranId,
     required this.mataPelajaranNama,
     required this.tanggal,
+    this.kelasId,
   });
 
   @override
@@ -2166,6 +1935,7 @@ class AbsensiDetailPage extends StatefulWidget {
 class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
   List<dynamic> _absensiData = [];
   List<Siswa> _siswaList = [];
+  List<dynamic> _kelasList = [];
   final Map<String, String> _absensiStatus = {};
   bool _isLoading = true;
   bool _isSubmitting = false;
@@ -2178,26 +1948,41 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
 
   Future<void> _loadData() async {
     try {
-      // Load siswa dan absensi data
-      final [siswaData, absensiData] = await Future.wait([
+      // Load siswa, absensi, dan kelas data
+      final apiServiceClass = ApiClassService();
+      final [siswaData, absensiData, kelasData] = await Future.wait([
         ApiStudentService.getStudent(),
         ApiService.getAbsensi(
           guruId: widget.guru['id'],
           mataPelajaranId: widget.mataPelajaranId,
           tanggal: DateFormat('yyyy-MM-dd').format(widget.tanggal),
         ),
+        apiServiceClass.getClass(),
       ]);
 
       setState(() {
-        _siswaList = siswaData.map((s) => Siswa.fromJson(s)).toList();
-        _absensiData = absensiData;
-
-        // Map status absensi
-        for (var absen in _absensiData) {
-          _absensiStatus[absen['siswa_id']] = absen['status'];
+        // Filter siswa by class if kelasId is provided
+        List<Siswa> allSiswa = siswaData.map((s) => Siswa.fromJson(s)).toList();
+        if (widget.kelasId != null && widget.kelasId!.isNotEmpty) {
+          _siswaList = allSiswa
+              .where((siswa) => siswa.kelasId == widget.kelasId)
+              .toList();
+        } else {
+          _siswaList = allSiswa;
         }
 
-        // Set default untuk siswa yang belum ada data
+        _kelasList = kelasData;
+        _absensiData = absensiData;
+
+        // Map status absensi only for students in this class
+        for (var absen in _absensiData) {
+          final siswaId = absen['siswa_id']?.toString();
+          if (siswaId != null && _siswaList.any((s) => s.id == siswaId)) {
+            _absensiStatus[siswaId] = absen['status'];
+          }
+        }
+
+        // Set default untuk siswa yang belum ada data absensi
         for (var siswa in _siswaList) {
           _absensiStatus[siswa.id] ??= 'hadir';
         }
@@ -2205,7 +1990,9 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
         _isLoading = false;
       });
 
-      print('Loaded ${_absensiData.length} absensi records for detail');
+      print(
+        'Loaded ${_absensiData.length} absensi records for ${_siswaList.length} students in class ${widget.kelasId ?? "all"}',
+      );
     } catch (e) {
       print('Error loading absensi detail: $e');
       setState(() {
@@ -2440,6 +2227,18 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
     return colors[index];
   }
 
+  String _getKelasName(String kelasId) {
+    try {
+      final kelas = _kelasList.firstWhere(
+        (k) => k['id'].toString() == kelasId,
+        orElse: () => {'nama': 'Unknown Class'},
+      );
+      return kelas['nama'] ?? 'Unknown Class';
+    } catch (e) {
+      return 'Unknown Class';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<LanguageProvider>(
@@ -2516,6 +2315,18 @@ class _AbsensiDetailPageState extends State<AbsensiDetailPage> {
                             ),
                             textAlign: TextAlign.center,
                           ),
+                          if (widget.kelasId != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              _getKelasName(widget.kelasId!),
+                              style: TextStyle(
+                                color: ColorUtils.getRoleColor("guru"),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                           const SizedBox(height: 8),
                           Text(
                             DateFormat(

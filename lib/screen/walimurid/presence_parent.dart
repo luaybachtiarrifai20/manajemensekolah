@@ -78,7 +78,7 @@ class PresenceParentPageState extends State<PresenceParentPage> {
     final monthEnd = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
 
     for (var absen in _absensiData) {
-      final absenDate = DateTime.parse(absen['tanggal']);
+      final absenDate = _parseLocalDate(absen['tanggal']);
       if (absenDate.isAfter(monthStart.subtract(const Duration(days: 1))) &&
           absenDate.isBefore(monthEnd.add(const Duration(days: 1)))) {
         final status = absen['status'] ?? 'alpha';
@@ -246,7 +246,7 @@ class PresenceParentPageState extends State<PresenceParentPage> {
 
   Widget _buildAbsensiList() {
     final monthAbsensi = _absensiData.where((absen) {
-      final absenDate = DateTime.parse(absen['tanggal']);
+      final absenDate = _parseLocalDate(absen['tanggal']);
       final monthStart = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
       final monthEnd = DateTime(
         _selectedMonth.year,
@@ -290,7 +290,7 @@ class PresenceParentPageState extends State<PresenceParentPage> {
 
   Widget _buildAbsensiItem(Map<String, dynamic> absen) {
     final status = absen['status'] ?? 'alpha';
-    final tanggal = DateTime.parse(absen['tanggal']);
+    final tanggal = _parseLocalDate(absen['tanggal']);
     final mataPelajaranNama = absen['mata_pelajaran_nama'] ?? 'Mata Pelajaran';
     final Color statusColor = _getStatusColor(status);
     final String statusText = _getStatusText(status);
@@ -479,6 +479,27 @@ class PresenceParentPageState extends State<PresenceParentPage> {
       default:
         return 'Hadir';
     }
+  }
+
+  // Helper function to parse date string as local date (not UTC)
+  DateTime _parseLocalDate(String dateString) {
+    // Handle ISO datetime format (e.g., "2025-10-29T17:00:00.000Z")
+    // Extract just the date part before 'T'
+    String datePart = dateString.contains('T') 
+        ? dateString.split('T')[0] 
+        : dateString;
+    
+    // Parse YYYY-MM-DD as local date to avoid timezone conversion
+    final parts = datePart.split('-');
+    if (parts.length == 3) {
+      return DateTime(
+        int.parse(parts[0]), // year
+        int.parse(parts[1]), // month
+        int.parse(parts[2]), // day
+      );
+    }
+    // Fallback to normal parsing if format is unexpected
+    return DateTime.parse(dateString);
   }
 
   Color _getPrimaryColor() {
