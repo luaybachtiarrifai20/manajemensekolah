@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
-import 'package:manajemensekolah/components/enhanced_search_bar.dart';
-import 'package:manajemensekolah/components/filter_section.dart';
+import 'package:manajemensekolah/components/separated_search_filter.dart';
+import 'package:manajemensekolah/components/filter_sheet.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
 import 'package:manajemensekolah/services/api_schedule_services.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
@@ -25,14 +25,15 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
   bool _isLoading = true;
   String _guruId = '';
   String _guruNama = '';
-  String _selectedHari = 'Semua Hari';
-  String _selectedSemester = '1';
-  String _selectedAcademicYear = '2024/2025';
+  String _selectedSemester = '1'; // Will be set by _setDefaultAcademicPeriod()
+  String _selectedAcademicYear = '2024/2025'; // Will be set by _setDefaultAcademicPeriod()
   final TextEditingController _searchController = TextEditingController();
 
-  // Filter options untuk EnhancedSearchBar
-  final List<String> _filterOptions = ['All', 'Today', 'This Week'];
-  String _selectedFilter = 'All';
+  // Filter state
+  List<String> _selectedHariIds = [];
+  String? _selectedFilterSemester;
+  String? _selectedFilterAcademicYear;
+  bool _hasActiveFilter = false;
 
   // DITAMBAHKAN KEMBALI: Toggle antara card dan table view
   bool _isTableView = false;
@@ -68,7 +69,46 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
   @override
   void initState() {
     super.initState();
+    _setDefaultAcademicPeriod();
     _loadUserData();
+  }
+
+  /// Calculate current academic year based on current date
+  String _getCurrentAcademicYear() {
+    final now = DateTime.now();
+    final currentYear = now.year;
+    final currentMonth = now.month;
+
+    // Academic year runs from July to June
+    // If current month is July or later, academic year is currentYear/nextYear
+    // Otherwise, academic year is previousYear/currentYear
+    if (currentMonth >= 7) {
+      return '$currentYear/${currentYear + 1}';
+    } else {
+      return '${currentYear - 1}/$currentYear';
+    }
+  }
+
+  /// Get current semester (1 or 2) based on current month
+  String _getCurrentSemester() {
+    final now = DateTime.now();
+    final currentMonth = now.month;
+
+    // Semester 1: July - December (months 7-12)
+    // Semester 2: January - June (months 1-6)
+    if (currentMonth >= 7) {
+      return '1'; // Semester 1
+    } else {
+      return '2'; // Semester 2
+    }
+  }
+
+  /// Set default academic year and semester based on current date
+  void _setDefaultAcademicPeriod() {
+    setState(() {
+      _selectedAcademicYear = _getCurrentAcademicYear();
+      _selectedSemester = _getCurrentSemester();
+    });
   }
 
   @override
@@ -102,6 +142,7 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
   Future<void> _loadSemesterData() async {
     try {
       final semesterData = await ApiScheduleService.getSemester();
+      
       setState(() {
         _semesterList = semesterData;
       });
@@ -121,11 +162,14 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
     try {
       setState(() => _isLoading = true);
 
+      // Use filter semester/year if set, otherwise use selected
+      final semesterToUse = _selectedFilterSemester ?? _selectedSemester;
+      final academicYearToUse = _selectedFilterAcademicYear ?? _selectedAcademicYear;
+
       final jadwal = await ApiScheduleService.getFilteredSchedule(
         guruId: _guruId,
-        hari: _selectedHari != 'Semua Hari' ? _selectedHari : null,
-        semester: _selectedSemester,
-        tahunAjaran: _selectedAcademicYear,
+        semester: semesterToUse,
+        tahunAjaran: academicYearToUse,
       );
 
       setState(() {
@@ -165,40 +209,186 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
     }
   }
 
-  void _onHariChanged(String newHari) {
+
+  void _checkActiveFilter() {
     setState(() {
-      _selectedHari = newHari;
-      _isLoading = true;
+      _hasActiveFilter = _selectedHariIds.isNotEmpty ||
+          (_selectedFilterSemester != null && _selectedFilterSemester != _selectedSemester) ||
+          (_selectedFilterAcademicYear != null && _selectedFilterAcademicYear != _selectedAcademicYear);
+    });
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _selectedHariIds.clear();
+      _selectedFilterSemester = null;
+      _selectedFilterAcademicYear = null;
+      // Reset to current period
+      _selectedSemester = _getCurrentSemester();
+      _selectedAcademicYear = _getCurrentAcademicYear();
+      _checkActiveFilter();
     });
     _loadJadwal();
   }
 
-  void _onSemesterChanged(String semesterId) {
-    setState(() {
-      _selectedSemester = semesterId;
-      _isLoading = true;
-    });
-    _loadJadwal();
+  List<Map<String, dynamic>> _buildFilterChips(LanguageProvider languageProvider) {
+    List<Map<String, dynamic>> filterChips = [];
+
+    // Hari chips
+    for (var hariId in _selectedHariIds) {
+      final hari = _hariOptions.firstWhere(
+        (h) => _hariIdMap[h] == hariId,
+        orElse: () => 'Hari',
+      );
+      filterChips.add({
+        'label': hari,
+        'onRemove': () {
+          setState(() {
+            _selectedHariIds.remove(hariId);
+            _checkActiveFilter();
+          });
+        },
+      });
+    }
+
+    // Semester chip
+    if (_selectedFilterSemester != null && _selectedFilterSemester != _selectedSemester) {
+      final semester = _semesterList.firstWhere(
+        (s) => s['id'].toString() == _selectedFilterSemester,
+        orElse: () => {'nama': 'Semester ${_selectedFilterSemester}'},
+      );
+      filterChips.add({
+        'label': semester['nama'] ?? 'Semester',
+        'onRemove': () {
+          setState(() {
+            _selectedFilterSemester = null;
+            _checkActiveFilter();
+          });
+          _loadJadwal();
+        },
+      });
+    }
+
+    // Tahun Ajaran chip
+    if (_selectedFilterAcademicYear != null && _selectedFilterAcademicYear != _selectedAcademicYear) {
+      filterChips.add({
+        'label': _selectedFilterAcademicYear!,
+        'onRemove': () {
+          setState(() {
+            _selectedFilterAcademicYear = null;
+            _checkActiveFilter();
+          });
+          _loadJadwal();
+        },
+      });
+    }
+
+    return filterChips;
   }
 
-  void _onAcademicYearChanged(String academicYear) {
-    setState(() {
-      _selectedAcademicYear = academicYear;
-      _isLoading = true;
-    });
-    _loadJadwal();
-  }
+  void _showFilterSheet() {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
 
-  void _onFilterChanged(String filter) {
-    final translatedFilterOptions = ['All', 'Today', 'This Week'];
-    final index = _filterOptions.indexOf(filter);
-    setState(() {
-      _selectedFilter = index == 0
-          ? 'All'
-          : index == 1
-          ? 'Today'
-          : 'This Week';
-    });
+    // Temporary values for filter
+    String? tempSelectedSemester = _selectedFilterSemester;
+    String? tempSelectedAcademicYear = _selectedFilterAcademicYear;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => FilterSheet(
+        primaryColor: _getPrimaryColor(),
+        config: FilterConfig(
+          sections: [
+            FilterSection(
+              key: 'hariIds',
+              title: languageProvider.getTranslatedText({
+                'en': 'Day',
+                'id': 'Hari',
+              }),
+              options: _hariOptions
+                  .where((hari) => hari != 'Semua Hari')
+                  .map((hari) {
+                return FilterOption(
+                  label: hari,
+                  value: _hariIdMap[hari] ?? '',
+                );
+              }).toList(),
+              multiSelect: true,
+            ),
+            FilterSection(
+              key: 'semester',
+              title: languageProvider.getTranslatedText({
+                'en': 'Semester',
+                'id': 'Semester',
+              }),
+              options: _semesterList.map((semester) {
+                return FilterOption(
+                  label: semester['nama'] ?? 'Semester',
+                  value: semester['id'].toString(),
+                );
+              }).toList(),
+              multiSelect: false,
+            ),
+            FilterSection(
+              key: 'tahunAjaran',
+              title: languageProvider.getTranslatedText({
+                'en': 'Academic Year',
+                'id': 'Tahun Ajaran',
+              }),
+              options: [
+                FilterOption(label: '2023/2024', value: '2023/2024'),
+                FilterOption(label: '2024/2025', value: '2024/2025'),
+                FilterOption(label: '2025/2026', value: '2025/2026'),
+                FilterOption(label: '2026/2027', value: '2026/2027'),
+              ],
+              multiSelect: false,
+            ),
+          ],
+        ),
+        initialFilters: {
+          'hariIds': _selectedHariIds,
+          'semester': tempSelectedSemester ?? _selectedSemester,
+          'tahunAjaran': tempSelectedAcademicYear ?? _selectedAcademicYear,
+        },
+        onApplyFilters: (filters) {
+          // Check if semester or academic year changed - need to reload data
+          bool needsReload = false;
+          
+          final newSemester = filters['semester'];
+          final newAcademicYear = filters['tahunAjaran'];
+          
+          if (newSemester != null && newSemester != _selectedSemester) {
+            needsReload = true;
+          }
+          if (newAcademicYear != null && newAcademicYear != _selectedAcademicYear) {
+            needsReload = true;
+          }
+
+          setState(() {
+            _selectedHariIds = List<String>.from(filters['hariIds'] ?? []);
+            _selectedFilterSemester = newSemester;
+            _selectedFilterAcademicYear = newAcademicYear;
+            
+            // Update main semester/year if filtered
+            if (newSemester != null) {
+              _selectedSemester = newSemester;
+            }
+            if (newAcademicYear != null) {
+              _selectedAcademicYear = newAcademicYear;
+            }
+            
+            _checkActiveFilter();
+          });
+
+          // Reload data if semester or academic year changed
+          if (needsReload) {
+            _loadJadwal();
+          }
+        },
+      ),
+    );
   }
 
   // DITAMBAHKAN KEMBALI: Method untuk toggle view
@@ -232,6 +422,7 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
           schedule['mata_pelajaran_nama']?.toString().toLowerCase() ?? '';
       final className = schedule['kelas_nama']?.toString().toLowerCase() ?? '';
       final dayName = schedule['hari_nama']?.toString().toLowerCase() ?? '';
+      final hariId = schedule['hari_id']?.toString() ?? '';
 
       final matchesSearch =
           searchTerm.isEmpty ||
@@ -239,41 +430,12 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
           className.contains(searchTerm) ||
           dayName.contains(searchTerm);
 
-      final today = _getTodayName();
-      final matchesFilter =
-          _selectedFilter == 'All' ||
-          (_selectedFilter == 'Today' && dayName == today.toLowerCase()) ||
-          (_selectedFilter == 'This Week' && _isThisWeek(dayName));
+      // Filter by hari
+      final matchesHari = _selectedHariIds.isEmpty ||
+          _selectedHariIds.contains(hariId);
 
-      return matchesSearch && matchesFilter;
+      return matchesSearch && matchesHari;
     }).toList();
-  }
-
-  String _getTodayName() {
-    final now = DateTime.now();
-    final days = [
-      'Minggu',
-      'Senin',
-      'Selasa',
-      'Rabu',
-      'Kamis',
-      'Jumat',
-      'Sabtu',
-    ];
-    final index = (now.weekday + 6) % 7;
-    return days[index];
-  }
-
-  bool _isThisWeek(String dayName) {
-    final dayMap = {
-      'senin': 1,
-      'selasa': 2,
-      'rabu': 3,
-      'kamis': 4,
-      'jumat': 5,
-      'sabtu': 6,
-    };
-    return dayMap.containsKey(dayName.toLowerCase());
   }
 
   @override
@@ -281,15 +443,6 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
         final filteredSchedules = _getFilteredSchedules();
-
-        final translatedFilterOptions = [
-          languageProvider.getTranslatedText({'en': 'All', 'id': 'Semua'}),
-          languageProvider.getTranslatedText({'en': 'Today', 'id': 'Hari Ini'}),
-          languageProvider.getTranslatedText({
-            'en': 'This Week',
-            'id': 'Minggu Ini',
-          }),
-        ];
 
         return Scaffold(
           backgroundColor: Color(0xFFF8F9FA),
@@ -453,24 +606,115 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
                     ),
                     SizedBox(height: 16),
 
-                    // Search Bar dengan Filter
-                    EnhancedSearchBar(
+                    // Search Bar with Filter using SeparatedSearchFilter
+                    SeparatedSearchFilter(
                       controller: _searchController,
                       onChanged: (value) => setState(() {}),
                       hintText: languageProvider.getTranslatedText({
                         'en': 'Search schedules...',
                         'id': 'Cari jadwal...',
                       }),
-                      filterOptions: translatedFilterOptions,
-                      selectedFilter:
-                          translatedFilterOptions[_selectedFilter == 'All'
-                              ? 0
-                              : _selectedFilter == 'Today'
-                              ? 1
-                              : 2],
-                      onFilterChanged: _onFilterChanged,
                       showFilter: true,
+                      hasActiveFilter: _hasActiveFilter,
+                      onFilterPressed: _showFilterSheet,
+                      // Custom search styling
+                      searchBackgroundColor: Colors.white.withOpacity(0.95),
+                      searchIconColor: Colors.grey.shade600,
+                      searchTextColor: Colors.black87,
+                      searchHintColor: Colors.grey.shade500,
+                      searchBorderRadius: 14,
+                      // Custom filter styling
+                      filterActiveColor: _getPrimaryColor(),
+                      filterInactiveColor: Colors.white.withOpacity(0.9),
+                      filterIconColor: _hasActiveFilter ? Colors.white : _getPrimaryColor(),
+                      filterBorderRadius: 14,
+                      filterWidth: 56,
+                      filterHeight: 48,
+                      spacing: 12,
+                      margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
                     ),
+
+                    // Filter Chips
+                    if (_hasActiveFilter) ...[
+                      SizedBox(height: 12),
+                      SizedBox(
+                        height: 32,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ListView(
+                                scrollDirection: Axis.horizontal,
+                                children: [
+                                  ..._buildFilterChips(languageProvider).map((filter) {
+                                    return Container(
+                                      margin: EdgeInsets.only(right: 6),
+                                      child: Chip(
+                                        label: Text(
+                                          filter['label'],
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        deleteIcon: Icon(
+                                          Icons.close,
+                                          size: 16,
+                                          color: Colors.white,
+                                        ),
+                                        onDeleted: filter['onRemove'],
+                                        backgroundColor: Colors.white.withOpacity(0.2),
+                                        side: BorderSide(
+                                          color: Colors.white.withOpacity(0.3),
+                                          width: 1,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        labelPadding: EdgeInsets.only(left: 4),
+                                      ),
+                                    );
+                                  }),
+                                ],
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            InkWell(
+                              onTap: _clearAllFilters,
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.red.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  languageProvider.getTranslatedText({
+                                    'en': 'Clear All',
+                                    'id': 'Hapus Semua',
+                                  }),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -486,21 +730,8 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
                       )
                     : Column(
                         children: [
-                          // Filter Section untuk Semester dan Tahun Ajaran
-                          FilterSection(
-                            selectedSemester: _selectedSemester,
-                            selectedAcademicYear: _selectedAcademicYear,
-                            semesterList: _semesterList,
-                            onSemesterChanged: _onSemesterChanged,
-                            onAcademicYearChanged: _onAcademicYearChanged,
-                          ),
+                          // View Toggle Info
                           SizedBox(height: 8),
-
-                          // Filter Hari
-                          _buildHariFilter(languageProvider),
-                          SizedBox(height: 8),
-
-                          // DITAMBAHKAN KEMBALI: View Toggle Info
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 16),
                             child: Row(
@@ -545,14 +776,12 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
                                     subtitle: languageProvider.getTranslatedText({
                                       'en':
                                           _searchController.text.isNotEmpty ||
-                                              _selectedFilter != 'All' ||
-                                              _selectedHari != 'Semua Hari'
+                                              _hasActiveFilter
                                           ? 'No schedules found for your search and filters'
                                           : 'There are no teaching schedules available',
                                       'id':
                                           _searchController.text.isNotEmpty ||
-                                              _selectedFilter != 'All' ||
-                                              _selectedHari != 'Semua Hari'
+                                              _hasActiveFilter
                                           ? 'Tidak ada jadwal yang sesuai dengan pencarian dan filter'
                                           : 'Tidak ada jadwal mengajar yang tersedia',
                                     }),
@@ -1031,65 +1260,6 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
       itemBuilder: (context, index) {
         return _buildJadwalCard(schedules[index], languageProvider, index);
       },
-    );
-  }
-
-  Widget _buildHariFilter(LanguageProvider languageProvider) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            languageProvider.getTranslatedText({
-              'en': 'Day Filter',
-              'id': 'Filter Hari',
-            }),
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey.shade700,
-            ),
-          ),
-          SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _hariOptions.map((hari) {
-                final isSelected = _selectedHari == hari;
-                return Container(
-                  margin: EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(hari),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      _onHariChanged(selected ? hari : 'Semua Hari');
-                    },
-                    backgroundColor: Colors.white,
-                    selectedColor: _getPrimaryColor().withOpacity(0.1),
-                    checkmarkColor: _getPrimaryColor(),
-                    labelStyle: TextStyle(
-                      color: isSelected
-                          ? _getPrimaryColor()
-                          : Colors.grey.shade700,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                    ),
-                    shape: StadiumBorder(
-                      side: BorderSide(
-                        color: isSelected
-                            ? _getPrimaryColor()
-                            : Colors.grey.shade300,
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
