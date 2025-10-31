@@ -77,6 +77,11 @@ class AppLocalizations {
     'id': 'Tingkat Kelas',
   };
 
+  static Map<String, String> get retry => {
+    'en': 'Retry',
+    'id': 'Ulang',
+  };
+
   static Map<String, String> get gradeLevelRequired => {
     'en': 'Grade level is required',
     'id': 'Tingkat kelas harus dipilih',

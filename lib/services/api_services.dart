@@ -443,6 +443,19 @@ class ApiService {
     return _handleResponse(response);
   }
 
+  static Future<dynamic> updateRPP(
+    String rppId,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/rpp/$rppId'),
+      headers: await _getHeaders(),
+      body: json.encode(data),
+    );
+
+    return _handleResponse(response);
+  }
+
   static Future<dynamic> updateStatusRPP(
     String rppId,
     String status, {
