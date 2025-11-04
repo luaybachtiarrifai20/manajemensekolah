@@ -11,6 +11,7 @@ import 'package:manajemensekolah/services/api_class_services.dart';
 import 'package:manajemensekolah/services/api_services.dart';
 import 'package:manajemensekolah/services/api_student_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
+import 'package:manajemensekolah/services/api_schedule_services.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
 import 'package:provider/provider.dart';
@@ -41,8 +42,21 @@ class AbsensiSummary {
 
 class PresencePage extends StatefulWidget {
   final Map<String, dynamic> guru;
+  final DateTime? initialDate;
+  final String? initialMataPelajaranId;
+  final String? initialMataPelajaranNama;
+  final String? initialKelasId;
+  final String? initialKelasNama;
 
-  const PresencePage({super.key, required this.guru});
+  const PresencePage({
+    super.key, 
+    required this.guru,
+    this.initialDate,
+    this.initialMataPelajaranId,
+    this.initialMataPelajaranNama,
+    this.initialKelasId,
+    this.initialKelasNama,
+  });
 
   @override
   PresencePageState createState() => PresencePageState();
@@ -60,7 +74,9 @@ class PresencePageState extends State<PresencePage>
   // Data untuk mode Input Absensi
   DateTime _selectedDate = DateTime.now();
   String? _selectedMataPelajaran;
+  String? _selectedMataPelajaranNama;
   String? _selectedKelas;
+  String? _selectedKelasNama;
   String? _selectedDateFilter;
   List<dynamic> _mataPelajaranList = [];
   List<dynamic> _mataPelajaranDiampu = [];
@@ -72,15 +88,39 @@ class PresencePageState extends State<PresencePage>
   bool _isLoadingInput = true;
   bool _isSubmitting = false;
   bool _hasActiveFilter = false;
+  bool _showSearch = false;
+  bool _showQuickActions = false;
 
-  // Search dan Filter
+  // Search dan Filter untuk Results Mode
   final TextEditingController _searchController = TextEditingController();
   final List<String> _filterOptions = ['All', 'Today', 'This Week'];
   final String _selectedFilter = 'All';
 
+  // Filter untuk Input Mode
+  final TextEditingController _searchControllerInput = TextEditingController();
+  String? _selectedStatusFilter;
+  bool _hasActiveFilterInput = false;
+
+  // State untuk auto-detection schedule
+  Map<String, dynamic>? _currentSchedule;
+
   @override
   void initState() {
     super.initState();
+    
+    // Initialize with data from teaching_schedule if provided
+    if (widget.initialDate != null) {
+      _selectedDate = widget.initialDate!;
+    }
+    if (widget.initialMataPelajaranId != null) {
+      _selectedMataPelajaran = widget.initialMataPelajaranId;
+      _selectedMataPelajaranNama = widget.initialMataPelajaranNama;
+    }
+    if (widget.initialKelasId != null) {
+      _selectedKelas = widget.initialKelasId;
+      _selectedKelasNama = widget.initialKelasNama;
+    }
+    
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
       if (!mounted) return;
@@ -98,6 +138,7 @@ class PresencePageState extends State<PresencePage>
   void dispose() {
     _tabController.dispose();
     _searchController.dispose();
+    _searchControllerInput.dispose();
     super.dispose();
   }
 
@@ -125,6 +166,11 @@ class PresencePageState extends State<PresencePage>
 
         _isLoadingInput = false;
       });
+
+      // Auto-detect current schedule if not initialized from teaching_schedule
+      if (widget.initialMataPelajaranId == null) {
+        await _detectCurrentSchedule();
+      }
 
       // Load summary data untuk mode view
       _loadAbsensiSummary();
@@ -157,6 +203,109 @@ class PresencePageState extends State<PresencePage>
     } catch (e) {
       print('Error getting mata pelajaran by guru: $e');
       return [];
+    }
+  }
+
+  // Get current academic year
+  String _getCurrentAcademicYear() {
+    final now = DateTime.now();
+    final currentYear = now.year;
+    final currentMonth = now.month;
+    if (currentMonth >= 7) {
+      return '$currentYear/${currentYear + 1}';
+    } else {
+      return '${currentYear - 1}/$currentYear';
+    }
+  }
+
+  // Get current semester
+  String _getCurrentSemester() {
+    final now = DateTime.now();
+    final currentMonth = now.month;
+    if (currentMonth >= 7) {
+      return '1';
+    } else {
+      return '2';
+    }
+  }
+
+  // Get current day ID (1=Senin, 2=Selasa, etc.)
+  String _getCurrentDayId() {
+    final now = DateTime.now();
+    final weekday = now.weekday; // 1=Monday, 7=Sunday
+    return weekday.toString();
+  }
+
+  // Check if current time is within schedule time
+  bool _isWithinScheduleTime(String jamMulai, String jamSelesai) {
+    try {
+      final now = TimeOfDay.now();
+      final startParts = jamMulai.split(':');
+      final endParts = jamSelesai.split(':');
+      
+      final start = TimeOfDay(
+        hour: int.parse(startParts[0]),
+        minute: int.parse(startParts[1].split('.')[0]),
+      );
+      final end = TimeOfDay(
+        hour: int.parse(endParts[0]),
+        minute: int.parse(endParts[1].split('.')[0]),
+      );
+      
+      final nowMinutes = now.hour * 60 + now.minute;
+      final startMinutes = start.hour * 60 + start.minute;
+      final endMinutes = end.hour * 60 + end.minute;
+      
+      return nowMinutes >= startMinutes && nowMinutes <= endMinutes;
+    } catch (e) {
+      print('Error parsing time: $e');
+      return false;
+    }
+  }
+
+  // Load today's schedules and detect current one
+  Future<void> _detectCurrentSchedule() async {
+    try {
+      final schedules = await ApiScheduleService.getSchedule(
+        guruId: widget.guru['id'],
+        hariId: _getCurrentDayId(),
+        semesterId: _getCurrentSemester(),
+        tahunAjaran: _getCurrentAcademicYear(),
+      );
+
+      setState(() {
+        if (schedules.isNotEmpty) {
+          // Find current schedule based on time
+          Map<String, dynamic>? currentSchedule;
+          for (var schedule in schedules) {
+            final jamMulai = schedule['jam_mulai']?.toString() ?? '';
+            final jamSelesai = schedule['jam_selesai']?.toString() ?? '';
+            
+            if (_isWithinScheduleTime(jamMulai, jamSelesai)) {
+              currentSchedule = schedule;
+              break;
+            }
+          }
+          
+          if (currentSchedule != null) {
+            _currentSchedule = currentSchedule;
+            _selectedMataPelajaran = currentSchedule['mata_pelajaran_id']?.toString();
+            _selectedMataPelajaranNama = currentSchedule['mata_pelajaran_nama']?.toString();
+            _selectedKelas = currentSchedule['kelas_id']?.toString();
+            _selectedKelasNama = currentSchedule['kelas_nama']?.toString();
+            _filterStudentsByClass(_selectedKelas);
+          } else {
+            _currentSchedule = null;
+          }
+        } else {
+          _currentSchedule = null;
+        }
+      });
+    } catch (e) {
+      print('Error detecting current schedule: $e');
+      setState(() {
+        _currentSchedule = null;
+      });
     }
   }
 
@@ -257,6 +406,40 @@ class PresencePageState extends State<PresencePage>
     }
   }
 
+  String _getMataPelajaranSelectedName() {
+    if (_selectedMataPelajaran == null) return '-';
+    try {
+      final mataPelajaran = _mataPelajaranDiampu.firstWhere(
+        (mp) => mp['id'] == _selectedMataPelajaran,
+        orElse: () => {'nama': 'Unknown'},
+      );
+      return mataPelajaran['nama'] ?? 'Unknown';
+    } catch (e) {
+      return 'Unknown';
+    }
+  }
+
+  String _getKelasNameWithCount(String kelasId) {
+    // Use provided kelas name if available
+    if (_selectedKelasNama != null) {
+      final count = _filteredSiswaList.where((s) => s.kelasId == kelasId).length;
+      return '$_selectedKelasNama - $count siswa';
+    }
+    
+    // Fallback to finding from list
+    try {
+      final kelas = _kelasList.firstWhere(
+        (k) => k['id'].toString() == kelasId,
+        orElse: () => {'nama': 'Unknown Class'},
+      );
+      final kelasName = kelas['nama'] ?? 'Unknown Class';
+      final count = _filteredSiswaList.where((s) => s.kelasId == kelasId).length;
+      return '$kelasName - $count siswa';
+    } catch (e) {
+      return 'Unknown Class';
+    }
+  }
+
   // Helper function to parse date string as local date (not UTC)
   DateTime _parseLocalDate(String dateString) {
     // Handle ISO datetime format (e.g., "2025-10-29T17:00:00.000Z")
@@ -293,6 +476,592 @@ class PresencePageState extends State<PresencePage>
     });
   }
 
+  // ========== SHOW QUICK ACTIONS SHEET ==========
+  void _showQuickActionsSheet(LanguageProvider languageProvider) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        padding: EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              languageProvider.getTranslatedText({
+                'en': 'Set All Students To',
+                'id': 'Atur Semua Siswa Menjadi',
+              }),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 16),
+            _buildQuickActionOption('hadir', languageProvider),
+            _buildQuickActionOption('terlambat', languageProvider),
+            _buildQuickActionOption('izin', languageProvider),
+            _buildQuickActionOption('sakit', languageProvider),
+            _buildQuickActionOption('alpha', languageProvider),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionOption(String status, LanguageProvider languageProvider) {
+    return ListTile(
+      leading: Icon(_getStatusIcon(status), color: _getStatusColor(status)),
+      title: Text(_getStatusText(status, languageProvider)),
+      onTap: () {
+        _setAllStatus(status, languageProvider);
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  void _setAllStatus(String status, LanguageProvider languageProvider) {
+    setState(() {
+      for (var siswa in _filteredSiswaList) {
+        _absensiStatus[siswa.id] = status;
+      }
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          languageProvider.getTranslatedText({
+            'en': 'All students set to ${_getStatusText(status, languageProvider).toLowerCase()}',
+            'id': 'Semua siswa diatur menjadi ${_getStatusText(status, languageProvider).toLowerCase()}',
+          }),
+        ),
+        backgroundColor: _getStatusColor(status),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'hadir':
+        return Icons.check_circle;
+      case 'terlambat':
+        return Icons.watch_later;
+      case 'izin':
+        return Icons.assignment_turned_in;
+      case 'sakit':
+        return Icons.local_hospital;
+      case 'alpha':
+        return Icons.cancel;
+      default:
+        return Icons.help;
+    }
+  }
+
+  // ========== SHOW EDIT BOTTOM SHEET ==========
+  void _showEditBottomSheet(LanguageProvider languageProvider) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.85,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Column(
+                children: [
+                  // Handle bar
+                  Container(
+                    margin: EdgeInsets.only(top: 12),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          languageProvider.getTranslatedText({
+                            'en': 'Edit Schedule',
+                            'id': 'Edit Jadwal',
+                          }),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: Icon(Icons.close),
+                          color: Colors.grey[600],
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  Divider(height: 1),
+                  
+                  // Form Content
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Date Picker
+                          Text(
+                            languageProvider.getTranslatedText({
+                              'en': 'Date',
+                              'id': 'Tanggal',
+                            }),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _selectedDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
+                              );
+                              if (picked != null) {
+                                setState(() {
+                                  _selectedDate = picked;
+                                });
+                                setModalState(() {});
+                              }
+                            },
+                            child: Container(
+                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey[300]!),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(_selectedDate),
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  Icon(Icons.calendar_today, color: _getPrimaryColor()),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                          
+                          // Class Dropdown
+                          Text(
+                            languageProvider.getTranslatedText({
+                              'en': 'Class',
+                              'id': 'Kelas',
+                            }),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: DropdownButton<String>(
+                              value: _selectedKelas,
+                              isExpanded: true,
+                              underline: Container(),
+                              icon: Icon(Icons.arrow_drop_down),
+                              style: TextStyle(color: Colors.black87, fontSize: 16),
+                              items: [
+                                DropdownMenuItem(
+                                  value: null,
+                                  child: Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'All Classes',
+                                      'id': 'Semua Kelas',
+                                    }),
+                                  ),
+                                ),
+                                ..._kelasList.map(
+                                  (kelas) => DropdownMenuItem(
+                                    value: kelas['id'],
+                                    child: Text(kelas['nama']),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedKelas = value;
+                                  _filterStudentsByClass(value);
+                                });
+                                setModalState(() {});
+                              },
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                          
+                          // Subject Dropdown
+                          Text(
+                            languageProvider.getTranslatedText({
+                              'en': 'Subject',
+                              'id': 'Mata Pelajaran',
+                            }),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: DropdownButton<String>(
+                              value: _selectedMataPelajaran,
+                              isExpanded: true,
+                              underline: Container(),
+                              icon: Icon(Icons.arrow_drop_down),
+                              style: TextStyle(color: Colors.black87, fontSize: 16),
+                              items: [
+                                DropdownMenuItem(
+                                  value: null,
+                                  child: Text(
+                                    languageProvider.getTranslatedText({
+                                      'en': 'Select Subject',
+                                      'id': 'Pilih Mata Pelajaran',
+                                    }),
+                                  ),
+                                ),
+                                ..._mataPelajaranDiampu.map(
+                                  (mp) => DropdownMenuItem(
+                                    value: mp['id'],
+                                    child: Text(
+                                      mp['nama'] ?? mp['mata_pelajaran_nama'] ?? 'Unknown',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedMataPelajaran = value;
+                                  // Update nama mata pelajaran
+                                  final selected = _mataPelajaranDiampu.firstWhere(
+                                    (mp) => mp['id'] == value,
+                                    orElse: () => {},
+                                  );
+                                  _selectedMataPelajaranNama = selected['nama'] ?? selected['mata_pelajaran_nama'];
+                                });
+                                setModalState(() {});
+                              },
+                            ),
+                          ),
+                          
+                          if (_mataPelajaranDiampu.isEmpty)
+                            Container(
+                              margin: EdgeInsets.only(top: 12),
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.orange[50],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.orange),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.warning, color: Colors.orange[800], size: 20),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      languageProvider.getTranslatedText({
+                                        'en': 'You are not assigned to any subjects.',
+                                        'id': 'Anda tidak mengampu mata pelajaran apapun.',
+                                      }),
+                                      style: TextStyle(
+                                        color: Colors.orange[800],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  // Bottom Buttons
+                  Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: Offset(0, -5),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.grey[700],
+                              side: BorderSide(color: Colors.grey[300]!),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: Text(
+                              languageProvider.getTranslatedText({
+                                'en': 'Cancel',
+                                'id': 'Batal',
+                              }),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              if (_selectedMataPelajaran != null) {
+                                Navigator.pop(context);
+                                setState(() {
+                                  // Reset auto schedule since this is manual
+                                  _currentSchedule = null;
+                                });
+                                _filterStudents();
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      languageProvider.getTranslatedText({
+                                        'en': 'Please select a subject first',
+                                        'id': 'Pilih mata pelajaran terlebih dahulu',
+                                      }),
+                                    ),
+                                    backgroundColor: Colors.red.shade400,
+                                  ),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _getPrimaryColor(),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: Text(
+                              languageProvider.getTranslatedText({
+                                'en': 'Apply',
+                                'id': 'Terapkan',
+                              }),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ========== FILTER UNTUK INPUT MODE ==========
+  void _filterStudents() {
+    final searchTerm = _searchControllerInput.text.toLowerCase();
+    
+    setState(() {
+      _filteredSiswaList = _siswaList.where((siswa) {
+        // Search filter
+        final matchesSearch = searchTerm.isEmpty ||
+            siswa.nama.toLowerCase().contains(searchTerm) ||
+            siswa.nis.toLowerCase().contains(searchTerm);
+        
+        // Status filter
+        final matchesStatus = _selectedStatusFilter == null ||
+            (_absensiStatus[siswa.id] ?? 'hadir') == _selectedStatusFilter;
+        
+        // Class filter
+        final matchesClass = _selectedKelas == null || 
+            siswa.kelasId == _selectedKelas;
+        
+        return matchesSearch && matchesStatus && matchesClass;
+      }).toList();
+    });
+  }
+
+  void _showFilterSheetInput() {
+    final languageProvider = Provider.of<LanguageProvider>(
+      context,
+      listen: false,
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => FilterSheet(
+        primaryColor: _getPrimaryColor(),
+        config: FilterConfig(
+          sections: [
+            FilterSection(
+              key: 'statusFilter',
+              title: languageProvider.getTranslatedText({
+                'en': 'Attendance Status',
+                'id': 'Status Kehadiran',
+              }),
+              options: [
+                FilterOption(
+                  label: languageProvider.getTranslatedText({
+                    'en': 'All Status',
+                    'id': 'Semua Status',
+                  }),
+                  value: null,
+                ),
+                FilterOption(
+                  label: languageProvider.getTranslatedText({
+                    'en': 'Present',
+                    'id': 'Hadir',
+                  }),
+                  value: 'hadir',
+                ),
+                FilterOption(
+                  label: languageProvider.getTranslatedText({
+                    'en': 'Late',
+                    'id': 'Terlambat',
+                  }),
+                  value: 'terlambat',
+                ),
+                FilterOption(
+                  label: languageProvider.getTranslatedText({
+                    'en': 'Permission',
+                    'id': 'Izin',
+                  }),
+                  value: 'izin',
+                ),
+                FilterOption(
+                  label: languageProvider.getTranslatedText({
+                    'en': 'Sick',
+                    'id': 'Sakit',
+                  }),
+                  value: 'sakit',
+                ),
+                FilterOption(
+                  label: languageProvider.getTranslatedText({
+                    'en': 'Absent',
+                    'id': 'Alpha',
+                  }),
+                  value: 'alpha',
+                ),
+              ],
+              multiSelect: false,
+            ),
+          ],
+        ),
+        initialFilters: {
+          'statusFilter': _selectedStatusFilter,
+        },
+        onApplyFilters: (filters) {
+          setState(() {
+            _selectedStatusFilter = filters['statusFilter'];
+            _checkActiveFilterInput();
+            _filterStudents();
+          });
+        },
+      ),
+    );
+  }
+
+  void _checkActiveFilterInput() {
+    setState(() {
+      _hasActiveFilterInput = _selectedStatusFilter != null;
+    });
+  }
+
+  void _clearAllFiltersInput() {
+    setState(() {
+      _selectedStatusFilter = null;
+      _searchControllerInput.clear();
+      _hasActiveFilterInput = false;
+      _filterStudents();
+    });
+  }
+
+  List<Map<String, dynamic>> _buildFilterChipsInput(
+    LanguageProvider languageProvider,
+  ) {
+    List<Map<String, dynamic>> filterChips = [];
+
+    if (_selectedStatusFilter != null) {
+      final statusText = _getStatusText(_selectedStatusFilter!, languageProvider);
+      filterChips.add({
+        'label':
+            '${languageProvider.getTranslatedText({'en': 'Status', 'id': 'Status'})}: $statusText',
+        'onRemove': () {
+          setState(() {
+            _selectedStatusFilter = null;
+            _checkActiveFilterInput();
+            _filterStudents();
+          });
+        },
+      });
+    }
+
+    return filterChips;
+  }
+
   // ========== MODE SWITCHER ==========
   Widget _buildModeSwitcher(LanguageProvider languageProvider) {
     return Container(
@@ -321,7 +1090,6 @@ class PresencePageState extends State<PresencePage>
   }
 
   // ========== MODE 0: VIEW RESULTS ==========
-  // ========== MODIFIKASI BUILD RESULTS MODE ==========
   Widget _buildResultsMode() {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
@@ -471,7 +1239,6 @@ class PresencePageState extends State<PresencePage>
     );
   }
 
-  // ========== MODIFIKASI GET FILTERED SUMMARIES ==========
   List<AbsensiSummary> _getFilteredSummaries() {
     final searchTerm = _searchController.text.toLowerCase();
     final now = DateTime.now();
@@ -1152,307 +1919,422 @@ class PresencePageState extends State<PresencePage>
 
         return Column(
           children: [
-            // Input Form
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Date Picker
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+            // Header Info - Always show (whether schedule detected or not)
+              Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
                     ),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          languageProvider.getTranslatedText({
-                            'en': 'Date:',
-                            'id': 'Tanggal:',
-                          }),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Subject and Class Info or No Schedule Message
+                              if (_selectedMataPelajaran != null) ...[
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        _selectedMataPelajaranNama ?? _getMataPelajaranSelectedName(),
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                    if (_currentSchedule != null) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: Colors.green.withOpacity(0.3)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.schedule, size: 12, color: Colors.green),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              languageProvider.getTranslatedText({
+                                                'en': 'Auto',
+                                                'id': 'Auto',
+                                              }),
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.green[700],
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                if (_selectedKelas != null)
+                                  Text(
+                                    _getKelasNameWithCount(_selectedKelas!),
+                                    style: TextStyle(
+                                      color: _getPrimaryColor(),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                              ] else ...[
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.schedule_outlined,
+                                      color: Colors.orange,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        languageProvider.getTranslatedText({
+                                          'en': 'No Schedule Now',
+                                          'id': 'Tidak Ada Jadwal Sekarang',
+                                        }),
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              const SizedBox(height: 4),
+                              Text(
+                                DateFormat('EEEE, dd MMMM yyyy', 'id_ID')
+                                    .format(_selectedDate),
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        TextButton(
-                          onPressed: () => _selectDate(context),
-                          child: Text(
-                            DateFormat('dd/MM/yyyy').format(_selectedDate),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.blue,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Class Filter
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: DropdownButton<String>(
-                      value: _selectedKelas,
-                      isExpanded: true,
-                      underline: Container(),
-                      icon: const Icon(Icons.arrow_drop_down),
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 16,
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: null,
-                          child: Text(
-                            languageProvider.getTranslatedText({
-                              'en': 'All Classes',
-                              'id': 'Semua Kelas',
-                            }),
-                          ),
-                        ),
-                        ..._kelasList.map(
-                          (kelas) => DropdownMenuItem(
-                            value: kelas['id'],
-                            child: Text(kelas['nama']),
-                          ),
-                        ),
-                      ],
-                      onChanged: _filterStudentsByClass,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Subject Selector - HANYA MATA PELAJARAN YANG DIAMPU
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: DropdownButton<String>(
-                      value: _selectedMataPelajaran,
-                      isExpanded: true,
-                      underline: Container(),
-                      icon: const Icon(Icons.arrow_drop_down),
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontSize: 16,
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: null,
-                          child: Text(
-                            languageProvider.getTranslatedText({
-                              'en': 'Select Subject',
-                              'id': 'Pilih Mata Pelajaran',
-                            }),
-                          ),
-                        ),
-                        ..._mataPelajaranDiampu.map(
-                          (mp) => DropdownMenuItem(
-                            value: mp['id'],
-                            child: Text(
-                              mp['nama'] ??
-                                  mp['mata_pelajaran_nama'] ??
-                                  'Unknown',
-                            ),
-                          ),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedMataPelajaran = value;
-                        });
-                      },
-                    ),
-                  ),
-
-                  // Tampilkan pesan jika tidak ada mata pelajaran yang diampu
-                  if (_mataPelajaranDiampu.isEmpty)
-                    Container(
-                      margin: const EdgeInsets.only(top: 12),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.orange),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.warning,
-                            color: Colors.orange[800],
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              languageProvider.getTranslatedText({
-                                'en':
-                                    'You are not assigned to any subjects. Please contact administrator.',
-                                'id':
-                                    'Anda tidak mengampu mata pelajaran apapun. Silakan hubungi administrator.',
-                              }),
-                              style: TextStyle(
-                                color: Colors.orange[800],
-                                fontSize: 12,
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Icon Search
+                            Container(
+                              decoration: BoxDecoration(
+                                color: _getPrimaryColor().withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _showSearch = !_showSearch;
+                                    if (!_showSearch) {
+                                      _searchControllerInput.clear();
+                                      _filterStudents();
+                                    }
+                                  });
+                                },
+                                icon: Icon(
+                                  _showSearch ? Icons.search_off : Icons.search,
+                                  color: _getPrimaryColor(),
+                                  size: 20,
+                                ),
+                                iconSize: 20,
+                                padding: EdgeInsets.all(8),
+                                constraints: BoxConstraints(
+                                  minWidth: 36,
+                                  minHeight: 36,
+                                ),
+                                tooltip: languageProvider.getTranslatedText({
+                                  'en': _showSearch ? 'Hide search' : 'Search students',
+                                  'id': _showSearch ? 'Sembunyikan pencarian' : 'Cari siswa',
+                                }),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            // Student List Header
-            if (_filteredSiswaList.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${languageProvider.getTranslatedText({'en': 'Student List', 'id': 'Daftar Siswa'})} (${_filteredSiswaList.length})',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      languageProvider.getTranslatedText({
-                        'en': 'Status',
-                        'id': 'Status',
-                      }),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                            SizedBox(height: 8),
+                            // Icon untuk Quick Actions
+                            Container(
+                              decoration: BoxDecoration(
+                                color: _getPrimaryColor().withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: IconButton(
+                                onPressed: () {
+                                  _showQuickActionsSheet(languageProvider);
+                                },
+                                icon: Icon(
+                                  Icons.checklist_rtl,
+                                  color: _getPrimaryColor(),
+                                  size: 20,
+                                ),
+                                iconSize: 20,
+                                padding: EdgeInsets.all(8),
+                                constraints: BoxConstraints(
+                                  minWidth: 36,
+                                  minHeight: 36,
+                                ),
+                                tooltip: languageProvider.getTranslatedText({
+                                  'en': 'Quick attendance',
+                                  'id': 'Presensi cepat',
+                                }),
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            // Icon Edit
+                            Container(
+                              decoration: BoxDecoration(
+                                color: _getPrimaryColor().withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: IconButton(
+                                onPressed: () {
+                                  _showEditBottomSheet(languageProvider);
+                                },
+                                icon: Icon(
+                                  Icons.edit,
+                                  color: _getPrimaryColor(),
+                                  size: 20,
+                                ),
+                                iconSize: 20,
+                                padding: EdgeInsets.all(8),
+                                constraints: BoxConstraints(
+                                  minWidth: 36,
+                                  minHeight: 36,
+                                ),
+                                tooltip: languageProvider.getTranslatedText({
+                                  'en': 'Edit selection',
+                                  'id': 'Edit pilihan',
+                                }),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
 
-            // Student List
-            Expanded(
-              child: _filteredSiswaList.isEmpty
-                  ? EmptyState(
-                      title: languageProvider.getTranslatedText({
-                        'en': 'No Students',
-                        'id': 'Tidak ada siswa',
-                      }),
-                      subtitle: languageProvider.getTranslatedText({
-                        'en': 'No students found for selected class',
-                        'id': 'Tidak ada siswa untuk kelas yang dipilih',
-                      }),
-                      icon: Icons.people_outline,
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.only(top: 8),
-                      itemCount: _filteredSiswaList.length,
-                      itemBuilder: (context, index) => _buildStudentItem(
-                        _filteredSiswaList[index],
-                        languageProvider,
+            // Search Bar untuk Input Mode - hanya muncul jika _showSearch = true dan ada schedule
+            if (_showSearch && _selectedMataPelajaran != null) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
                       ),
-                    ),
-            ),
-
-            // Submit Button
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: _isSubmitting ? null : _submitAbsensi,
-                  icon: _isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : const Icon(Icons.save, size: 20),
-                  label: Text(
-                    _isSubmitting
-                        ? languageProvider.getTranslatedText({
-                            'en': 'Saving...',
-                            'id': 'Menyimpan...',
-                          })
-                        : languageProvider.getTranslatedText({
-                            'en': 'Save Attendance',
-                            'id': 'Simpan Absensi',
-                          }),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    ],
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                  child: TextField(
+                    controller: _searchControllerInput,
+                    onChanged: (value) => _filterStudents(),
+                    decoration: InputDecoration(
+                      hintText: languageProvider.getTranslatedText({
+                        'en': 'Search by name or NIS...',
+                        'id': 'Cari berdasarkan nama atau NIS...',
+                      }),
+                      prefixIcon: Icon(Icons.search, color: _getPrimaryColor()),
+                      suffixIcon: _searchControllerInput.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear),
+                              onPressed: () {
+                                _searchControllerInput.clear();
+                                _filterStudents();
+                              },
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
-                    elevation: 2,
                   ),
                 ),
               ),
-            ),
-          ],
+              SizedBox(height: 12),
+            ],
+
+              // Student List or Empty State
+              Expanded(
+                  child: _selectedMataPelajaran == null
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(40),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.edit_calendar_outlined,
+                                  size: 80,
+                                  color: Colors.grey[300],
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  languageProvider.getTranslatedText({
+                                    'en': 'No schedule at this time',
+                                    'id': 'Tidak ada jadwal pada jam ini',
+                                  }),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey[600],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  languageProvider.getTranslatedText({
+                                    'en': 'Click edit icon to input attendance manually',
+                                    'id': 'Klik ikon edit untuk input absensi secara manual',
+                                  }),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[500],
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : _filteredSiswaList.isEmpty
+                          ? EmptyState(
+                              title: languageProvider.getTranslatedText({
+                                'en': 'No Students',
+                                'id': 'Tidak ada siswa',
+                              }),
+                              subtitle: languageProvider.getTranslatedText({
+                                'en': 'No students found for selected class',
+                                'id': 'Tidak ada siswa untuk kelas yang dipilih',
+                              }),
+                              icon: Icons.people_outline,
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.only(top: 8),
+                              itemCount: _filteredSiswaList.length,
+                              itemBuilder: (context, index) => _buildStudentItem(
+                                _filteredSiswaList[index],
+                                languageProvider,
+                              ),
+                            ),
+                ),
+
+              // Submit Button
+              if (_selectedMataPelajaran != null)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: _isSubmitting ? null : _submitAbsensi,
+                      icon: _isSubmitting
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : const Icon(Icons.save, size: 20),
+                      label: Text(
+                        _isSubmitting
+                            ? languageProvider.getTranslatedText({
+                                'en': 'Saving...',
+                                'id': 'Menyimpan...',
+                              })
+                            : languageProvider.getTranslatedText({
+                                'en': 'Save Attendance',
+                                'id': 'Simpan Absensi',
+                              }),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
         );
       },
     );
-  } // ========== STUDENT ITEM BUILDER ==========
+  }
 
+  // ========== STUDENT ITEM BUILDER BARU ==========
   Widget _buildStudentItem(Siswa siswa, LanguageProvider languageProvider) {
     final status = _absensiStatus[siswa.id] ?? 'hadir';
     final Color statusColor = _getStatusColor(status);
-    final String statusText = _getStatusText(status, languageProvider);
     final Color avatarColor = _getAvatarColor(siswa.nama);
     final String initial = siswa.nama.isNotEmpty
         ? siswa.nama[0].toUpperCase()
         : '?';
 
+    // Warna background berdasarkan status
+    Color backgroundColor = Colors.white;
+    switch (status) {
+      case 'hadir':
+        backgroundColor = Colors.green.withOpacity(0.05);
+        break;
+      case 'terlambat':
+        backgroundColor = Colors.purple.withOpacity(0.05);
+        break;
+      case 'izin':
+        backgroundColor = Colors.blue.withOpacity(0.05);
+        break;
+      case 'sakit':
+        backgroundColor = Colors.orange.withOpacity(0.05);
+        break;
+      case 'alpha':
+        backgroundColor = Colors.red.withOpacity(0.05);
+        break;
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -1460,135 +2342,137 @@ class PresencePageState extends State<PresencePage>
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
+          BoxShadow(
+            color: statusColor.withOpacity(0.1),
+            blurRadius: 2,
+            spreadRadius: 1,
+          ),
         ],
+        border: Border.all(
+          color: statusColor.withOpacity(0.3),
+          width: 1,
+        ),
       ),
-      child: Row(
+      child: Column(
         children: [
-          // Avatar
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: avatarColor,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+          // Student Info Row
+          Row(
+            children: [
+              // Avatar
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: avatarColor,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
+              const SizedBox(width: 12),
 
-          // Student Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  siswa.nama,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${languageProvider.getTranslatedText({'en': 'NIS:', 'id': 'NIS:'})} ${siswa.nis}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-
-          // Status Dropdown
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: statusColor.withOpacity(0.3)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButton<String>(
-                  value: status,
-                  items: [
-                    DropdownMenuItem(
-                      value: 'hadir',
-                      child: Text(
-                        languageProvider.getTranslatedText({
-                          'en': 'Present',
-                          'id': 'Hadir',
-                        }),
+              // Student Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      siswa.nama,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black87,
                       ),
                     ),
-                    DropdownMenuItem(
-                      value: 'terlambat',
-                      child: Text(
-                        languageProvider.getTranslatedText({
-                          'en': 'Late',
-                          'id': 'Terlambat',
-                        }),
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: 'izin',
-                      child: Text(
-                        languageProvider.getTranslatedText({
-                          'en': 'Permission',
-                          'id': 'Izin',
-                        }),
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: 'sakit',
-                      child: Text(
-                        languageProvider.getTranslatedText({
-                          'en': 'Sick',
-                          'id': 'Sakit',
-                        }),
-                      ),
-                    ),
-                    DropdownMenuItem(
-                      value: 'alpha',
-                      child: Text(
-                        languageProvider.getTranslatedText({
-                          'en': 'Absent',
-                          'id': 'Alpha',
-                        }),
-                      ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${languageProvider.getTranslatedText({'en': 'NIS:', 'id': 'NIS:'})} ${siswa.nis}',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],
-                  onChanged: (value) {
-                    setState(() {
-                      _absensiStatus[siswa.id] = value!;
-                    });
-                  },
-                  underline: Container(),
-                  icon: Icon(
-                    Icons.arrow_drop_down,
-                    color: statusColor,
-                    size: 16,
-                  ),
-                  dropdownColor: Colors.white,
+                ),
+              ),
+
+              // Status Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: statusColor.withOpacity(0.3)),
+                ),
+                child: Text(
+                  _getStatusText(status, languageProvider),
                   style: TextStyle(
                     color: statusColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                   ),
                 ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Status Options
+          Container(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _buildStatusOption('hadir', languageProvider, status, siswa.id),
+                const SizedBox(width: 8),
+                _buildStatusOption('terlambat', languageProvider, status, siswa.id),
+                const SizedBox(width: 8),
+                _buildStatusOption('izin', languageProvider, status, siswa.id),
+                const SizedBox(width: 8),
+                _buildStatusOption('sakit', languageProvider, status, siswa.id),
+                const SizedBox(width: 8),
+                _buildStatusOption('alpha', languageProvider, status, siswa.id),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatusOption(String statusValue, LanguageProvider languageProvider, String currentStatus, String siswaId) {
+    final bool isSelected = currentStatus == statusValue;
+    final Color statusColor = _getStatusColor(statusValue);
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _absensiStatus[siswaId] = statusValue;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? statusColor : statusColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? statusColor : statusColor.withOpacity(0.3),
+          ),
+        ),
+        child: Text(
+          _getStatusText(statusValue, languageProvider),
+          style: TextStyle(
+            color: isSelected ? Colors.white : statusColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
     );
   }
@@ -1612,13 +2496,7 @@ class PresencePageState extends State<PresencePage>
   void _filterStudentsByClass(String? kelasId) {
     setState(() {
       _selectedKelas = kelasId;
-      if (kelasId == null) {
-        _filteredSiswaList = _siswaList;
-      } else {
-        _filteredSiswaList = _siswaList
-            .where((siswa) => siswa.kelasId == kelasId)
-            .toList();
-      }
+      _filterStudents();
     });
   }
 
@@ -1820,8 +2698,14 @@ class PresencePageState extends State<PresencePage>
       }
       // Reset filter kelas
       _selectedKelas = null;
-      _filteredSiswaList = _siswaList;
+      _selectedStatusFilter = null;
+      _searchControllerInput.clear();
+      _hasActiveFilterInput = false;
+      _filterStudents();
     });
+    
+    // Re-detect current schedule after reset
+    _detectCurrentSchedule();
   }
 
   Color _getStatusColor(String status) {

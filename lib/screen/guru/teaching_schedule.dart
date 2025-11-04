@@ -6,6 +6,9 @@ import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/separated_search_filter.dart';
 import 'package:manajemensekolah/components/filter_sheet.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
+import 'package:manajemensekolah/screen/guru/presence_teacher.dart';
+import 'package:manajemensekolah/screen/guru/materi_screen.dart';
+import 'package:manajemensekolah/screen/guru/class_activity.dart';
 import 'package:manajemensekolah/services/api_schedule_services.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
 import 'package:manajemensekolah/utils/language_utils.dart';
@@ -1283,7 +1286,23 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            // Optional: Add detail view if needed
+            // Navigate to Presence Page with schedule data
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PresencePage(
+                  guru: {
+                    'id': _guruId,
+                    'nama': _guruNama,
+                  },
+                  initialDate: DateTime.now(),
+                  initialMataPelajaranId: jadwal['mata_pelajaran_id']?.toString(),
+                  initialMataPelajaranNama: jadwal['mata_pelajaran_nama']?.toString(),
+                  initialKelasId: jadwal['kelas_id']?.toString(),
+                  initialKelasNama: jadwal['kelas_nama']?.toString(),
+                ),
+              ),
+            );
           },
           borderRadius: BorderRadius.circular(16),
           child: Container(
@@ -1537,8 +1556,98 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
                         ],
                       ),
 
-                      // DIHAPUS: Section tahun ajaran yang terpisah
-                      // karena sudah dipindah ke atas
+                      SizedBox(height: 16),
+                      
+                      // Action Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MateriPage(
+                                      guru: {
+                                        'id': _guruId,
+                                        'nama': _guruNama,
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: Icon(Icons.library_books, size: 16),
+                              label: Text(
+                                languageProvider.getTranslatedText({
+                                  'en': 'Material',
+                                  'id': 'Materi',
+                                }),
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: _getPrimaryColor(),
+                                side: BorderSide(color: _getPrimaryColor()),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: EdgeInsets.symmetric(vertical: 8),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                // Calculate next occurrence date for this schedule
+                                final now = DateTime.now();
+                                final scheduleDay = _hariIdMap.entries
+                                    .firstWhere(
+                                      (entry) => entry.value == jadwal['hari_id']?.toString(),
+                                      orElse: () => MapEntry('Senin', '1'),
+                                    )
+                                    .key;
+                                final scheduleDayIndex = _hariOptions.indexOf(scheduleDay);
+                                final todayIndex = now.weekday;
+                                int daysUntilSchedule = scheduleDayIndex - todayIndex;
+                                if (daysUntilSchedule < 0) {
+                                  daysUntilSchedule += 7;
+                                }
+                                final scheduleDate = now.add(Duration(days: daysUntilSchedule));
+                                
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ClassActifityScreen(
+                                      initialDate: scheduleDate,
+                                      initialSubjectId: jadwal['mata_pelajaran_id']?.toString(),
+                                      initialSubjectName: jadwal['mata_pelajaran_nama']?.toString(),
+                                      initialClassId: jadwal['kelas_id']?.toString(),
+                                      initialClassName: jadwal['kelas_nama']?.toString(),
+                                      autoShowActivityDialog: true,
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: Icon(Icons.assignment, size: 16),
+                              label: Text(
+                                languageProvider.getTranslatedText({
+                                  'en': 'Activity',
+                                  'id': 'Aktivitas',
+                                }),
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _getPrimaryColor(),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                padding: EdgeInsets.symmetric(vertical: 8),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),

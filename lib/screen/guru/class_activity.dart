@@ -16,7 +16,22 @@ import 'package:manajemensekolah/utils/color_utils.dart';
 import 'package:provider/provider.dart';
 
 class ClassActifityScreen extends StatefulWidget {
-  const ClassActifityScreen({super.key});
+  final DateTime? initialDate;
+  final String? initialSubjectId;
+  final String? initialSubjectName;
+  final String? initialClassId;
+  final String? initialClassName;
+  final bool autoShowActivityDialog;
+  
+  const ClassActifityScreen({
+    super.key,
+    this.initialDate,
+    this.initialSubjectId,
+    this.initialSubjectName,
+    this.initialClassId,
+    this.initialClassName,
+    this.autoShowActivityDialog = false,
+  });
 
   @override
   ClassActifityScreenState createState() => ClassActifityScreenState();
@@ -101,19 +116,63 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
 
   Future<void> _loadSchedule() async {
     try {
+      // Get current academic year dynamically
+      final now = DateTime.now();
+      final currentYear = now.year;
+      final currentMonth = now.month;
+      
+      // Academic year runs from July to June
+      final tahunAjaran = currentMonth >= 7 
+          ? '$currentYear/${currentYear + 1}'
+          : '${currentYear - 1}/$currentYear';
+      
+      if (kDebugMode) {
+        print('===== LOADING SCHEDULE =====');
+        print('Teacher ID: $_teacherId');
+        print('Academic Year: $tahunAjaran');
+      }
+
       final schedule = await ApiScheduleService.getScheduleByGuru(
         guruId: _teacherId,
-        tahunAjaran: '2024/2025',
+        tahunAjaran: tahunAjaran,
       );
+
+      if (kDebugMode) {
+        print('Total schedules loaded: ${schedule.length}');
+      }
+
+      // If no schedule found for current year, try loading all schedules
+      List<dynamic> finalSchedule = schedule;
+      if (schedule.isEmpty) {
+        if (kDebugMode) {
+          print('No schedule found for $tahunAjaran, trying to load all schedules...');
+        }
+        try {
+          finalSchedule = await ApiScheduleService.getScheduleByGuru(
+            guruId: _teacherId,
+          );
+          if (kDebugMode) {
+            print('Total schedules loaded (all years): ${finalSchedule.length}');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Failed to load all schedules: $e');
+          }
+        }
+      }
 
       final uniqueSubjects = <String, dynamic>{};
       final uniqueClasses = <String, dynamic>{};
 
-      for (var scheduleItem in schedule) {
+      for (var scheduleItem in finalSchedule) {
         final subjectId = scheduleItem['mata_pelajaran_id']?.toString();
         final subjectName = scheduleItem['mata_pelajaran_nama']?.toString();
         final classId = scheduleItem['kelas_id']?.toString();
         final className = scheduleItem['kelas_nama']?.toString();
+        
+        if (kDebugMode) {
+          print('Schedule item: $subjectName (ID: $subjectId), Class: $className (ID: $classId), Day: ${scheduleItem['hari_nama']}, Time: ${scheduleItem['jam_mulai']} - ${scheduleItem['jam_selesai']}');
+        }
 
         if (subjectId != null && !uniqueSubjects.containsKey(subjectId)) {
           uniqueSubjects[subjectId] = {'id': subjectId, 'nama': subjectName};
@@ -124,18 +183,186 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
         }
       }
 
+      if (kDebugMode) {
+        print('Unique subjects: ${uniqueSubjects.length}');
+        print('Subject list: ${uniqueSubjects.values.map((s) => s['nama']).toList()}');
+        print('===========================');
+      }
+
       setState(() {
-        _scheduleList = schedule;
+        _scheduleList = finalSchedule;
         _subjectList = uniqueSubjects.values.toList();
       });
     } catch (e) {
       if (kDebugMode) {
-        print('Error load schedule: $e');
+        print('ERROR loading schedule: $e');
+        print('Stack trace: ${StackTrace.current}');
       }
     }
   }
 
-  void _showAddActivityDialog() {
+  void _showActivityTypeDialog() {
+    final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        padding: EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            SizedBox(height: 20),
+            
+            // Title
+            Text(
+              languageProvider.getTranslatedText({
+                'en': 'Select Activity Type',
+                'id': 'Pilih Jenis Kegiatan',
+              }),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              languageProvider.getTranslatedText({
+                'en': 'Choose what you want to create',
+                'id': 'Pilih apa yang ingin Anda buat',
+              }),
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            SizedBox(height: 24),
+            
+            // Tugas Option
+            _buildActivityTypeOption(
+              icon: Icons.assignment,
+              title: languageProvider.getTranslatedText({
+                'en': 'Assignment',
+                'id': 'Tugas',
+              }),
+              description: languageProvider.getTranslatedText({
+                'en': 'Create an assignment for students',
+                'id': 'Buat tugas untuk siswa',
+              }),
+              color: Colors.orange,
+              onTap: () {
+                Navigator.pop(context);
+                _showAddActivityDialog('tugas');
+              },
+            ),
+            SizedBox(height: 12),
+            
+            // Materi Option
+            _buildActivityTypeOption(
+              icon: Icons.book,
+              title: languageProvider.getTranslatedText({
+                'en': 'Material',
+                'id': 'Materi',
+              }),
+              description: languageProvider.getTranslatedText({
+                'en': 'Share learning materials',
+                'id': 'Bagikan materi pembelajaran',
+              }),
+              color: Colors.blue,
+              onTap: () {
+                Navigator.pop(context);
+                _showAddActivityDialog('materi');
+              },
+            ),
+            SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActivityTypeOption({
+    required IconData icon,
+    required String title,
+    required String description,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: color,
+                size: 24,
+              ),
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: Colors.grey[400],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddActivityDialog(String activityType) {
     showDialog(
       context: context,
       builder: (context) => AddActivityDialog(
@@ -149,6 +376,10 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
         onChapterSelected: _loadSubChapterMaterials,
         onActivityAdded: _loadActivities,
         initialTarget: _currentTarget,
+        activityType: activityType,
+        initialDate: widget.initialDate,
+        initialSubjectId: widget.initialSubjectId,
+        initialClassId: widget.initialClassId,
       ),
     );
   }
@@ -559,9 +790,7 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
                                   color: Colors.white,
                                 ),
                                 onDeleted: filter['onRemove'],
-                                backgroundColor: _getPrimaryColor().withOpacity(
-                                  0.7,
-                                ),
+                                backgroundColor: _getPrimaryColor().withValues(alpha: 0.7),
                                 side: BorderSide.none,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
@@ -573,7 +802,7 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
                                 labelPadding: EdgeInsets.only(left: 4),
                               ),
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
                     ),
@@ -588,7 +817,7 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.red.withOpacity(0.8),
+                            color: Colors.red.withValues(alpha: 0.8),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -690,7 +919,7 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.3),
+                    color: Colors.grey.withValues(alpha: 0.3),
                     blurRadius: 5,
                     offset: Offset(0, 4),
                   ),
@@ -790,7 +1019,7 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
                               width: 32,
                               height: 32,
                               decoration: BoxDecoration(
-                                color: cardColor.withOpacity(0.1),
+                                color: cardColor.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Icon(
@@ -844,7 +1073,7 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
                                     width: 32,
                                     height: 32,
                                     decoration: BoxDecoration(
-                                      color: cardColor.withOpacity(0.1),
+                                      color: cardColor.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Icon(
@@ -897,7 +1126,7 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
                                 width: 32,
                                 height: 32,
                                 decoration: BoxDecoration(
-                                  color: cardColor.withOpacity(0.1),
+                                  color: cardColor.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Icon(
@@ -1068,7 +1297,7 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
 
           // Floating Action Button untuk menambah kegiatan
           floatingActionButton: FloatingActionButton(
-            onPressed: _showAddActivityDialog,
+            onPressed: _showActivityTypeDialog,
             backgroundColor: _getPrimaryColor(),
             child: Icon(Icons.add, color: Colors.white),
           ),
@@ -1092,7 +1321,7 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
       end: Alignment.bottomRight,
       colors: [
         _getPrimaryColor(),
-        _getPrimaryColor().withOpacity(0.8),
+        _getPrimaryColor().withValues(alpha: 0.8),
       ],
     );
   }
@@ -1147,6 +1376,15 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
         _activityList = activities;
         _isLoading = false;
       });
+      
+      // Auto show activity dialog if specified
+      if (widget.autoShowActivityDialog) {
+        Future.delayed(Duration(milliseconds: 300), () {
+          if (mounted) {
+            _showActivityTypeDialog();
+          }
+        });
+      }
     } catch (e) {
       setState(() => _isLoading = false);
       if (kDebugMode) {
@@ -1156,8 +1394,8 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
   }
 }
 
-// TODO: Implement AddActivityDialog sesuai kebutuhan
-class AddActivityDialog extends StatelessWidget {
+// Form Dialog untuk Tambah Kegiatan (Tugas/Materi)
+class AddActivityDialog extends StatefulWidget {
   final String teacherId;
   final String teacherName;
   final List<dynamic> scheduleList;
@@ -1168,9 +1406,13 @@ class AddActivityDialog extends StatelessWidget {
   final Function(String) onChapterSelected;
   final VoidCallback onActivityAdded;
   final String initialTarget;
+  final String activityType;
+  final DateTime? initialDate;
+  final String? initialSubjectId;
+  final String? initialClassId;
 
   const AddActivityDialog({
-    Key? key,
+    super.key,
     required this.teacherId,
     required this.teacherName,
     required this.scheduleList,
@@ -1181,24 +1423,854 @@ class AddActivityDialog extends StatelessWidget {
     required this.onChapterSelected,
     required this.onActivityAdded,
     required this.initialTarget,
-  }) : super(key: key);
+    required this.activityType,
+    this.initialDate,
+    this.initialSubjectId,
+    this.initialClassId,
+  });
+
+  @override
+  State<AddActivityDialog> createState() => _AddActivityDialogState();
+}
+
+class _AddActivityDialogState extends State<AddActivityDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _judulController = TextEditingController();
+  final _deskripsiController = TextEditingController();
+  final List<String> _selectedStudents = [];
+  
+  String? _selectedSubjectId;
+  String? _selectedClassId;
+  String? _selectedChapterId;
+  String? _selectedSubChapterId;
+  DateTime? _selectedDate;
+  DateTime? _deadline;
+  String? _selectedDay;
+  bool _isSubmitting = false;
+  List<dynamic> _studentList = [];
+  
+  // Bab & Sub Bab Materi
+  List<dynamic> _babMateriList = [];
+  List<dynamic> _subBabMateriList = [];
+  String? _selectedBabId;
+  String? _selectedSubBabId;
+  bool _useMateriTitle = false; // Toggle: use bab/sub bab or manual input
+
+  final List<String> _days = [
+    'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Set initial values from widget parameters or use defaults
+    _selectedDate = widget.initialDate ?? DateTime.now();
+    _selectedDay = _days[_selectedDate!.weekday - 1];
+    _selectedSubjectId = widget.initialSubjectId;
+    _selectedClassId = widget.initialClassId;
+    
+    // If initial subject is provided, load its data
+    if (_selectedSubjectId != null) {
+      Future.delayed(Duration.zero, () {
+        widget.onSubjectSelected(_selectedSubjectId!);
+      });
+    }
+    
+    // Debug logging
+    if (kDebugMode) {
+      print('AddActivityDialog initialized');
+      print('Subject list count: ${widget.subjectList.length}');
+      print('Schedule list count: ${widget.scheduleList.length}');
+      print('Activity type: ${widget.activityType}');
+      print('Initial target: ${widget.initialTarget}');
+      print('Initial subject ID: $_selectedSubjectId');
+      print('Initial class ID: $_selectedClassId');
+      print('Initial date: $_selectedDate');
+    }
+  }
+
+  @override
+  void dispose() {
+    _judulController.dispose();
+    _deskripsiController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadStudents() async {
+    if (_selectedClassId == null) return;
+    
+    try {
+      final students = await ApiClassActivityService.getSiswaByKelas(_selectedClassId!);
+      setState(() {
+        _studentList = students;
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading students: $e');
+      }
+    }
+  }
+
+  Future<void> _loadBabMateri(String mataPelajaranId) async {
+    try {
+      final babList = await ApiSubjectService.getBabMateri(
+        mataPelajaranId: mataPelajaranId,
+      );
+      setState(() {
+        _babMateriList = babList;
+        _selectedBabId = null;
+        _selectedSubBabId = null;
+        _subBabMateriList = [];
+      });
+      
+      if (kDebugMode) {
+        print('===== BAB MATERI LOADED =====');
+        print('Count: ${babList.length}');
+        if (babList.isNotEmpty) {
+          print('First item structure: ${babList[0]}');
+          print('Available fields: ${babList[0].keys}');
+        }
+        print('=============================');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading bab materi: $e');
+      }
+    }
+  }
+
+  Future<void> _loadSubBabMateri(String babId) async {
+    try {
+      final subBabList = await ApiSubjectService.getSubBabMateri(babId: babId);
+      setState(() {
+        _subBabMateriList = subBabList;
+        _selectedSubBabId = null;
+      });
+      
+      if (kDebugMode) {
+        print('===== SUB BAB MATERI LOADED =====');
+        print('Count: ${subBabList.length}');
+        if (subBabList.isNotEmpty) {
+          print('First item structure: ${subBabList[0]}');
+          print('Available fields: ${subBabList[0].keys}');
+        }
+        print('=================================');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading sub bab materi: $e');
+      }
+    }
+  }
+
+  String _getBabName(dynamic bab) {
+    // Try multiple possible field names
+    return bab['nama']?.toString() ?? 
+           bab['judul']?.toString() ?? 
+           bab['title']?.toString() ??
+           bab['name']?.toString() ??
+           'Unknown';
+  }
+
+  String _getSubBabName(dynamic subBab) {
+    // Try multiple possible field names
+    return subBab['nama']?.toString() ?? 
+           subBab['judul']?.toString() ?? 
+           subBab['title']?.toString() ??
+           subBab['name']?.toString() ??
+           'Unknown';
+  }
+
+  void _updateTitleFromMateri() {
+    String title = '';
+    
+    if (_selectedSubBabId != null && _subBabMateriList.isNotEmpty) {
+      final subBab = _subBabMateriList.firstWhere(
+        (item) => item['id'].toString() == _selectedSubBabId,
+        orElse: () => null,
+      );
+      if (subBab != null) {
+        title = _getSubBabName(subBab);
+      }
+    } else if (_selectedBabId != null && _babMateriList.isNotEmpty) {
+      final bab = _babMateriList.firstWhere(
+        (item) => item['id'].toString() == _selectedBabId,
+        orElse: () => null,
+      );
+      if (bab != null) {
+        title = _getBabName(bab);
+      }
+    }
+    
+    if (title.isNotEmpty && title != 'Unknown') {
+      _judulController.text = title;
+    }
+  }
+
+  List<DropdownMenuItem<String>> _getUniqueClassItems() {
+    final Map<String, Map<String, dynamic>> uniqueClasses = {};
+    final now = DateTime.now();
+    final currentDay = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'][now.weekday - 1];
+    
+    if (kDebugMode) {
+      print('Getting unique classes for subject: $_selectedSubjectId');
+      print('Current day: $currentDay, Current time: ${now.hour}:${now.minute}');
+      print('Target: ${widget.initialTarget}');
+      print('Initial class ID from widget: ${widget.initialClassId}');
+    }
+    
+    // Filter schedules by selected subject and deduplicate by class_id
+    for (var schedule in widget.scheduleList) {
+      if (schedule['mata_pelajaran_id'].toString() == _selectedSubjectId) {
+        final kelasId = schedule['kelas_id'].toString();
+        
+        // Untuk target KHUSUS: tidak ada filter waktu, semua jadwal bisa dipilih
+        if (widget.initialTarget == 'khusus') {
+          if (!uniqueClasses.containsKey(kelasId)) {
+            uniqueClasses[kelasId] = {
+              'id': kelasId,
+              'nama': schedule['kelas_nama'] ?? 'Unknown',
+            };
+          }
+        } 
+        // Untuk target UMUM
+        else {
+          // Jika ada initialClassId (dari teaching schedule), selalu include kelas tersebut
+          if (widget.initialClassId != null && kelasId == widget.initialClassId) {
+            if (!uniqueClasses.containsKey(kelasId)) {
+              uniqueClasses[kelasId] = {
+                'id': kelasId,
+                'nama': schedule['kelas_nama'] ?? 'Unknown',
+              };
+              if (kDebugMode) {
+                print('Added class from initialClassId: ${schedule['kelas_nama']}');
+              }
+            }
+          }
+          // Filter berdasarkan waktu untuk kelas lainnya
+          else {
+            final scheduleDay = schedule['hari_nama']?.toString() ?? '';
+            final jamMulai = schedule['jam_mulai']?.toString() ?? '';
+            
+            if (kDebugMode) {
+              print('Schedule: ${schedule['kelas_nama']}, Day: $scheduleDay, Start: $jamMulai');
+            }
+            
+            // Check if schedule is today
+            if (scheduleDay == currentDay && jamMulai.isNotEmpty) {
+              try {
+                // Parse jam mulai (format: HH:mm:ss atau HH:mm)
+                final startTimeParts = jamMulai.split(':');
+                final startHour = int.parse(startTimeParts[0]);
+                final startMinute = int.parse(startTimeParts[1]);
+                
+                // Buat DateTime untuk jam mulai hari ini
+                final scheduleStartTime = DateTime(
+                  now.year, now.month, now.day, 
+                  startHour, startMinute
+                );
+                
+                // Batas waktu: jam mulai + 23 jam
+                final scheduleEndLimit = scheduleStartTime.add(Duration(hours: 23));
+                
+                // Cek apakah waktu sekarang ada di antara jam mulai dan jam mulai + 23 jam
+                if (!now.isBefore(scheduleStartTime) && now.isBefore(scheduleEndLimit)) {
+                  if (!uniqueClasses.containsKey(kelasId)) {
+                    uniqueClasses[kelasId] = {
+                      'id': kelasId,
+                      'nama': schedule['kelas_nama'] ?? 'Unknown',
+                    };
+                  }
+                }
+              } catch (e) {
+                if (kDebugMode) {
+                  print('Error parsing time: $e');
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    if (kDebugMode) {
+      print('Unique classes found: ${uniqueClasses.length}');
+    }
+    
+    // Convert to dropdown items
+    return uniqueClasses.values.map((kelas) {
+      return DropdownMenuItem<String>(
+        value: kelas['id'].toString(),
+        child: Text(kelas['nama'] ?? 'Unknown'),
+      );
+    }).toList();
+  }
+
+  Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_selectedSubjectId == null || _selectedClassId == null) {
+      _showError('Pilih mata pelajaran dan kelas terlebih dahulu');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
+      
+      final data = {
+        'guru_id': widget.teacherId,
+        'mata_pelajaran_id': _selectedSubjectId,
+        'kelas_id': _selectedClassId,
+        'judul': _judulController.text,
+        'deskripsi': _deskripsiController.text,
+        'jenis': widget.activityType,
+        'target': widget.initialTarget,
+        'tanggal': _selectedDate!.toIso8601String().split('T')[0],
+        'hari': _selectedDay,
+      };
+
+      // Save bab_id and sub_bab_id if selected from materi
+      if (_useMateriTitle && _selectedBabId != null) {
+        data['bab_id'] = _selectedBabId;
+      } else if (_selectedChapterId != null) {
+        // Fallback to old chapter props if exists
+        data['bab_id'] = _selectedChapterId;
+      }
+
+      if (_useMateriTitle && _selectedSubBabId != null) {
+        data['sub_bab_id'] = _selectedSubBabId;
+      } else if (_selectedSubChapterId != null) {
+        // Fallback to old sub chapter props if exists
+        data['sub_bab_id'] = _selectedSubChapterId;
+      }
+
+      if (_deadline != null && widget.activityType == 'tugas') {
+        data['batas_waktu'] = _deadline!.toIso8601String();
+      }
+
+      // Tambahkan siswa target untuk kegiatan khusus
+      final Map<String, dynamic> requestData = Map<String, dynamic>.from(data);
+      if (widget.initialTarget == 'khusus' && _selectedStudents.isNotEmpty) {
+        requestData['siswa_target'] = _selectedStudents;
+      }
+
+      await ApiClassActivityService.tambahKegiatan(requestData);
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      widget.onActivityAdded();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            languageProvider.getTranslatedText({
+              'en': 'Activity added successfully',
+              'id': 'Kegiatan berhasil ditambahkan',
+            }),
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      _showError(e.toString());
+    } finally {
+      setState(() => _isSubmitting = false);
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final languageProvider = Provider.of<LanguageProvider>(context);
+    final isAssignment = widget.activityType == 'tugas';
+    final primaryColor = isAssignment ? Colors.orange : Colors.blue;
+    
     return AlertDialog(
-      title: Text('Add Activity'),
-      content: Text('Implement add activity form here'),
+      title: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              isAssignment ? Icons.assignment : Icons.book,
+              color: primaryColor,
+              size: 20,
+            ),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              isAssignment
+                  ? languageProvider.getTranslatedText({
+                      'en': 'Add Assignment',
+                      'id': 'Tambah Tugas',
+                    })
+                  : languageProvider.getTranslatedText({
+                      'en': 'Add Material',
+                      'id': 'Tambah Materi',
+                    }),
+              style: TextStyle(fontSize: 18),
+            ),
+          ),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Info Box
+              Container(
+                padding: EdgeInsets.all(12),
+                margin: EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      widget.initialTarget == 'khusus' 
+                          ? Icons.people 
+                          : Icons.schedule,
+                      color: primaryColor,
+                      size: 20,
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        widget.initialTarget == 'khusus'
+                            ? languageProvider.getTranslatedText({
+                                'en': 'SPECIFIC: You can select any class anytime.',
+                                'id': 'KHUSUS: Anda dapat memilih kelas kapan saja.',
+                              })
+                            : languageProvider.getTranslatedText({
+                                'en': 'GENERAL: Only classes from start time to +23 hours are available.',
+                                'id': 'UMUM: Hanya kelas dari jam mulai sampai +23 jam yang tersedia.',
+                              }),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: primaryColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Mata Pelajaran
+              DropdownButtonFormField<String>(
+                decoration: InputDecoration(
+                  labelText: '${languageProvider.getTranslatedText({'en': 'Subject', 'id': 'Mata Pelajaran'})} *',
+                  prefixIcon: Icon(Icons.book),
+                  border: OutlineInputBorder(),
+                ),
+                value: _selectedSubjectId,
+                isExpanded: true,
+                items: widget.subjectList.isEmpty
+                    ? null
+                    : widget.subjectList.map((subject) {
+                        return DropdownMenuItem<String>(
+                          value: subject['id'].toString(),
+                          child: Text(subject['nama'] ?? 'Unknown'),
+                        );
+                      }).toList(),
+                onChanged: widget.subjectList.isEmpty
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _selectedSubjectId = value;
+                          _selectedClassId = null;
+                        });
+                        if (value != null) {
+                          widget.onSubjectSelected(value);
+                          _loadBabMateri(value); // Load bab materi for selected subject
+                        }
+                      },
+                validator: (value) => value == null
+                    ? languageProvider.getTranslatedText({'en': 'Required', 'id': 'Wajib diisi'})
+                    : null,
+                hint: Text(widget.subjectList.isEmpty
+                    ? languageProvider.getTranslatedText({
+                        'en': 'No subjects available',
+                        'id': 'Tidak ada mata pelajaran',
+                      })
+                    : languageProvider.getTranslatedText({
+                        'en': 'Select Subject',
+                        'id': 'Pilih Mata Pelajaran',
+                      })),
+              ),
+              if (widget.subjectList.isEmpty)
+                Padding(
+                  padding: EdgeInsets.only(top: 4, left: 12),
+                  child: Text(
+                    languageProvider.getTranslatedText({
+                      'en': 'No teaching subjects found. Please check your schedule.',
+                      'id': 'Tidak ada mata pelajaran mengajar. Silakan periksa jadwal Anda.',
+                    }),
+                    style: TextStyle(color: Colors.red, fontSize: 12),
+                  ),
+                ),
+              SizedBox(height: 12),
+
+              // Kelas
+              DropdownButtonFormField<String>(
+                decoration: InputDecoration(
+                  labelText: '${languageProvider.getTranslatedText({'en': 'Class', 'id': 'Kelas'})} *',
+                  prefixIcon: Icon(Icons.class_),
+                  border: OutlineInputBorder(),
+                ),
+                value: _selectedClassId,
+                isExpanded: true,
+                items: _selectedSubjectId == null
+                    ? null
+                    : _getUniqueClassItems(),
+                onChanged: _selectedSubjectId == null
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _selectedClassId = value;
+                        });
+                        if (widget.initialTarget == 'khusus') {
+                          _loadStudents();
+                        }
+                      },
+                validator: (value) => value == null
+                    ? languageProvider.getTranslatedText({'en': 'Required', 'id': 'Wajib diisi'})
+                    : null,
+                hint: Text(_selectedSubjectId == null
+                    ? languageProvider.getTranslatedText({
+                        'en': 'Select subject first',
+                        'id': 'Pilih mata pelajaran dulu',
+                      })
+                    : languageProvider.getTranslatedText({
+                        'en': 'Select Class',
+                        'id': 'Pilih Kelas',
+                      })),
+              ),
+              if (_selectedSubjectId != null && _getUniqueClassItems().isEmpty)
+                Padding(
+                  padding: EdgeInsets.only(top: 4, left: 12),
+                  child: Text(
+                    widget.initialTarget == 'khusus'
+                        ? languageProvider.getTranslatedText({
+                            'en': 'No classes found for this subject.',
+                            'id': 'Tidak ada kelas untuk mata pelajaran ini.',
+                          })
+                        : languageProvider.getTranslatedText({
+                            'en': 'No active classes now. You can fill from class start time until +23 hours.',
+                            'id': 'Tidak ada kelas aktif saat ini. Anda dapat mengisi dari jam pelajaran mulai sampai +23 jam.',
+                          }),
+                    style: TextStyle(color: Colors.orange, fontSize: 12),
+                  ),
+                ),
+              SizedBox(height: 12),
+
+              // Toggle: Pilih dari Materi atau Tulis Manual
+              Row(
+                children: [
+                  Icon(Icons.title, size: 20, color: Colors.grey[600]),
+                  SizedBox(width: 8),
+                  Text(
+                    languageProvider.getTranslatedText({
+                      'en': 'Choose from material',
+                      'id': 'Pilih dari materi',
+                    }),
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  Spacer(),
+                  Switch(
+                    value: _useMateriTitle,
+                    onChanged: _selectedSubjectId == null ? null : (value) {
+                      setState(() {
+                        _useMateriTitle = value;
+                        if (!value) {
+                          // Reset when switching to manual
+                          _selectedBabId = null;
+                          _selectedSubBabId = null;
+                        }
+                      });
+                    },
+                    activeThumbColor: primaryColor,
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+
+              // Dropdown Bab Materi (if useMateriTitle = true)
+              if (_useMateriTitle) ...[
+                DropdownButtonFormField<String>(
+                  decoration: InputDecoration(
+                    labelText: languageProvider.getTranslatedText({
+                      'en': 'Chapter',
+                      'id': 'Bab Materi',
+                    }),
+                    prefixIcon: Icon(Icons.menu_book),
+                    border: OutlineInputBorder(),
+                  ),
+                  value: _selectedBabId,
+                  isExpanded: true,
+                  items: _babMateriList.isEmpty
+                      ? null
+                      : _babMateriList.map((bab) {
+                          return DropdownMenuItem<String>(
+                            value: bab['id'].toString(),
+                            child: Text(_getBabName(bab)),
+                          );
+                        }).toList(),
+                  onChanged: _babMateriList.isEmpty
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _selectedBabId = value;
+                            _selectedSubBabId = null;
+                          });
+                          if (value != null) {
+                            _loadSubBabMateri(value);
+                            _updateTitleFromMateri();
+                          }
+                        },
+                  hint: Text(languageProvider.getTranslatedText({
+                    'en': _babMateriList.isEmpty ? 'No chapters available' : 'Select Chapter',
+                    'id': _babMateriList.isEmpty ? 'Tidak ada bab' : 'Pilih Bab',
+                  })),
+                ),
+                SizedBox(height: 12),
+              ],
+
+              // Dropdown Sub Bab Materi (if bab is selected)
+              if (_useMateriTitle && _selectedBabId != null) ...[
+                DropdownButtonFormField<String>(
+                  decoration: InputDecoration(
+                    labelText: languageProvider.getTranslatedText({
+                      'en': 'Sub Chapter',
+                      'id': 'Sub Bab Materi',
+                    }),
+                    prefixIcon: Icon(Icons.article),
+                    border: OutlineInputBorder(),
+                  ),
+                  value: _selectedSubBabId,
+                  isExpanded: true,
+                  items: _subBabMateriList.isEmpty
+                      ? [
+                          DropdownMenuItem<String>(
+                            value: null,
+                            child: Text(languageProvider.getTranslatedText({
+                              'en': 'No sub chapters',
+                              'id': 'Tidak ada sub bab',
+                            })),
+                          )
+                        ]
+                      : _subBabMateriList.map((subBab) {
+                          return DropdownMenuItem<String>(
+                            value: subBab['id'].toString(),
+                            child: Text(_getSubBabName(subBab)),
+                          );
+                        }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedSubBabId = value;
+                    });
+                    _updateTitleFromMateri();
+                  },
+                  hint: Text(languageProvider.getTranslatedText({
+                    'en': 'Select Sub Chapter (optional)',
+                    'id': 'Pilih Sub Bab (opsional)',
+                  })),
+                ),
+                SizedBox(height: 12),
+              ],
+
+              // Judul Field
+              TextFormField(
+                controller: _judulController,
+                decoration: InputDecoration(
+                  labelText: '${languageProvider.getTranslatedText({'en': 'Title', 'id': 'Judul'})} *',
+                  prefixIcon: Icon(Icons.title),
+                  border: OutlineInputBorder(),
+                  helperText: _useMateriTitle 
+                      ? languageProvider.getTranslatedText({
+                          'en': 'Auto-filled from chapter/sub-chapter',
+                          'id': 'Otomatis dari bab/sub bab',
+                        })
+                      : languageProvider.getTranslatedText({
+                          'en': 'Enter title manually',
+                          'id': 'Tulis judul manual',
+                        }),
+                ),
+                readOnly: _useMateriTitle && (_selectedBabId != null || _selectedSubBabId != null),
+                validator: (value) => value == null || value.isEmpty
+                    ? languageProvider.getTranslatedText({'en': 'Required', 'id': 'Wajib diisi'})
+                    : null,
+              ),
+              SizedBox(height: 12),
+
+              // Deskripsi
+              TextFormField(
+                controller: _deskripsiController,
+                decoration: InputDecoration(
+                  labelText: languageProvider.getTranslatedText({'en': 'Description', 'id': 'Deskripsi'}),
+                  prefixIcon: Icon(Icons.description),
+                ),
+                maxLines: 3,
+              ),
+              SizedBox(height: 12),
+
+              // Tanggal
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.calendar_today),
+                title: Text(languageProvider.getTranslatedText({'en': 'Date', 'id': 'Tanggal'})),
+                subtitle: Text(_selectedDate != null
+                    ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
+                    : 'Pilih tanggal'),
+                trailing: Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: _selectedDate ?? DateTime.now(),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime.now().add(Duration(days: 365)),
+                  );
+                  if (date != null) {
+                    setState(() {
+                      _selectedDate = date;
+                      _selectedDay = _days[date.weekday - 1];
+                    });
+                  }
+                },
+              ),
+
+              // Batas Waktu (hanya untuk Tugas)
+              if (isAssignment) ...[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.alarm),
+                  title: Text(languageProvider.getTranslatedText({'en': 'Deadline', 'id': 'Batas Waktu'})),
+                  subtitle: Text(_deadline != null
+                      ? '${_deadline!.day}/${_deadline!.month}/${_deadline!.year} ${_deadline!.hour}:${_deadline!.minute.toString().padLeft(2, '0')}'
+                      : 'Pilih batas waktu (opsional)'),
+                  trailing: Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: _deadline ?? DateTime.now(),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(Duration(days: 365)),
+                    );
+                    if (date != null) {
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.now(),
+                      );
+                      if (time != null) {
+                        setState(() {
+                          _deadline = DateTime(
+                            date.year,
+                            date.month,
+                            date.day,
+                            time.hour,
+                            time.minute,
+                          );
+                        });
+                      }
+                    }
+                  },
+                ),
+              ],
+
+              // Pilih Siswa (hanya untuk target khusus)
+              if (widget.initialTarget == 'khusus' && _selectedClassId != null) ...[
+                SizedBox(height: 12),
+                Text(
+                  languageProvider.getTranslatedText({'en': 'Select Students', 'id': 'Pilih Siswa'}),
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                Container(
+                  height: 150,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: _studentList.isEmpty
+                      ? Center(child: Text('Tidak ada siswa'))
+                      : ListView.builder(
+                          itemCount: _studentList.length,
+                          itemBuilder: (context, index) {
+                            final student = _studentList[index];
+                            final studentId = student['id'].toString();
+                            return CheckboxListTile(
+                              title: Text(student['nama'] ?? 'Unknown'),
+                              subtitle: Text(student['nis'] ?? ''),
+                              value: _selectedStudents.contains(studentId),
+                              onChanged: (checked) {
+                                setState(() {
+                                  if (checked == true) {
+                                    _selectedStudents.add(studentId);
+                                  } else {
+                                    _selectedStudents.remove(studentId);
+                                  }
+                                });
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('Cancel'),
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+          child: Text(languageProvider.getTranslatedText({
+            'en': 'Cancel',
+            'id': 'Batal',
+          })),
         ),
         ElevatedButton(
-          onPressed: () {
-            Navigator.pop(context);
-            onActivityAdded();
-          },
-          child: Text('Add'),
+          onPressed: _isSubmitting ? null : _submitForm,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primaryColor,
+          ),
+          child: _isSubmitting
+              ? SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : Text(
+                  languageProvider.getTranslatedText({
+                    'en': 'Add',
+                    'id': 'Tambah',
+                  }),
+                  style: TextStyle(color: Colors.white),
+                ),
         ),
       ],
     );
