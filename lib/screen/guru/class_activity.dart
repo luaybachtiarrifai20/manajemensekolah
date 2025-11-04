@@ -1470,16 +1470,9 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
     _selectedSubjectId = widget.initialSubjectId;
     _selectedClassId = widget.initialClassId;
     
-    // If initial subject is provided, load its data
-    if (_selectedSubjectId != null) {
-      Future.delayed(Duration.zero, () {
-        widget.onSubjectSelected(_selectedSubjectId!);
-      });
-    }
-    
     // Debug logging
     if (kDebugMode) {
-      print('AddActivityDialog initialized');
+      print('===== AddActivityDialog INIT =====');
       print('Subject list count: ${widget.subjectList.length}');
       print('Schedule list count: ${widget.scheduleList.length}');
       print('Activity type: ${widget.activityType}');
@@ -1487,6 +1480,35 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
       print('Initial subject ID: $_selectedSubjectId');
       print('Initial class ID: $_selectedClassId');
       print('Initial date: $_selectedDate');
+    }
+    
+    // If initial subject is provided, load its data
+    if (_selectedSubjectId != null) {
+      Future.delayed(Duration.zero, () {
+        if (kDebugMode) {
+          print('Loading initial data for subject: $_selectedSubjectId');
+        }
+        
+        widget.onSubjectSelected(_selectedSubjectId!);
+        // Load bab materi for the initial subject
+        _loadBabMateri(_selectedSubjectId!);
+        
+        // If initial class is provided and target is 'khusus', load students
+        if (_selectedClassId != null && widget.initialTarget == 'khusus') {
+          if (kDebugMode) {
+            print('Loading students for class: $_selectedClassId');
+          }
+          _loadStudents();
+        }
+      });
+    } else {
+      if (kDebugMode) {
+        print('No initial subject ID - waiting for user selection');
+      }
+    }
+    
+    if (kDebugMode) {
+      print('=====================================');
     }
   }
 
@@ -1514,9 +1536,24 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
 
   Future<void> _loadBabMateri(String mataPelajaranId) async {
     try {
+      if (kDebugMode) {
+        print('===== LOADING BAB MATERI =====');
+        print('Mata Pelajaran ID: $mataPelajaranId');
+      }
+      
       final babList = await ApiSubjectService.getBabMateri(
         mataPelajaranId: mataPelajaranId,
       );
+      
+      if (kDebugMode) {
+        print('API Response - Bab count: ${babList.length}');
+        if (babList.isNotEmpty) {
+          print('First item structure: ${babList[0]}');
+          print('Available fields: ${babList[0].keys}');
+          print('Judul Bab: ${babList[0]['judul_bab']}');
+        }
+      }
+      
       setState(() {
         _babMateriList = babList;
         _selectedBabId = null;
@@ -1525,48 +1562,56 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
       });
       
       if (kDebugMode) {
-        print('===== BAB MATERI LOADED =====');
-        print('Count: ${babList.length}');
-        if (babList.isNotEmpty) {
-          print('First item structure: ${babList[0]}');
-          print('Available fields: ${babList[0].keys}');
-        }
+        print('State updated - _babMateriList.length: ${_babMateriList.length}');
         print('=============================');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error loading bab materi: $e');
+        print('ERROR loading bab materi: $e');
+        print('Stack trace: ${StackTrace.current}');
       }
     }
   }
 
   Future<void> _loadSubBabMateri(String babId) async {
     try {
+      if (kDebugMode) {
+        print('===== LOADING SUB BAB MATERI =====');
+        print('Bab ID: $babId');
+      }
+      
       final subBabList = await ApiSubjectService.getSubBabMateri(babId: babId);
+      
+      if (kDebugMode) {
+        print('API Response - Sub Bab count: ${subBabList.length}');
+        if (subBabList.isNotEmpty) {
+          print('First item structure: ${subBabList[0]}');
+          print('Available fields: ${subBabList[0].keys}');
+          print('Judul Sub Bab: ${subBabList[0]['judul_sub_bab']}');
+        }
+      }
+      
       setState(() {
         _subBabMateriList = subBabList;
         _selectedSubBabId = null;
       });
       
       if (kDebugMode) {
-        print('===== SUB BAB MATERI LOADED =====');
-        print('Count: ${subBabList.length}');
-        if (subBabList.isNotEmpty) {
-          print('First item structure: ${subBabList[0]}');
-          print('Available fields: ${subBabList[0].keys}');
-        }
-        print('=================================');
+        print('State updated - _subBabMateriList.length: ${_subBabMateriList.length}');
+        print('==================================');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error loading sub bab materi: $e');
+        print('ERROR loading sub bab materi: $e');
+        print('Stack trace: ${StackTrace.current}');
       }
     }
   }
 
   String _getBabName(dynamic bab) {
-    // Try multiple possible field names
-    return bab['nama']?.toString() ?? 
+    // Try multiple possible field names (backend returns 'judul_bab')
+    return bab['judul_bab']?.toString() ?? 
+           bab['nama']?.toString() ?? 
            bab['judul']?.toString() ?? 
            bab['title']?.toString() ??
            bab['name']?.toString() ??
@@ -1574,8 +1619,9 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
   }
 
   String _getSubBabName(dynamic subBab) {
-    // Try multiple possible field names
-    return subBab['nama']?.toString() ?? 
+    // Try multiple possible field names (backend returns 'judul_sub_bab')
+    return subBab['judul_sub_bab']?.toString() ?? 
+           subBab['nama']?.toString() ?? 
            subBab['judul']?.toString() ?? 
            subBab['title']?.toString() ??
            subBab['name']?.toString() ??
