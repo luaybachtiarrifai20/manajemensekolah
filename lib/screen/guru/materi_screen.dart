@@ -193,6 +193,12 @@ class MateriPageState extends State<MateriPage> {
 
       setState(() {
         _babMateriList = babMateri;
+        // Clear sub bab list when changing subject
+        _subBabMateriList.clear();
+        // Clear expanded and checked states
+        _expandedBab.clear();
+        _checkedBab.clear();
+        _checkedSubBab.clear();
         // Inisialisasi state expanded dan checked untuk setiap bab
         for (var bab in babMateri) {
           _expandedBab[bab['id']] = false;
@@ -219,12 +225,22 @@ class MateriPageState extends State<MateriPage> {
       );
 
       setState(() {
-        _subBabMateriList = subBabMateri
+        // Filter sub bab yang sesuai dengan babId
+        final newSubBabs = subBabMateri
             .where((subBab) => subBab['bab_id'] == babId)
             .toList();
-        // Inisialisasi state checked untuk setiap sub-bab
-        for (var subBab in _subBabMateriList) {
-          _checkedSubBab[subBab['id']] = false;
+        
+        // Hapus sub bab lama dari bab ini jika ada
+        _subBabMateriList.removeWhere((subBab) => subBab['bab_id'] == babId);
+        
+        // Tambahkan sub bab baru dari bab ini
+        _subBabMateriList.addAll(newSubBabs);
+        
+        // Inisialisasi state checked untuk setiap sub-bab baru
+        for (var subBab in newSubBabs) {
+          if (!_checkedSubBab.containsKey(subBab['id'])) {
+            _checkedSubBab[subBab['id']] = false;
+          }
         }
       });
     } catch (e) {
@@ -766,13 +782,13 @@ class MateriPageState extends State<MateriPage> {
                       ),
                     ),
 
-                    Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Header Bab
-                          Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header Bab
+                        Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Row(
                             children: [
                               Container(
                                 width: 40,
@@ -830,15 +846,15 @@ class MateriPageState extends State<MateriPage> {
                               ),
                             ],
                           ),
+                        ),
+                        
+                        // Sub Bab List (Expandable)
+                        if (isExpanded) ...[
+                          Divider(height: 1),
+                          _buildSubBabList(bab),
                         ],
-                      ),
+                      ],
                     ),
-
-                    // Sub Bab List (Expandable)
-                    if (isExpanded) ...[
-                      Divider(height: 1),
-                      _buildSubBabList(bab),
-                    ],
                   ],
                 ),
               ),
