@@ -21,6 +21,8 @@ class ClassActifityScreen extends StatefulWidget {
   final String? initialSubjectName;
   final String? initialClassId;
   final String? initialClassName;
+  final String? initialBabId;
+  final String? initialSubBabId;
   final bool autoShowActivityDialog;
   
   const ClassActifityScreen({
@@ -30,6 +32,8 @@ class ClassActifityScreen extends StatefulWidget {
     this.initialSubjectName,
     this.initialClassId,
     this.initialClassName,
+    this.initialBabId,
+    this.initialSubBabId,
     this.autoShowActivityDialog = false,
   });
 
@@ -380,6 +384,8 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
         initialDate: widget.initialDate,
         initialSubjectId: widget.initialSubjectId,
         initialClassId: widget.initialClassId,
+        initialBabId: widget.initialBabId,
+        initialSubBabId: widget.initialSubBabId,
       ),
     );
   }
@@ -1410,6 +1416,8 @@ class AddActivityDialog extends StatefulWidget {
   final DateTime? initialDate;
   final String? initialSubjectId;
   final String? initialClassId;
+  final String? initialBabId;
+  final String? initialSubBabId;
 
   const AddActivityDialog({
     super.key,
@@ -1427,6 +1435,8 @@ class AddActivityDialog extends StatefulWidget {
     this.initialDate,
     this.initialSubjectId,
     this.initialClassId,
+    this.initialBabId,
+    this.initialSubBabId,
   });
 
   @override
@@ -1469,6 +1479,13 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
     _selectedDay = _days[_selectedDate!.weekday - 1];
     _selectedSubjectId = widget.initialSubjectId;
     _selectedClassId = widget.initialClassId;
+    _selectedBabId = widget.initialBabId;
+    _selectedSubBabId = widget.initialSubBabId;
+    
+    // If initial bab is provided, enable material title mode
+    if (_selectedBabId != null || _selectedSubBabId != null) {
+      _useMateriTitle = true;
+    }
     
     // Debug logging
     if (kDebugMode) {
@@ -1479,6 +1496,9 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
       print('Initial target: ${widget.initialTarget}');
       print('Initial subject ID: $_selectedSubjectId');
       print('Initial class ID: $_selectedClassId');
+      print('Initial bab ID: $_selectedBabId');
+      print('Initial sub bab ID: $_selectedSubBabId');
+      print('Use materi title: $_useMateriTitle');
       print('Initial date: $_selectedDate');
     }
     
@@ -1491,7 +1511,15 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
         
         widget.onSubjectSelected(_selectedSubjectId!);
         // Load bab materi for the initial subject
-        _loadBabMateri(_selectedSubjectId!);
+        _loadBabMateri(_selectedSubjectId!).then((_) {
+          // After bab list loaded, load sub bab if initial bab is provided
+          if (_selectedBabId != null) {
+            if (kDebugMode) {
+              print('Loading sub bab for bab: $_selectedBabId');
+            }
+            _loadSubBabMateri(_selectedBabId!);
+          }
+        });
         
         // If initial class is provided and target is 'khusus', load students
         if (_selectedClassId != null && widget.initialTarget == 'khusus') {
@@ -1556,13 +1584,23 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
       
       setState(() {
         _babMateriList = babList;
-        _selectedBabId = null;
-        _selectedSubBabId = null;
-        _subBabMateriList = [];
+        // Only reset if no initial values were provided
+        if (widget.initialBabId == null) {
+          _selectedBabId = null;
+        }
+        if (widget.initialSubBabId == null) {
+          _selectedSubBabId = null;
+        }
+        // Only clear sub bab list if no initial sub bab
+        if (widget.initialSubBabId == null) {
+          _subBabMateriList = [];
+        }
       });
       
       if (kDebugMode) {
         print('State updated - _babMateriList.length: ${_babMateriList.length}');
+        print('Current _selectedBabId: $_selectedBabId');
+        print('Current _selectedSubBabId: $_selectedSubBabId');
         print('=============================');
       }
     } catch (e) {
@@ -1593,11 +1631,15 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
       
       setState(() {
         _subBabMateriList = subBabList;
-        _selectedSubBabId = null;
+        // Only reset if no initial value was provided
+        if (widget.initialSubBabId == null) {
+          _selectedSubBabId = null;
+        }
       });
       
       if (kDebugMode) {
         print('State updated - _subBabMateriList.length: ${_subBabMateriList.length}');
+        print('Current _selectedSubBabId: $_selectedSubBabId');
         print('==================================');
       }
     } catch (e) {
@@ -2074,7 +2116,11 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
                     prefixIcon: Icon(Icons.menu_book),
                     border: OutlineInputBorder(),
                   ),
-                  value: _selectedBabId,
+                  value: _babMateriList.isEmpty 
+                      ? null 
+                      : (_babMateriList.any((bab) => bab['id'].toString() == _selectedBabId) 
+                          ? _selectedBabId 
+                          : null),
                   isExpanded: true,
                   items: _babMateriList.isEmpty
                       ? null
@@ -2097,8 +2143,8 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
                           }
                         },
                   hint: Text(languageProvider.getTranslatedText({
-                    'en': _babMateriList.isEmpty ? 'No chapters available' : 'Select Chapter',
-                    'id': _babMateriList.isEmpty ? 'Tidak ada bab' : 'Pilih Bab',
+                    'en': _babMateriList.isEmpty ? 'Loading chapters...' : 'Select Chapter',
+                    'id': _babMateriList.isEmpty ? 'Memuat bab...' : 'Pilih Bab',
                   })),
                 ),
                 SizedBox(height: 12),
@@ -2115,18 +2161,14 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
                     prefixIcon: Icon(Icons.article),
                     border: OutlineInputBorder(),
                   ),
-                  value: _selectedSubBabId,
+                  value: _subBabMateriList.isEmpty
+                      ? null
+                      : (_subBabMateriList.any((subBab) => subBab['id'].toString() == _selectedSubBabId) 
+                          ? _selectedSubBabId 
+                          : null),
                   isExpanded: true,
                   items: _subBabMateriList.isEmpty
-                      ? [
-                          DropdownMenuItem<String>(
-                            value: null,
-                            child: Text(languageProvider.getTranslatedText({
-                              'en': 'No sub chapters',
-                              'id': 'Tidak ada sub bab',
-                            })),
-                          )
-                        ]
+                      ? null
                       : _subBabMateriList.map((subBab) {
                           return DropdownMenuItem<String>(
                             value: subBab['id'].toString(),
@@ -2140,8 +2182,8 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
                     _updateTitleFromMateri();
                   },
                   hint: Text(languageProvider.getTranslatedText({
-                    'en': 'Select Sub Chapter (optional)',
-                    'id': 'Pilih Sub Bab (opsional)',
+                    'en': _subBabMateriList.isEmpty ? 'Loading sub chapters...' : 'Select Sub Chapter (optional)',
+                    'id': _subBabMateriList.isEmpty ? 'Memuat sub bab...' : 'Pilih Sub Bab (opsional)',
                   })),
                 ),
                 SizedBox(height: 12),

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:manajemensekolah/components/empty_state.dart';
 import 'package:manajemensekolah/components/enhanced_search_bar.dart';
 import 'package:manajemensekolah/components/loading_screen.dart';
-import 'package:manajemensekolah/screen/guru/rpp_generate_screen.dart';
+import 'package:manajemensekolah/screen/guru/class_activity.dart';
 import 'package:manajemensekolah/services/api_subject_services.dart';
 import 'package:manajemensekolah/services/api_teacher_services.dart';
 import 'package:manajemensekolah/utils/color_utils.dart';
@@ -12,8 +12,19 @@ import 'package:provider/provider.dart';
 
 class MateriPage extends StatefulWidget {
   final Map<String, dynamic> guru;
+  final String? initialSubjectId;
+  final String? initialSubjectName;
+  final String? initialClassId;
+  final String? initialClassName;
 
-  const MateriPage({super.key, required this.guru});
+  const MateriPage({
+    super.key,
+    required this.guru,
+    this.initialSubjectId,
+    this.initialSubjectName,
+    this.initialClassId,
+    this.initialClassName,
+  });
 
   @override
   MateriPageState createState() => MateriPageState();
@@ -58,7 +69,7 @@ class MateriPageState extends State<MateriPage> {
         .cast<Map<String, dynamic>>();
   }
 
-  // Fungsi untuk navigate ke halaman generate RPP
+  // Fungsi untuk navigate ke halaman class activity dengan bab yang dipilih
   void _navigateToGenerateRPP() {
     final checkedBab = _getCheckedBab();
     final checkedSubBab = _getCheckedSubBab();
@@ -66,21 +77,45 @@ class MateriPageState extends State<MateriPage> {
     if (checkedBab.isEmpty && checkedSubBab.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Pilih minimal 1 bab atau sub bab untuk generate RPP'),
+          content: Text('Pilih minimal 1 bab atau sub bab untuk membuat aktivitas'),
         ),
       );
       return;
     }
 
+    String? selectedBabId;
+    String? selectedSubBabId;
+
+    // If sub bab is selected, get its parent bab and the sub bab itself
+    if (checkedSubBab.isNotEmpty) {
+      final firstSubBab = checkedSubBab.first;
+      selectedSubBabId = firstSubBab['id']?.toString();
+      selectedBabId = firstSubBab['bab_id']?.toString();
+      
+      if (kDebugMode) {
+        print('Selected sub bab: $selectedSubBabId, parent bab: $selectedBabId');
+      }
+    } 
+    // If only bab is selected (no sub bab)
+    else if (checkedBab.isNotEmpty) {
+      selectedBabId = checkedBab.first['id']?.toString();
+      
+      if (kDebugMode) {
+        print('Selected bab only: $selectedBabId');
+      }
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => RPPGeneratePage(
-          guru: widget.guru,
-          selectedMataPelajaran: _selectedMataPelajaran!,
-          mataPelajaranName: _getSelectedMataPelajaranName(),
-          checkedBab: checkedBab,
-          checkedSubBab: checkedSubBab,
+        builder: (context) => ClassActifityScreen(
+          initialSubjectId: _selectedMataPelajaran,
+          initialSubjectName: _getSelectedMataPelajaranName(),
+          initialClassId: widget.initialClassId,
+          initialClassName: widget.initialClassName,
+          initialBabId: selectedBabId,
+          initialSubBabId: selectedSubBabId,
+          autoShowActivityDialog: true,
         ),
       ),
     );
@@ -167,7 +202,12 @@ class MateriPageState extends State<MateriPage> {
         _isLoading = false;
         _debugInfo = '${mataPelajaran.length} mata pelajaran ditemukan';
 
-        if (mataPelajaran.isNotEmpty) {
+        // Use initialSubjectId if provided, otherwise use first subject
+        if (widget.initialSubjectId != null && 
+            mataPelajaran.any((mp) => mp['id'] == widget.initialSubjectId)) {
+          _selectedMataPelajaran = widget.initialSubjectId;
+          _loadBabMateri(_selectedMataPelajaran!);
+        } else if (mataPelajaran.isNotEmpty) {
           _selectedMataPelajaran = mataPelajaran[0]['id'];
           _loadBabMateri(_selectedMataPelajaran!);
         }

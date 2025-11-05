@@ -1572,6 +1572,10 @@ class TeachingScheduleScreenState extends State<TeachingScheduleScreen> {
                                         'id': _guruId,
                                         'nama': _guruNama,
                                       },
+                                      initialSubjectId: jadwal['mata_pelajaran_id']?.toString(),
+                                      initialSubjectName: jadwal['mata_pelajaran_nama']?.toString(),
+                                      initialClassId: jadwal['kelas_id']?.toString(),
+                                      initialClassName: jadwal['kelas_nama']?.toString(),
                                     ),
                                   ),
                                 );
