@@ -1517,7 +1517,13 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
             if (kDebugMode) {
               print('Loading sub bab for bab: $_selectedBabId');
             }
-            _loadSubBabMateri(_selectedBabId!);
+            _loadSubBabMateri(_selectedBabId!).then((_) {
+              // After sub bab loaded, update title
+              _updateTitleFromMateri();
+            });
+          } else {
+            // Only bab selected, update title
+            _updateTitleFromMateri();
           }
         });
         
@@ -1671,24 +1677,42 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
   }
 
   void _updateTitleFromMateri() {
-    String title = '';
+    String babName = '';
+    String subBabName = '';
     
+    // Get bab name if selected
+    if (_selectedBabId != null && _babMateriList.isNotEmpty) {
+      final bab = _babMateriList.firstWhere(
+        (item) => item['id'].toString() == _selectedBabId,
+        orElse: () => null,
+      );
+      if (bab != null) {
+        babName = _getBabName(bab);
+      }
+    }
+    
+    // Get sub bab name if selected
     if (_selectedSubBabId != null && _subBabMateriList.isNotEmpty) {
       final subBab = _subBabMateriList.firstWhere(
         (item) => item['id'].toString() == _selectedSubBabId,
         orElse: () => null,
       );
       if (subBab != null) {
-        title = _getSubBabName(subBab);
+        subBabName = _getSubBabName(subBab);
       }
-    } else if (_selectedBabId != null && _babMateriList.isNotEmpty) {
-      final bab = _babMateriList.firstWhere(
-        (item) => item['id'].toString() == _selectedBabId,
-        orElse: () => null,
-      );
-      if (bab != null) {
-        title = _getBabName(bab);
-      }
+    }
+    
+    // Build title based on what's selected
+    String title = '';
+    if (babName.isNotEmpty && subBabName.isNotEmpty) {
+      // Both selected: "Bab - Sub Bab"
+      title = '$babName - $subBabName';
+    } else if (babName.isNotEmpty) {
+      // Only bab selected
+      title = babName;
+    } else if (subBabName.isNotEmpty) {
+      // Only sub bab selected (edge case)
+      title = subBabName;
     }
     
     if (title.isNotEmpty && title != 'Unknown') {
