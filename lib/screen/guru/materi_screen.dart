@@ -246,6 +246,9 @@ class MateriPageState extends State<MateriPage> {
         }
         _debugInfo = '${babMateri.length} bab materi ditemukan';
       });
+      
+      // Load progress dari database
+      await _loadMateriProgress(mataPelajaranId);
     } catch (e) {
       setState(() {
         _debugInfo = 'Error: $e';
@@ -305,6 +308,9 @@ class MateriPageState extends State<MateriPage> {
       // Set status ceklis bab berdasarkan apakah semua sub bab sudah dicentang
       _checkedBab[babId] = allSubBabsChecked;
     });
+    
+    // Save to database
+    _saveProgress(babId, subBabId, value ?? false);
   }
 
   // Fungsi untuk menangani perubahan ceklis pada bab
@@ -320,6 +326,113 @@ class MateriPageState extends State<MateriPage> {
         _checkedSubBab[subBab['id']] = value ?? false;
       }
     });
+    
+    // Save to database (bab and all its sub-babs)
+    _saveBabAndSubBabsProgress(babId, value ?? false);
+  }
+
+  // Load materi progress from database
+  Future<void> _loadMateriProgress(String mataPelajaranId) async {
+    try {
+      final String? guruId = widget.guru['id'];
+      if (guruId == null) return;
+      
+      final progress = await ApiSubjectService.getMateriProgress(
+        guruId: guruId,
+        mataPelajaranId: mataPelajaranId,
+      );
+      
+      if (kDebugMode) {
+        print('Loaded progress: ${progress.length} items');
+      }
+      
+      setState(() {
+        // Apply checked state from database
+        for (var item in progress) {
+          final babId = item['bab_id'];
+          final subBabId = item['sub_bab_id'];
+          final isChecked = item['is_checked'] == 1 || item['is_checked'] == true;
+          
+          if (subBabId != null) {
+            // Sub bab checked
+            _checkedSubBab[subBabId.toString()] = isChecked;
+          } else if (babId != null) {
+            // Bab checked (no specific sub bab)
+            _checkedBab[babId.toString()] = isChecked;
+          }
+        }
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading progress: $e');
+      }
+    }
+  }
+
+  // Save single progress to database
+  Future<void> _saveProgress(String babId, String? subBabId, bool isChecked) async {
+    try {
+      final String? guruId = widget.guru['id'];
+      if (guruId == null || _selectedMataPelajaran == null) return;
+      
+      await ApiSubjectService.saveMateriProgress({
+        'guru_id': guruId,
+        'mata_pelajaran_id': _selectedMataPelajaran,
+        'bab_id': babId,
+        'sub_bab_id': subBabId,
+        'is_checked': isChecked,
+      });
+      
+      if (kDebugMode) {
+        print('Progress saved: bab=$babId, sub_bab=$subBabId, checked=$isChecked');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error saving progress: $e');
+      }
+    }
+  }
+
+  // Save bab and all its sub-babs progress to database
+  Future<void> _saveBabAndSubBabsProgress(String babId, bool isChecked) async {
+    try {
+      final String? guruId = widget.guru['id'];
+      if (guruId == null || _selectedMataPelajaran == null) return;
+      
+      // Prepare batch items
+      final List<Map<String, dynamic>> progressItems = [];
+      
+      // Add bab itself
+      progressItems.add({
+        'bab_id': babId,
+        'sub_bab_id': null,
+        'is_checked': isChecked,
+      });
+      
+      // Add all sub-babs of this bab
+      for (var subBab in _subBabMateriList.where((sb) => sb['bab_id'] == babId)) {
+        progressItems.add({
+          'bab_id': babId,
+          'sub_bab_id': subBab['id'],
+          'is_checked': isChecked,
+        });
+      }
+      
+      // Batch save
+      await ApiSubjectService.batchSaveMateriProgress({
+        'guru_id': guruId,
+        'mata_pelajaran_id': _selectedMataPelajaran,
+        'progress_items': progressItems,
+      });
+      
+      if (kDebugMode) {
+        print('Batch progress saved: ${progressItems.length} items');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error batch saving progress: $e');
+      }
+    }
   }
 
   // Navigasi ke halaman detail sub bab

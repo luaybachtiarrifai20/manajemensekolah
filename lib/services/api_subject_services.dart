@@ -303,4 +303,42 @@ class ApiSubjectService {
       throw Exception('Failed to download template: $e');
     }
   }
+
+  // ==================== MATERI PROGRESS METHODS ====================
+
+  // Get Materi Progress (checked state) for a teacher and subject
+  static Future<List<dynamic>> getMateriProgress({
+    required String guruId,
+    required String mataPelajaranId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/materi-progress?guru_id=$guruId&mata_pelajaran_id=$mataPelajaranId'),
+      headers: await _getHeaders(),
+    );
+
+    final result = _handleResponse(response);
+    return result is List ? result : [];
+  }
+
+  // Save or Update single materi progress (toggle checked state)
+  static Future<dynamic> saveMateriProgress(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/materi-progress'),
+      headers: await _getHeaders(),
+      body: json.encode(data),
+    );
+
+    return _handleResponse(response);
+  }
+
+  // Batch save materi progress (for saving multiple checkboxes at once)
+  static Future<dynamic> batchSaveMateriProgress(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/materi-progress/batch'),
+      headers: await _getHeaders(),
+      body: json.encode(data),
+    );
+
+    return _handleResponse(response);
+  }
 }
