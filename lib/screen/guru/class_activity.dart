@@ -390,6 +390,149 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
     );
   }
 
+  void _showEditActivityDialog(dynamic activity) {
+    showDialog(
+      context: context,
+      builder: (context) => AddActivityDialog(
+        teacherId: _teacherId,
+        teacherName: _teacherName,
+        scheduleList: _scheduleList,
+        subjectList: _subjectList,
+        chapterList: _chapterList,
+        subChapterList: _subChapterList,
+        onSubjectSelected: _loadMaterials,
+        onChapterSelected: _loadSubChapterMaterials,
+        onActivityAdded: _loadActivities,
+        initialTarget: activity['target'] ?? 'umum',
+        activityType: activity['jenis'] ?? 'tugas',
+        isEditMode: true,
+        activityData: activity,
+        initialDate: activity['tanggal'] != null 
+            ? DateTime.tryParse(activity['tanggal'].toString()) 
+            : null,
+        initialSubjectId: activity['mata_pelajaran_id']?.toString(),
+        initialClassId: activity['kelas_id']?.toString(),
+        initialBabId: activity['bab_id']?.toString(),
+        initialSubBabId: activity['sub_bab_id']?.toString(),
+      ),
+    );
+  }
+
+  Future<void> _deleteActivity(dynamic activity, LanguageProvider languageProvider) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          languageProvider.getTranslatedText({
+            'en': 'Delete Activity',
+            'id': 'Hapus Kegiatan',
+          }),
+        ),
+        content: Text(
+          languageProvider.getTranslatedText({
+            'en': 'Are you sure you want to delete "${activity['judul']}"? This action cannot be undone.',
+            'id': 'Apakah Anda yakin ingin menghapus "${activity['judul']}"? Tindakan ini tidak dapat dibatalkan.',
+          }),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              languageProvider.getTranslatedText({
+                'en': 'Cancel',
+                'id': 'Batal',
+              }),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              languageProvider.getTranslatedText({
+                'en': 'Delete',
+                'id': 'Hapus',
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await ApiClassActivityService.deleteKegiatan(activity['id'].toString());
+        
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              languageProvider.getTranslatedText({
+                'en': 'Activity deleted successfully',
+                'id': 'Kegiatan berhasil dihapus',
+              }),
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Refresh list
+        _loadActivities();
+      } catch (e) {
+        if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              languageProvider.getTranslatedText({
+                'en': 'Failed to delete activity: $e',
+                'id': 'Gagal menghapus kegiatan: $e',
+              }),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: color),
+            SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                color: color,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   List<dynamic> _getFilteredActivities() {
     final searchTerm = _searchController.text.toLowerCase();
     final now = DateTime.now();
@@ -1274,6 +1417,34 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
                               ),
                           ],
                         ),
+                        
+                        SizedBox(height: 12),
+                        
+                        // Action Buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            _buildActionButton(
+                              icon: Icons.edit,
+                              label: languageProvider.getTranslatedText({
+                                'en': 'Edit',
+                                'id': 'Edit',
+                              }),
+                              color: cardColor,
+                              onPressed: () => _showEditActivityDialog(activity),
+                            ),
+                            SizedBox(width: 8),
+                            _buildActionButton(
+                              icon: Icons.delete,
+                              label: languageProvider.getTranslatedText({
+                                'en': 'Delete',
+                                'id': 'Hapus',
+                              }),
+                              color: Colors.red,
+                              onPressed: () => _deleteActivity(activity, languageProvider),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
@@ -1421,6 +1592,8 @@ class AddActivityDialog extends StatefulWidget {
   final String? initialClassId;
   final String? initialBabId;
   final String? initialSubBabId;
+  final bool isEditMode;
+  final dynamic activityData;
 
   const AddActivityDialog({
     super.key,
@@ -1440,6 +1613,8 @@ class AddActivityDialog extends StatefulWidget {
     this.initialClassId,
     this.initialBabId,
     this.initialSubBabId,
+    this.isEditMode = false,
+    this.activityData,
   });
 
   @override
@@ -1484,6 +1659,25 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
     _selectedClassId = widget.initialClassId;
     _selectedBabId = widget.initialBabId;
     _selectedSubBabId = widget.initialSubBabId;
+    
+    // If in edit mode, populate form with existing data
+    if (widget.isEditMode && widget.activityData != null) {
+      _judulController.text = widget.activityData['judul']?.toString() ?? '';
+      _deskripsiController.text = widget.activityData['deskripsi']?.toString() ?? '';
+      
+      // Parse deadline if exists
+      if (widget.activityData['batas_waktu'] != null) {
+        _deadline = DateTime.tryParse(widget.activityData['batas_waktu'].toString());
+      }
+      
+      // Load selected students if target is khusus
+      if (widget.initialTarget == 'khusus' && widget.activityData['siswa_target'] != null) {
+        final siswaTarget = widget.activityData['siswa_target'];
+        if (siswaTarget is List) {
+          _selectedStudents.addAll(siswaTarget.map((s) => s.toString()));
+        }
+      }
+    }
     
     // If initial bab is provided, enable material title mode
     if (_selectedBabId != null || _selectedSubBabId != null) {
@@ -1872,7 +2066,17 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
         requestData['siswa_target'] = _selectedStudents;
       }
 
-      await ApiClassActivityService.tambahKegiatan(requestData);
+      // Call appropriate API based on mode
+      if (widget.isEditMode && widget.activityData != null) {
+        // Update existing activity
+        await ApiClassActivityService.updateKegiatan(
+          widget.activityData['id'].toString(),
+          requestData,
+        );
+      } else {
+        // Create new activity
+        await ApiClassActivityService.tambahKegiatan(requestData);
+      }
 
       if (!mounted) return;
       Navigator.pop(context);
@@ -1881,10 +2085,15 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            languageProvider.getTranslatedText({
-              'en': 'Activity added successfully',
-              'id': 'Kegiatan berhasil ditambahkan',
-            }),
+            widget.isEditMode
+                ? languageProvider.getTranslatedText({
+                    'en': 'Activity updated successfully',
+                    'id': 'Kegiatan berhasil diperbarui',
+                  })
+                : languageProvider.getTranslatedText({
+                    'en': 'Activity added successfully',
+                    'id': 'Kegiatan berhasil ditambahkan',
+                  }),
           ),
           backgroundColor: Colors.green,
         ),
@@ -1931,15 +2140,25 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
           SizedBox(width: 12),
           Expanded(
             child: Text(
-              isAssignment
-                  ? languageProvider.getTranslatedText({
-                      'en': 'Add Assignment',
-                      'id': 'Tambah Tugas',
-                    })
-                  : languageProvider.getTranslatedText({
-                      'en': 'Add Material',
-                      'id': 'Tambah Materi',
-                    }),
+              widget.isEditMode
+                  ? (isAssignment
+                      ? languageProvider.getTranslatedText({
+                          'en': 'Edit Assignment',
+                          'id': 'Edit Tugas',
+                        })
+                      : languageProvider.getTranslatedText({
+                          'en': 'Edit Material',
+                          'id': 'Edit Materi',
+                        }))
+                  : (isAssignment
+                      ? languageProvider.getTranslatedText({
+                          'en': 'Add Assignment',
+                          'id': 'Tambah Tugas',
+                        })
+                      : languageProvider.getTranslatedText({
+                          'en': 'Add Material',
+                          'id': 'Tambah Materi',
+                        })),
               style: TextStyle(fontSize: 18),
             ),
           ),
@@ -2380,10 +2599,15 @@ class _AddActivityDialogState extends State<AddActivityDialog> {
                   ),
                 )
               : Text(
-                  languageProvider.getTranslatedText({
-                    'en': 'Add',
-                    'id': 'Tambah',
-                  }),
+                  widget.isEditMode
+                      ? languageProvider.getTranslatedText({
+                          'en': 'Update',
+                          'id': 'Simpan Perubahan',
+                        })
+                      : languageProvider.getTranslatedText({
+                          'en': 'Add',
+                          'id': 'Tambah',
+                        }),
                   style: TextStyle(color: Colors.white),
                 ),
         ),
