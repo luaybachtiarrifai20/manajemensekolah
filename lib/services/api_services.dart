@@ -719,4 +719,16 @@ class ApiService {
     final response = await http.get(Uri.parse('$baseUrl/health'));
     return _handleResponse(response);
   }
+
+  // Manual payment entry by admin (for offline/cash payments)
+  Future<dynamic> inputPembayaranManual(Map<String, dynamic> data) async {
+    try {
+      return await post('/pembayaran/manual', data);
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error input pembayaran manual: $e');
+      }
+      rethrow;
+    }
+  }
 }

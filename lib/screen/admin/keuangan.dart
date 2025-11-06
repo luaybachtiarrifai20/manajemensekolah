@@ -1281,7 +1281,7 @@ class KeuanganScreenState extends State<KeuanganScreen>
       case 'pending':
         statusColor = Colors.orange;
         statusIcon = Icons.pending;
-        statusText = 'MENUNGGU VERIFIKASI';
+        statusText = 'MENUNGGU';
         break;
       case 'unpaid':
       default:
@@ -1298,55 +1298,324 @@ class KeuanganScreenState extends State<KeuanganScreen>
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey.shade200),
       ),
-      child: Row(
+      child: Stack(
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(statusIcon, color: statusColor, size: 16),
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tagihan['jenis_pembayaran_nama'] ?? 'Tagihan',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          // Status badge di pojok kanan atas
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: statusColor.withOpacity(0.3)),
+              ),
+              child: Text(
+                statusText,
+                style: TextStyle(
+                  color: statusColor,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
                 ),
-                Text(
-                  'Rp ${tagihan['jumlah']}',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                ),
-                if (tagihan['jatuh_tempo'] != null)
-                  Text(
-                    'Jatuh tempo: ${tagihan['jatuh_tempo']?.split('T')[0] ?? '-'}',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-                  ),
-              ],
-            ),
-          ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: statusColor.withOpacity(0.3)),
-            ),
-            child: Text(
-              statusText,
-              style: TextStyle(
-                color: statusColor,
-                fontSize: 9,
-                fontWeight: FontWeight.bold,
               ),
             ),
           ),
+          // Content utama
+          Padding(
+            padding: EdgeInsets.only(right: 100, bottom: status == 'unpaid' ? 35 : 0),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(statusIcon, color: statusColor, size: 16),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tagihan['jenis_pembayaran_nama'] ?? 'Tagihan',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
+                      Text(
+                        'Rp ${tagihan['jumlah']}',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                      if (tagihan['jatuh_tempo'] != null)
+                        Text(
+                          'Jatuh tempo: ${tagihan['jatuh_tempo']?.split('T')[0] ?? '-'}',
+                          style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Tombol bayar di pojok kanan bawah untuk status unpaid
+          if (status == 'unpaid')
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: ElevatedButton.icon(
+                onPressed: () => _showManualPaymentDialog(tagihan),
+                icon: Icon(Icons.payment, size: 14),
+                label: Text(
+                  'Bayar',
+                  style: TextStyle(fontSize: 10),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  minimumSize: Size(0, 28),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  // Dialog untuk input pembayaran manual
+  void _showManualPaymentDialog(Map<String, dynamic> tagihan) {
+    final TextEditingController jumlahController = TextEditingController(
+      text: tagihan['jumlah']?.toString() ?? '',
+    );
+    final TextEditingController tanggalController = TextEditingController(
+      text: DateTime.now().toString().split(' ')[0],
+    );
+    String metodeBayar = 'cash';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.payment, color: Colors.blue),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Input Pembayaran Manual',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Info Tagihan
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Detail Tagihan',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade900,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Jenis: ${tagihan['jenis_pembayaran_nama'] ?? '-'}',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                      Text(
+                        'Siswa: ${tagihan['siswa_nama'] ?? '-'}',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                      Text(
+                        'Kelas: ${tagihan['kelas_nama'] ?? '-'}',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 16),
+                
+                // Metode Pembayaran
+                Text(
+                  'Metode Pembayaran',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: metodeBayar,
+                      isExpanded: true,
+                      items: [
+                        DropdownMenuItem(
+                          value: 'cash',
+                          child: Row(
+                            children: [
+                              Icon(Icons.money, size: 16, color: Colors.green),
+                              SizedBox(width: 8),
+                              Text('Tunai'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'transfer',
+                          child: Row(
+                            children: [
+                              Icon(Icons.account_balance, size: 16, color: Colors.blue),
+                              SizedBox(width: 8),
+                              Text('Transfer Bank'),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setDialogState(() {
+                          metodeBayar = value!;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                
+                // Jumlah Bayar
+                Text(
+                  'Jumlah Bayar (Rp)',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                TextField(
+                  controller: jumlahController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    hintText: 'Masukkan jumlah bayar',
+                    prefixText: 'Rp ',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                
+                // Tanggal Bayar
+                Text(
+                  'Tanggal Bayar',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                TextField(
+                  controller: tanggalController,
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    hintText: 'Pilih tanggal',
+                    suffixIcon: Icon(Icons.calendar_today),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: DateTime.now(),
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now(),
+                    );
+                    if (date != null) {
+                      setDialogState(() {
+                        tanggalController.text = date.toString().split(' ')[0];
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Batal'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                if (jumlahController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Jumlah bayar harus diisi')),
+                  );
+                  return;
+                }
+                
+                try {
+                  await _apiService.inputPembayaranManual({
+                    'tagihan_id': tagihan['id'],
+                    'metode_bayar': metodeBayar,
+                    'jumlah_bayar': int.parse(jumlahController.text),
+                    'tanggal_bayar': tanggalController.text,
+                  });
+                  
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Pembayaran berhasil dicatat'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  
+                  // Reload data
+                  _loadData();
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Gagal mencatat pembayaran: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              icon: Icon(Icons.save),
+              label: Text('Simpan'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

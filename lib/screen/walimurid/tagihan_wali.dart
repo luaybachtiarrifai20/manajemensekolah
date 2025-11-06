@@ -1083,25 +1083,33 @@ class TagihanWaliScreenState extends State<TagihanWaliScreen>
                 ),
               SizedBox(height: 4),
               Expanded(
-                child: filteredTagihan.isEmpty
-                    ? EmptyState(
-                        title: 'Tidak ada tagihan',
-                        subtitle:
-                            _searchController.text.isEmpty &&
-                                _selectedFilter == 'Semua'
-                            ? 'Semua tagihan telah lunas'
-                            : 'Tidak ditemukan hasil pencarian',
-                        icon: Icons.receipt,
-                      )
-                    : ListView.builder(
-                        itemCount: filteredTagihan.length,
-                        itemBuilder: (context, index) {
-                          return _buildTagihanCard(
-                            filteredTagihan[index],
-                            index,
-                          );
-                        },
-                      ),
+                child: RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: filteredTagihan.isEmpty
+                      ? ListView(
+                          children: [
+                            SizedBox(height: 100),
+                            EmptyState(
+                              title: 'Tidak ada tagihan',
+                              subtitle:
+                                  _searchController.text.isEmpty &&
+                                      _selectedFilter == 'Semua'
+                                  ? 'Semua tagihan telah lunas'
+                                  : 'Tidak ditemukan hasil pencarian',
+                              icon: Icons.receipt,
+                            ),
+                          ],
+                        )
+                      : ListView.builder(
+                          itemCount: filteredTagihan.length,
+                          itemBuilder: (context, index) {
+                            return _buildTagihanCard(
+                              filteredTagihan[index],
+                              index,
+                            );
+                          },
+                        ),
+                ),
               ),
             ],
           ),
