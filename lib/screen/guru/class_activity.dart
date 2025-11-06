@@ -989,28 +989,31 @@ class ClassActifityScreenState extends State<ClassActifityScreen>
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    activity['judul'] ?? 'Judul Kegiatan',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black,
+                              child: Padding(
+                                padding: EdgeInsets.only(right: 80), // Add padding to avoid badge overlap
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      activity['judul'] ?? 'Judul Kegiatan',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                      maxLines: 3,  // Increase to 3 lines for long titles
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  SizedBox(height: 2),
-                                  Text(
-                                    '${activity['mata_pelajaran_nama']} • ${activity['kelas_nama']}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
+                                    SizedBox(height: 2),
+                                    Text(
+                                      '${activity['mata_pelajaran_nama']} • ${activity['kelas_nama']}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ],
