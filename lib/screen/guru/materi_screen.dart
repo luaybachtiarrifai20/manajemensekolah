@@ -53,6 +53,10 @@ class MateriPageState extends State<MateriPage> {
   // State untuk ceklis
   final Map<String, bool> _checkedBab = {};
   final Map<String, bool> _checkedSubBab = {};
+  
+  // State untuk generated (sudah pernah di-generate)
+  final Map<String, bool> _generatedBab = {};
+  final Map<String, bool> _generatedSubBab = {};
 
   List<Map<String, dynamic>> _getCheckedBab() {
     return _babMateriList
@@ -68,16 +72,39 @@ class MateriPageState extends State<MateriPage> {
         .toList()
         .cast<Map<String, dynamic>>();
   }
+  
+  // Fungsi untuk mendapatkan bab yang dicentang tapi belum di-generate
+  List<Map<String, dynamic>> _getCheckedNotGeneratedBab() {
+    return _babMateriList
+        .where((bab) => 
+          _checkedBab[bab['id']] == true && 
+          _generatedBab[bab['id']] != true)
+        .toList()
+        .cast<Map<String, dynamic>>();
+  }
+
+  // Fungsi untuk mendapatkan sub bab yang dicentang tapi belum di-generate
+  List<Map<String, dynamic>> _getCheckedNotGeneratedSubBab() {
+    return _subBabMateriList
+        .where((subBab) => 
+          _checkedSubBab[subBab['id']] == true && 
+          _generatedSubBab[subBab['id']] != true)
+        .toList()
+        .cast<Map<String, dynamic>>();
+  }
 
   // Fungsi untuk navigate ke halaman class activity dengan bab yang dipilih
-  void _navigateToGenerateRPP() {
-    final checkedBab = _getCheckedBab();
-    final checkedSubBab = _getCheckedSubBab();
+  void _navigateToGenerateRPP({bool allowRegenerate = false}) async {
+    // Gunakan yang belum di-generate, atau semua yang checked jika allowRegenerate = true
+    final checkedBab = allowRegenerate ? _getCheckedBab() : _getCheckedNotGeneratedBab();
+    final checkedSubBab = allowRegenerate ? _getCheckedSubBab() : _getCheckedNotGeneratedSubBab();
 
     if (checkedBab.isEmpty && checkedSubBab.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Pilih minimal 1 bab atau sub bab untuk membuat aktivitas'),
+          content: Text(allowRegenerate 
+            ? 'Pilih minimal 1 bab atau sub bab untuk regenerate'
+            : 'Tidak ada materi baru yang bisa di-generate. Gunakan opsi "Regenerate" untuk materi yang sudah ada.'),
         ),
       );
       return;
@@ -105,6 +132,11 @@ class MateriPageState extends State<MateriPage> {
       }
     }
 
+    // Mark as generated sebelum navigate
+    await _markSelectedAsGenerated(checkedBab, checkedSubBab);
+
+    if (!mounted) return;
+    
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -119,6 +151,61 @@ class MateriPageState extends State<MateriPage> {
         ),
       ),
     );
+  }
+  
+  // Mark selected materials as generated
+  Future<void> _markSelectedAsGenerated(
+    List<Map<String, dynamic>> babs,
+    List<Map<String, dynamic>> subBabs,
+  ) async {
+    try {
+      final String? guruId = widget.guru['id'];
+      if (guruId == null || _selectedMataPelajaran == null) return;
+      
+      final List<Map<String, dynamic>> items = [];
+      
+      // Add babs
+      for (var bab in babs) {
+        items.add({
+          'bab_id': bab['id'],
+          'sub_bab_id': null,
+        });
+      }
+      
+      // Add sub-babs
+      for (var subBab in subBabs) {
+        items.add({
+          'bab_id': subBab['bab_id'],
+          'sub_bab_id': subBab['id'],
+        });
+      }
+      
+      if (items.isEmpty) return;
+      
+      await ApiSubjectService.markMateriGenerated({
+        'guru_id': guruId,
+        'mata_pelajaran_id': _selectedMataPelajaran,
+        'items': items,
+      });
+      
+      // Update local state
+      setState(() {
+        for (var bab in babs) {
+          _generatedBab[bab['id']] = true;
+        }
+        for (var subBab in subBabs) {
+          _generatedSubBab[subBab['id']] = true;
+        }
+      });
+      
+      if (kDebugMode) {
+        print('Marked ${items.length} items as generated');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error marking as generated: $e');
+      }
+    }
   }
 
   bool _isLoading = false;
@@ -235,14 +322,17 @@ class MateriPageState extends State<MateriPage> {
         _babMateriList = babMateri;
         // Clear sub bab list when changing subject
         _subBabMateriList.clear();
-        // Clear expanded and checked states
+        // Clear expanded, checked, and generated states
         _expandedBab.clear();
         _checkedBab.clear();
         _checkedSubBab.clear();
+        _generatedBab.clear();
+        _generatedSubBab.clear();
         // Inisialisasi state expanded dan checked untuk setiap bab
         for (var bab in babMateri) {
           _expandedBab[bab['id']] = false;
           _checkedBab[bab['id']] = false;
+          _generatedBab[bab['id']] = false;
         }
         _debugInfo = '${babMateri.length} bab materi ditemukan';
       });
@@ -299,6 +389,11 @@ class MateriPageState extends State<MateriPage> {
   void _handleSubBabCheck(String subBabId, String babId, bool? value) {
     setState(() {
       _checkedSubBab[subBabId] = value ?? false;
+      
+      // Jika di-unceklis, reset is_generated juga
+      if (!(value ?? false)) {
+        _generatedSubBab[subBabId] = false;
+      }
 
       // Cek apakah semua sub bab dalam bab ini sudah dicentang
       final allSubBabsChecked = _subBabMateriList
@@ -307,6 +402,11 @@ class MateriPageState extends State<MateriPage> {
 
       // Set status ceklis bab berdasarkan apakah semua sub bab sudah dicentang
       _checkedBab[babId] = allSubBabsChecked;
+      
+      // Jika bab menjadi unchecked, reset is_generated bab juga
+      if (!allSubBabsChecked) {
+        _generatedBab[babId] = false;
+      }
     });
     
     // Save to database
@@ -317,6 +417,11 @@ class MateriPageState extends State<MateriPage> {
   void _handleBabCheck(String babId, bool? value) {
     setState(() {
       _checkedBab[babId] = value ?? false;
+      
+      // Jika di-unceklis, reset is_generated juga
+      if (!(value ?? false)) {
+        _generatedBab[babId] = false;
+      }
 
       // Jika bab dicentang/tidak dicentang, set semua sub bab dalam bab tersebut
       // dengan nilai yang sama
@@ -324,6 +429,11 @@ class MateriPageState extends State<MateriPage> {
         (subBab) => subBab['bab_id'] == babId,
       )) {
         _checkedSubBab[subBab['id']] = value ?? false;
+        
+        // Jika di-unceklis, reset is_generated sub bab juga
+        if (!(value ?? false)) {
+          _generatedSubBab[subBab['id']] = false;
+        }
       }
     });
     
@@ -347,18 +457,21 @@ class MateriPageState extends State<MateriPage> {
       }
       
       setState(() {
-        // Apply checked state from database
+        // Apply checked and generated state from database
         for (var item in progress) {
           final babId = item['bab_id'];
           final subBabId = item['sub_bab_id'];
           final isChecked = item['is_checked'] == 1 || item['is_checked'] == true;
+          final isGenerated = item['is_generated'] == 1 || item['is_generated'] == true;
           
           if (subBabId != null) {
-            // Sub bab checked
+            // Sub bab checked and generated status
             _checkedSubBab[subBabId.toString()] = isChecked;
+            _generatedSubBab[subBabId.toString()] = isGenerated;
           } else if (babId != null) {
-            // Bab checked (no specific sub bab)
+            // Bab checked and generated status (no specific sub bab)
             _checkedBab[babId.toString()] = isChecked;
+            _generatedBab[babId.toString()] = isGenerated;
           }
         }
       });
@@ -765,23 +878,55 @@ class MateriPageState extends State<MateriPage> {
 
           // Tombol Generate RPP jika ada yang dicentang
           if (totalChecked > 0) ...[
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _navigateToGenerateRPP,
-                icon: Icon(Icons.auto_awesome, size: 20),
-                label: Text(
-                  '${languageProvider.getTranslatedText({'en': 'Generate RPP', 'id': 'Generate RPP'})} ($totalChecked ${languageProvider.getTranslatedText({'en': 'selected', 'id': 'dipilih'})})',
+            Row(
+              children: [
+                // Tombol Generate (untuk yang baru / belum di-generate)
+                Expanded(
+                  flex: _getCheckedNotGeneratedCount() > 0 ? 3 : 0,
+                  child: _getCheckedNotGeneratedCount() > 0
+                    ? ElevatedButton.icon(
+                        onPressed: () => _navigateToGenerateRPP(allowRegenerate: false),
+                        icon: Icon(Icons.auto_awesome, size: 18),
+                        label: Text(
+                          'Generate (${_getCheckedNotGeneratedCount()})',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      )
+                    : SizedBox.shrink(),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF10B981),
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                if (_getCheckedNotGeneratedCount() > 0) SizedBox(width: 8),
+                // Tombol Regenerate (untuk semua yang checked)
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _navigateToGenerateRPP(allowRegenerate: true),
+                    icon: Icon(Icons.refresh, size: 18),
+                    label: Text(
+                      languageProvider.getTranslatedText({
+                        'en': 'Regenerate',
+                        'id': 'Regenerate',
+                      }),
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF8B5CF6),
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
             SizedBox(height: 12),
           ],
@@ -990,6 +1135,9 @@ class MateriPageState extends State<MateriPage> {
                                 onChanged: (value) {
                                   _handleBabCheck(bab['id'], value);
                                 },
+                                activeColor: _generatedBab[bab['id']] == true 
+                                    ? Color(0xFF8B5CF6)
+                                    : Color(0xFF10B981),
                               ),
                               Icon(
                                 isExpanded
@@ -1071,6 +1219,9 @@ class MateriPageState extends State<MateriPage> {
                     onChanged: (value) {
                       _handleSubBabCheck(subBab['id'], bab['id'], value);
                     },
+                    activeColor: _generatedSubBab[subBab['id']] == true 
+                        ? Color(0xFF8B5CF6)
+                        : Color(0xFF10B981),
                   ),
                   onTap: () {
                     _navigateToSubBabDetail(subBab, bab);
@@ -1098,6 +1249,10 @@ class MateriPageState extends State<MateriPage> {
         .where((checked) => checked)
         .length;
     return babChecked + subBabChecked;
+  }
+  
+  int _getCheckedNotGeneratedCount() {
+    return _getCheckedNotGeneratedBab().length + _getCheckedNotGeneratedSubBab().length;
   }
 }
 

@@ -341,4 +341,26 @@ class ApiSubjectService {
 
     return _handleResponse(response);
   }
+
+  // Mark materi as generated (after RPP/activity generation)
+  static Future<dynamic> markMateriGenerated(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/materi-progress/mark-generated'),
+      headers: await _getHeaders(),
+      body: json.encode(data),
+    );
+
+    return _handleResponse(response);
+  }
+
+  // Reset generated status (to allow regeneration)
+  static Future<dynamic> resetMateriGenerated(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/materi-progress/reset-generated'),
+      headers: await _getHeaders(),
+      body: json.encode(data),
+    );
+
+    return _handleResponse(response);
+  }
 }
