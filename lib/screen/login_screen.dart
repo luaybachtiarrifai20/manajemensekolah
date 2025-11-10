@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:manajemensekolah/services/api_services.dart';
+import 'package:manajemensekolah/services/fcm_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -270,6 +271,35 @@ class LoginScreenState extends State<LoginScreen> {
 
     // Clear force logout flag
     await prefs.setBool('force_logout', false);
+    
+    // Initialize FCM after successful login
+    try {
+      await FCMService().initialize();
+      if (kDebugMode) print('✅ FCM initialized after login');
+      
+      // Check for unpaid tagihan and send notification (for wali murid)
+      await _checkUnpaidTagihan();
+    } catch (e) {
+      if (kDebugMode) print('❌ Error initializing FCM after login: $e');
+    }
+  }
+
+  // Check unpaid tagihan on login
+  Future<void> _checkUnpaidTagihan() async {
+    try {
+      if (kDebugMode) print('🔍 Checking unpaid tagihan...');
+      
+      final apiService = ApiService();
+      final response = await apiService.post('/notifications/check-unpaid-tagihan', {});
+      
+      if (kDebugMode) {
+        print('✅ Unpaid tagihan check completed');
+        print('   Unpaid count: ${response['unpaidCount']}');
+      }
+    } catch (e) {
+      if (kDebugMode) print('❌ Error checking unpaid tagihan: $e');
+      // Don't block login on error
+    }
   }
 
   Future<void> _selectSchool(String sekolahId) async {

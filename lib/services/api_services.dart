@@ -10,15 +10,24 @@ import 'package:manajemensekolah/screen/login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  // static const String baseUrl = 'http://10.0.2.2:3000/api'; // Android emulator
-  static const String baseUrl =
-      'http://localhost:3000/api'; // iOS simulator atau web
+  // static String get baseUrl {
+  //   if (Platform.isAndroid) {
+  //     // Android emulator menggunakan 10.0.2.2 sebagai localhost
+  //     return 'https://backendmanajemensekolah.vercel.app/api';
+  //   } else if (Platform.isIOS) {
+  //     // iOS simulator menggunakan localhost
+  //     return 'https://backendmanajemensekolah.vercel.app/api';
+  //   } else {
+  //     // Web atau platform lain menggunakan localhost
+  //     return 'https://backendmanajemensekolah.vercel.app/api';
+  //   }
+  // }
 
-  // static const String baseUrl = 'https://backendmanajemensekolah2.vercel.app/api';
-  // static const String baseUrl = 'https://libra.web.id/apimanajemen';
-
-  // static const String baseUrl = 'http://aieasytech.id/api';
-  // static const String baseUrl = 'http://192.168.1.100:3000/api';
+  // Uncomment salah satu baris di bawah ini untuk menggunakan URL production
+  // static const String baseUrlProd = 'https://backendmanajemensekolah2.vercel.app/api';
+  // static const String baseUrlProd = 'https://libra.web.id/apimanajemen';
+  // static const String baseUrlProd = 'http://aieasytech.id/api';
+  static const String baseUrl = 'https://backendmanajemensekolah.vercel.app/api';
 
   Future<dynamic> get(String endpoint) async {
     try {

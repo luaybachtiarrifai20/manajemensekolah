@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:manajemensekolah/components/error_handler.dart';
 import 'package:manajemensekolah/components/token_service.dart';
+import 'package:manajemensekolah/firebase_options.dart';
+import 'package:manajemensekolah/services/fcm_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:manajemensekolah/screen/dashboard.dart';
@@ -22,6 +26,30 @@ void main() async {
   
   // Initialize language provider and load saved language
   await languageProvider.loadSavedLanguage();
+  
+  // Initialize Firebase with generated options
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    if (kDebugMode) print('✅ Firebase initialized');
+    
+    // Set background message handler
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    if (kDebugMode) print('❌ Firebase initialization error: $e');
+  }
+  
+  // Initialize FCM if user is logged in
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token != null && token.isNotEmpty) {
+      await FCMService().initialize();
+    }
+  } catch (e) {
+    if (kDebugMode) print('❌ FCM initialization error: $e');
+  }
   
   // Setup error handling (non-blocking)
   _setupErrorHandling();
